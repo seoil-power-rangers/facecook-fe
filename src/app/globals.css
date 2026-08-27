@@ -1,5 +1,23 @@
 @import "tailwindcss";
 
+@theme {
+  /* 시안(Figma)에서 추출한 값 — 총학생회 색상표가 오면 여기만 교체 */
+  --color-primary: #3b5bf5;
+  --color-primary-soft: #edf1ff;
+  --color-surface: #f2f4f9;
+  --color-line: #ebedf3;
+  --color-ink: #16181d;
+  --color-muted: #8a8f9c;
+  --color-warn: #f5893b;
+  --color-danger: #f04452;
+
+  --font-sans: var(--font-inter), "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+
+  /* 모바일 프레임 */
+  --spacing-gutter: 20px;
+}
+
 body {
-  font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+  background: #fff;
+  color: var(--color-ink);
 }
