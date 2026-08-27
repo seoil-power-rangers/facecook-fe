@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useSession } from "@ui/공통/session";
 
-const LOGIN_PATH = "/admin/login";
+const LOGIN_PATH = "/login";
 
 /**
  * AUTH-04 — 관리자로 로그인하지 않았으면 관리자 페이지를 못 본다.
@@ -18,11 +18,9 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const pathname = usePathname();
   const { session } = useSession();
 
-  const isLoginPage = pathname === LOGIN_PATH;
-  const allowed = isLoginPage || session.role === "admin";
+  const allowed = session.role === "admin";
 
   useEffect(() => {
     if (!allowed) {

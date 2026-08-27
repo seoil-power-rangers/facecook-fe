@@ -8,6 +8,7 @@ import { InfoBox } from "@ui/공통/InfoBox";
 import { Tag } from "@ui/공통/Tag";
 import { EVENT, MBTI_NICKNAMES } from "@ui/공통/constants";
 import { useOnboarding } from "@ui/공통/onboarding";
+import { useSession } from "@ui/공통/session";
 
 /**
  * 07 온보딩 완료 — 방금 만든 프로필을 한 번 보여주고 본 서비스로 넘긴다.
@@ -16,12 +17,14 @@ import { useOnboarding } from "@ui/공통/onboarding";
 export function OnboardingDoneScreen() {
   const router = useRouter();
   const { draft, reset } = useOnboarding();
+  const { signIn } = useSession();
 
   const mbti = draft.mbti.join("");
   const nickname = draft.nickname || "새내기";
 
   const start = () => {
     // 서버가 붙으면 여기 오기 전에 User + Profile 생성을 끝낸다.
+    signIn({ role: "participant", name: nickname });
     reset();
     router.push("/main");
   };

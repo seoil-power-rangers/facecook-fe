@@ -23,7 +23,7 @@ export function AdminShell({
 
   const logout = () => {
     signOut();
-    router.replace("/admin/login");
+    router.replace("/login");
   };
 
   return (

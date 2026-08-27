@@ -52,7 +52,7 @@ export function QrEntryScreen() {
           <Button
             variant="secondary"
             fullWidth
-            onClick={() => router.push("/onboarding/email")}
+            onClick={() => router.push("/login")}
           >
             이미 가입했어요 · 로그인
           </Button>

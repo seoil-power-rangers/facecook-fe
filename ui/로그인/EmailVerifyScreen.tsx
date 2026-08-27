@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 import { Button } from "@ui/공통/Button";
@@ -9,8 +9,9 @@ import { CheckRow } from "@ui/공통/CheckRow";
 import { InfoBox } from "@ui/공통/InfoBox";
 import { StepHeader, Accent } from "@ui/공통/StepHeader";
 import { TextField } from "@ui/공통/TextField";
-import { CODE_LENGTH, CODE_TTL_SECONDS, EVENT, TERMS } from "@ui/공통/constants";
+import { CODE_LENGTH, EVENT, TERMS } from "@ui/공통/constants";
 import { useOnboarding } from "@ui/공통/onboarding";
+import { useVerificationCode } from "./verificationCode";
 
 const REQUIRED_TERM_IDS: string[] = TERMS.filter((term) => term.required).map(
   (term) => term.id,
@@ -23,29 +24,13 @@ const REQUIRED_TERM_IDS: string[] = TERMS.filter((term) => term.required).map(
 export function EmailVerifyScreen() {
   const router = useRouter();
   const { draft, set, update } = useOnboarding();
-  const [code, setCode] = useState("");
-  const [left, setLeft] = useState<number | null>(null);
+  const { code, change, request, sent, expired, filled, remaining } =
+    useVerificationCode();
   const [termsOpen, setTermsOpen] = useState(false);
 
-  const sent = left !== null;
-  const expired = left === 0;
   const agreed = draft.agreedTerms;
   const requiredAgreed = REQUIRED_TERM_IDS.every((id) => agreed.includes(id));
   const allAgreed = agreed.length === TERMS.length;
-
-  useEffect(() => {
-    if (left === null || left <= 0) {
-      return;
-    }
-    const id = setInterval(() => setLeft((value) => (value ?? 0) - 1), 1000);
-    return () => clearInterval(id);
-  }, [left]);
-
-  const requestCode = () => {
-    // 서버가 붙기 전까지는 타이머만 돌린다.
-    setCode("");
-    setLeft(CODE_TTL_SECONDS);
-  };
 
   const toggleTerm = (id: string) =>
     update((prev) => ({
@@ -77,10 +62,7 @@ export function EmailVerifyScreen() {
     });
 
   const canSubmit =
-    draft.email.includes("@") &&
-    code.length === CODE_LENGTH &&
-    !expired &&
-    requiredAgreed;
+    draft.email.includes("@") && filled && !expired && requiredAgreed;
 
   return (
     <div className="flex min-h-full flex-col">
@@ -105,7 +87,7 @@ export function EmailVerifyScreen() {
           trailing={
             <button
               type="button"
-              onClick={requestCode}
+              onClick={request}
               disabled={!draft.email.includes("@")}
               className="shrink-0 text-[13px] font-bold text-(--color-primary) disabled:text-(--color-text-muted)"
             >
@@ -122,7 +104,7 @@ export function EmailVerifyScreen() {
             placeholder="000000"
             disabled={!sent}
             value={code}
-            onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))}
+            onChange={(event) => change(event.target.value)}
             className="tracking-[0.3em]"
             trailing={
               sent ? (
@@ -131,7 +113,7 @@ export function EmailVerifyScreen() {
                     expired ? "text-(--color-danger)" : "text-(--color-text-sub)"
                   }`}
                 >
-                  {formatLeft(left)}
+                  {remaining}
                 </span>
               ) : undefined
             }
@@ -254,11 +236,4 @@ export function EmailVerifyScreen() {
       </BottomSheet>
     </div>
   );
-}
-
-function formatLeft(seconds: number | null) {
-  const value = seconds ?? 0;
-  const minutes = String(Math.floor(value / 60)).padStart(2, "0");
-  const rest = String(value % 60).padStart(2, "0");
-  return `${minutes}:${rest}`;
 }
