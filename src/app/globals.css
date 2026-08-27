@@ -1,23 +1,80 @@
 @import "tailwindcss";
 
-@theme {
-  /* 시안(Figma)에서 추출한 값 — 총학생회 색상표가 오면 여기만 교체 */
-  --color-primary: #3b5bf5;
-  --color-primary-soft: #edf1ff;
-  --color-surface: #f2f4f9;
-  --color-line: #ebedf3;
-  --color-ink: #16181d;
-  --color-muted: #8a8f9c;
-  --color-warn: #f5893b;
-  --color-danger: #f04452;
+:root {
+  /* ===== Primary ===== */
+  --color-primary: #4F46E5;
+  --color-primary-hover: #4338CA;
+  --color-primary-pressed: #3730A3;
+  --color-primary-light: #EEF0FE;
+  --color-primary-lighter: #F5F6FE;
 
-  --font-sans: var(--font-inter), "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+  /* ===== Text ===== */
+  --color-text-strong: #1A1A2E;
+  --color-text-body: #4B5563;
+  --color-text-sub: #6B7280;
+  --color-text-muted: #9CA3AF;
+  --color-text-on-primary: #FFFFFF;
 
-  /* 모바일 프레임 */
-  --spacing-gutter: 20px;
+  /* ===== Background ===== */
+  --color-bg: #F5F6FA;
+  --color-surface: #FFFFFF;
+  --color-surface-alt: #F9FAFB;
+
+  /* 퍼플 헤더 (프로필 상세, 매칭됐어요, 온보딩 히어로) */
+  --color-hero-bg: #4F46E5;
+  --color-hero-text: #FFFFFF;
+  --color-hero-text-sub: #C7CBF7;
+
+  /* ===== Border ===== */
+  --color-border: #E5E7EB;
+  --color-border-strong: #D1D5DB;
+  --color-border-active: #4F46E5;
+
+  /* ===== Status ===== */
+  --color-online: #22C55E;
+  --color-success: #22C55E;
+  --color-warning: #F59E0B;
+  --color-danger: #EF4444;
+  --color-danger-light: #FEE2E2;
+
+  /* ===== Disabled ===== */
+  --color-disabled-bg: #F3F4F6;
+  --color-disabled-text: #C4C4CC;
+  --color-disabled-border: #E5E7EB;
+
+  /* ===== Chat ===== */
+  --color-chat-mine: #4F46E5;        /* 내 말풍선 */
+  --color-chat-mine-text: #FFFFFF;
+  --color-chat-other: #FFFFFF;       /* 상대 말풍선 */
+  --color-chat-other-text: #1A1A2E;
+  --color-chat-bg: #F5F6FA;
+  --color-chat-notice: #EEF0FE;      /* "오늘 채팅 종료" 안내 */
+
+  /* ===== Overlay ===== */
+  --color-dim: rgba(0, 0, 0, 0.5);   /* 바텀시트 딤 */
+
+  /* ===== Radius ===== */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-full: 9999px;
+
+  /* ===== Shadow ===== */
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-sheet: 0 -4px 16px rgba(0, 0, 0, 0.08);
+  --shadow-fab: 0 4px 12px rgba(79, 70, 229, 0.3);
 }
 
 body {
-  background: #fff;
-  color: var(--color-ink);
+  font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+}
+
+/* 폰 화면(PhoneFrame) 안의 모든 스크롤 영역은 스크롤바를 숨김 */
+.phone-frame * {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.phone-frame *::-webkit-scrollbar {
+  display: none;
 }
