@@ -1,5 +1,5 @@
-import ProfileOptional from "@ui/프로필작성/ProfileOptional";
+import { ProfileOptionalScreen } from "@ui/프로필작성/ProfileOptionalScreen";
 
-export default function Page() {
-  return <ProfileOptional />;
+export default function OptionalPage() {
+  return <ProfileOptionalScreen />;
 }

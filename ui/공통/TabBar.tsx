@@ -13,7 +13,7 @@ interface TabConfig {
 }
 
 const tabs: TabConfig[] = [
-  { href: "/", label: "탐색", icon: Compass },
+  { href: "/main", label: "탐색", icon: Compass },
   { href: "/kok", label: "받은 콕", icon: Inbox, badgeCount: 2 },
   { href: "/match", label: "매칭", icon: Users },
   { href: "/mypage", label: "마이", icon: User },
@@ -25,7 +25,7 @@ export function TabBar() {
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 mx-auto flex h-16 w-full max-w-[430px] items-stretch border-t border-(--color-border) bg-(--color-surface)">
       {tabs.map((tab) => {
-        const isActive = tab.href === "/" ? pathname === "/" : pathname.startsWith(tab.href);
+        const isActive = pathname.startsWith(tab.href);
         const Icon = tab.icon;
         const colorClassName = isActive ? "text-(--color-primary)" : "text-(--color-text-muted)";
 

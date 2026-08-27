@@ -1,5 +1,5 @@
-import QrEntry from "@ui/로그인/QrEntry";
+import { QrEntryScreen } from "@ui/로그인/QrEntryScreen";
 
 export default function Page() {
-  return <QrEntry />;
+  return <QrEntryScreen />;
 }

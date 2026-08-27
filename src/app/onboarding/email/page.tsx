@@ -1,5 +1,5 @@
-import EmailVerify from "@ui/로그인/EmailVerify";
+import { EmailVerifyScreen } from "@ui/로그인/EmailVerifyScreen";
 
-export default function Page() {
-  return <EmailVerify />;
+export default function EmailPage() {
+  return <EmailVerifyScreen />;
 }

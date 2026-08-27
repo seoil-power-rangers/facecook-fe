@@ -1,13 +1,26 @@
 "use client";
 
-import { CheckIcon } from "./icons";
+import { Check } from "lucide-react";
+import type { ReactNode } from "react";
+
+interface CheckRowProps {
+  checked: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+  /** 스크린리더용 이름. 생략하면 children의 글자를 읽는다. */
+  label?: string;
+  trailing?: ReactNode;
+  /** true면 선택 시 배경·테두리까지 강조한다 (성향 태그) */
+  filled?: boolean;
+  disabled?: boolean;
+}
 
 /**
- * 03 약관, 05 성향 태그처럼 체크 동그라미가 왼쪽에 붙는 줄.
+ * 체크 동그라미가 왼쪽에 붙는 줄.
  * 줄 전체가 눌린다 — 동그라미만 누르게 하면 손가락으로 맞히기 어렵다.
  * trailing(약관 보기 화살표)은 따로 눌러야 하므로 버튼 밖에 둔다.
  */
-export default function CheckRow({
+export function CheckRow({
   checked,
   onToggle,
   children,
@@ -15,27 +28,17 @@ export default function CheckRow({
   trailing,
   filled = false,
   disabled = false,
-}: {
-  checked: boolean;
-  onToggle: () => void;
-  children: React.ReactNode;
-  /** 스크린리더용 이름. 생략하면 children의 글자를 읽는다. */
-  label?: string;
-  trailing?: React.ReactNode;
-  /** true면 선택 시 배경·테두리까지 강조한다 (05 성향 태그) */
-  filled?: boolean;
-  disabled?: boolean;
-}) {
-  const box = filled
-    ? checked
-      ? "border border-primary bg-primary-soft"
-      : "border border-transparent bg-surface"
-    : "";
+}: CheckRowProps) {
+  let boxClassName = "flex items-center rounded-(--radius-md)";
+  if (filled) {
+    boxClassName += " h-11 border pr-3.5";
+    boxClassName += checked
+      ? " border-(--color-primary) bg-(--color-primary-light)"
+      : " border-transparent bg-(--color-surface-alt)";
+  }
 
   return (
-    <div
-      className={`flex items-center rounded-xl ${filled ? "h-11 pr-3.5" : ""} ${box}`}
-    >
+    <div className={boxClassName}>
       <button
         type="button"
         role="checkbox"
@@ -48,16 +51,16 @@ export default function CheckRow({
         }`}
       >
         <span
-          className={`flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full transition-colors ${
-            checked ? "bg-primary text-white" : "bg-line text-white"
+          className={`flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-(--radius-full) text-(--color-text-on-primary) transition-colors ${
+            checked ? "bg-(--color-primary)" : "bg-(--color-border-strong)"
           }`}
         >
-          <span className="h-3 w-3">
-            <CheckIcon />
-          </span>
+          <Check className="h-3 w-3" />
         </span>
         <span
-          className={`flex-1 text-[14px] ${checked ? "text-ink" : "text-muted"}`}
+          className={`flex-1 text-[14px] ${
+            checked ? "text-(--color-text-strong)" : "text-(--color-text-sub)"
+          }`}
         >
           {children}
         </span>

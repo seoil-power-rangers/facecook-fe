@@ -1,14 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import Button from "@ui/공통/Button";
-import TileGrid from "@ui/공통/TileGrid";
-import StepHeader, { Accent } from "@ui/공통/StepHeader";
+import { Button } from "@ui/공통/Button";
+import { StepHeader, Accent } from "@ui/공통/StepHeader";
+import { TileGrid } from "@ui/공통/TileGrid";
 import { ACTIVITIES, ACTIVITY_MIN } from "@ui/공통/constants";
 import { useOnboarding } from "@ui/공통/onboarding";
 
-/** 06-profile-hobby (STEP 5) — 12종 중 3개 이상 */
-export default function ProfileHobby() {
+/** 05 선택 (STEP 4) — 12종 중 3개 이상 */
+export function ProfileHobbyScreen() {
   const router = useRouter();
   const { draft, update } = useOnboarding();
   const picked = draft.activities.length;
@@ -16,7 +16,7 @@ export default function ProfileHobby() {
   return (
     <div className="flex min-h-full flex-col">
       <StepHeader
-        step={5}
+        step={4}
         title={
           <>
             <Accent>이런 걸</Accent> 하고 싶어요
@@ -28,23 +28,24 @@ export default function ProfileHobby() {
       <TileGrid
         options={ACTIVITIES}
         value={draft.activities}
-        onToggle={(opt) =>
-          update((d) => ({
-            ...d,
-            activities: d.activities.includes(opt)
-              ? d.activities.filter((v) => v !== opt)
-              : [...d.activities, opt],
+        onToggle={(option) =>
+          update((prev) => ({
+            ...prev,
+            activities: prev.activities.includes(option)
+              ? prev.activities.filter((value) => value !== option)
+              : [...prev.activities, option],
           }))
         }
       />
 
       <div className="mt-auto pt-8">
-        {picked > 0 && picked < ACTIVITY_MIN && (
-          <p className="mb-2 text-center text-[12px] text-muted">
+        {picked > 0 && picked < ACTIVITY_MIN ? (
+          <p className="mb-2 text-center text-[12px] text-(--color-text-sub)">
             {ACTIVITY_MIN - picked}개만 더 골라주세요
           </p>
-        )}
+        ) : null}
         <Button
+          fullWidth
           disabled={picked < ACTIVITY_MIN}
           onClick={() => router.push("/onboarding/optional")}
         >

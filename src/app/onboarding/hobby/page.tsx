@@ -1,5 +1,5 @@
-import ProfileHobby from "@ui/프로필작성/ProfileHobby";
+import { ProfileHobbyScreen } from "@ui/프로필작성/ProfileHobbyScreen";
 
-export default function Page() {
-  return <ProfileHobby />;
+export default function HobbyPage() {
+  return <ProfileHobbyScreen />;
 }

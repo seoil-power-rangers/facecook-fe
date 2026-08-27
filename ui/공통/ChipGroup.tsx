@@ -1,38 +1,38 @@
 "use client";
 
-/** 혈액형(04)·학년(07)처럼 하나만 고르는 칩 줄 */
-export default function ChipGroup({
-  label,
-  options,
-  value,
-  onChange,
-}: {
+interface ChipGroupProps {
   label?: string;
   options: readonly string[];
   value: string;
-  onChange: (v: string) => void;
-}) {
+  onChange: (value: string) => void;
+}
+
+/** 혈액형·학년처럼 하나만 고르는 칩 줄 */
+export function ChipGroup({ label, options, value, onChange }: ChipGroupProps) {
   return (
     <div>
-      {label && (
-        <p className="mb-1.5 text-[11px] font-bold text-muted">{label}</p>
-      )}
+      {label ? (
+        <p className="mb-1.5 text-[11px] font-bold text-(--color-text-sub)">
+          {label}
+        </p>
+      ) : null}
       <div className="flex gap-2">
-        {options.map((opt) => {
-          const on = value === opt;
+        {options.map((option) => {
+          const selected = value === option;
+
           return (
             <button
-              key={opt}
+              key={option}
               type="button"
-              aria-pressed={on}
-              onClick={() => onChange(on ? "" : opt)}
-              className={`h-10 flex-1 rounded-lg text-[13px] font-bold transition-colors ${
-                on
-                  ? "bg-primary text-white"
-                  : "bg-surface text-muted"
+              aria-pressed={selected}
+              onClick={() => onChange(selected ? "" : option)}
+              className={`h-10 flex-1 rounded-(--radius-sm) text-[13px] font-bold transition-colors ${
+                selected
+                  ? "bg-(--color-primary) text-(--color-text-on-primary)"
+                  : "bg-(--color-surface-alt) text-(--color-text-sub)"
               }`}
             >
-              {opt}
+              {option}
             </button>
           );
         })}

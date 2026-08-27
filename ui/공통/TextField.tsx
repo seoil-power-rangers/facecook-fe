@@ -1,33 +1,36 @@
 "use client";
 
-type Props = React.InputHTMLAttributes<HTMLInputElement> & {
-  label?: string;
-  /** 오른쪽에 붙는 버튼이나 아이콘 (예: 02의 [인증요청], 07의 검색 아이콘) */
-  trailing?: React.ReactNode;
-  suffix?: string;
-};
+import type { InputHTMLAttributes, ReactNode } from "react";
 
-/** 시안 기준 높이 50, 배경 #F2F4F9, 테두리 #EBEDF3 */
-export default function TextField({
+interface TextFieldProps extends InputHTMLAttributes<HTMLInputElement> {
+  label?: string;
+  /** 오른쪽에 붙는 버튼이나 아이콘 (예: [인증요청], 검색 아이콘) */
+  trailing?: ReactNode;
+  suffix?: string;
+}
+
+export function TextField({
   label,
   trailing,
   suffix,
-  className = "",
-  ...rest
-}: Props) {
+  className,
+  ...props
+}: TextFieldProps) {
   return (
     <label className="block">
-      {label && (
-        <span className="mb-1.5 block text-[11px] font-bold text-muted">
+      {label ? (
+        <span className="mb-1.5 block text-[11px] font-bold text-(--color-text-sub)">
           {label}
         </span>
-      )}
-      <span className="flex h-[50px] items-center gap-2 rounded-xl border border-line bg-surface px-4">
+      ) : null}
+      <span className="flex h-[50px] items-center gap-2 rounded-(--radius-md) border border-(--color-border) bg-(--color-surface-alt) px-4">
         <input
-          {...rest}
-          className={`min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-muted ${className}`}
+          className={`min-w-0 flex-1 bg-transparent text-[15px] text-(--color-text-strong) outline-none placeholder:text-(--color-text-muted) ${className ?? ""}`}
+          {...props}
         />
-        {suffix && <span className="text-[14px] text-muted">{suffix}</span>}
+        {suffix ? (
+          <span className="text-[14px] text-(--color-text-sub)">{suffix}</span>
+        ) : null}
         {trailing}
       </span>
     </label>

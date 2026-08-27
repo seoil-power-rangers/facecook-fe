@@ -1,5 +1,5 @@
-import ProfileBasic from "@ui/프로필작성/ProfileBasic";
+import { ProfileBasicScreen } from "@ui/프로필작성/ProfileBasicScreen";
 
-export default function Page() {
-  return <ProfileBasic />;
+export default function BasicPage() {
+  return <ProfileBasicScreen />;
 }
