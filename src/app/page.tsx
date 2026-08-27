@@ -1,5 +1,5 @@
-import { MainScreen } from "@ui/메인/MainScreen";
+import { QrEntryScreen } from "@ui/로그인/QrEntryScreen";
 
-export default function Home() {
-  return <MainScreen />;
+export default function Page() {
+  return <QrEntryScreen />;
 }
