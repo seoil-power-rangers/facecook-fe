@@ -14,7 +14,7 @@ export function QrEntryScreen() {
     <PhoneFrame>
       <div className="flex flex-1 flex-col px-5 pb-8 pt-14">
         <p className="text-center text-[12px] font-bold text-(--color-primary)">
-          STAR 총학생회
+          START 총학생회
         </p>
 
         <div className="flex flex-1 flex-col items-center justify-center">

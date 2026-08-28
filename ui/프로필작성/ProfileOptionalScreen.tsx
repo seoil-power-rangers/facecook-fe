@@ -12,21 +12,17 @@ import { GRADES } from "@ui/공통/constants";
 import { useOnboarding } from "@ui/공통/onboarding";
 
 const BIO_MAX = 100;
-const IDEAL_MAX = 50;
 
 /**
  * 06 선택 (STEP 5)
  *
- * 시안에는 "전부 선택"이라고 적혀 있지만, 기능명세서 PROF-01이 이상형을 필수로
- * 정해두어 이상형만 필수로 받는다(명세서 우선 규칙).
+ * 명세서 PROF-02의 선택 항목만 모아둔 화면. 필수인 이상형은 STEP 4로 옮겼다.
  */
 export function ProfileOptionalScreen() {
   const router = useRouter();
   const { draft, set } = useOnboarding();
   const fileRef = useRef<HTMLInputElement>(null);
   const [photo, setPhoto] = useState("");
-
-  const canSubmit = draft.idealType.trim().length > 0;
 
   return (
     <div className="flex min-h-full flex-col">
@@ -37,7 +33,12 @@ export function ProfileOptionalScreen() {
             조금 더 <Accent>알려주실래요?</Accent>
           </>
         }
-        note="이상형만 필수예요. 나머지는 나중에 마이페이지에서 바꿀 수 있어요."
+        note={
+          <>
+            <span className="text-(--color-warning)">전부 선택</span>이에요.
+            나중에 마이페이지에서도 채울 수 있어요.
+          </>
+        }
       />
 
       <div className="flex flex-col items-center">
@@ -107,21 +108,11 @@ export function ProfileOptionalScreen() {
           value={draft.bio}
           onChange={(event) => set("bio", event.target.value)}
         />
-
-        <Textarea
-          label="이상형"
-          rows={2}
-          maxLength={IDEAL_MAX}
-          placeholder="대화가 잘 통하는 사람"
-          value={draft.idealType}
-          onChange={(event) => set("idealType", event.target.value)}
-        />
       </div>
 
       <div className="mt-auto pt-8">
         <Button
           fullWidth
-          disabled={!canSubmit}
           onClick={() => router.push("/onboarding/done")}
         >
           완료하고 시작

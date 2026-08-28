@@ -88,7 +88,8 @@ export function ProfileMbtiScreen() {
           나를 한마디로 <Accent>표현하면?</Accent>
         </h2>
         <p className="mt-1 text-[12px] text-(--color-text-sub)">
-          최대 {TRAIT_MAX}개까지 고를 수 있어요
+          <span className="text-(--color-warning)">최대 {TRAIT_MAX}개</span>까지
+          고를 수 있어요
         </p>
 
         <div className="mt-3 space-y-2">
