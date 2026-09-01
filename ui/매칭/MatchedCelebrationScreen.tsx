@@ -1,15 +1,26 @@
+"use client";
+
 import Link from "next/link";
-import { Infinity as InfinityIcon, Send, Ticket } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ChevronLeft, Infinity as InfinityIcon, Send, Ticket } from "lucide-react";
 import { Button } from "@ui/공통/Button";
 import { PhoneFrame } from "@ui/공통/PhoneFrame";
 import { Tag } from "@ui/공통/Tag";
 import type { MatchRoom } from "./matches.mock";
 
 export function MatchedCelebrationScreen({ room }: { room: MatchRoom }) {
+  const router = useRouter();
+
   return (
     <PhoneFrame>
       <div className="flex flex-1 flex-col overflow-y-auto">
-        <div className="flex shrink-0 flex-col items-center gap-4 bg-(--color-hero-bg) px-6 pb-12 pt-10 text-center text-(--color-hero-text)">
+        <div className="flex shrink-0 flex-col items-center gap-4 bg-(--color-hero-bg) px-6 pb-12 pt-3 text-center text-(--color-hero-text)">
+          <div className="flex w-full items-center">
+            <button type="button" aria-label="뒤로가기" className="p-1" onClick={() => router.back()}>
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+          </div>
+
           <p className="text-xs font-semibold tracking-[0.2em] text-(--color-hero-text-sub)">MATCHED</p>
 
           <div className="relative flex items-center justify-center py-2">
