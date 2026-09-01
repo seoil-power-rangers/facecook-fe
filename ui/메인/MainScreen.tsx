@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Bell, MousePointerClick, Settings } from "lucide-react";
 import { Avatar } from "@ui/공통/Avatar";
 import { BottomSheet } from "@ui/공통/BottomSheet";
@@ -19,6 +20,7 @@ interface Member {
   subInfo: string;
   commonCount: number;
   bgColor: string;
+  alreadyKokedMe: boolean;
 }
 
 type FilterKey = "all" | "department" | "mbti" | "hobby";
@@ -39,14 +41,51 @@ const activeMembers: { name: string; bgColor: string }[] = [
 ];
 
 const members: Member[] = [
-  { id: "1", name: "지효", mbti: "ENFP", subInfo: "24세 · 컴퓨터공학과", commonCount: 3, bgColor: "#4F46E5" },
-  { id: "2", name: "서연", mbti: "INFJ", subInfo: "22세 · 시각디자인과", commonCount: 2, bgColor: "#22C55E" },
-  { id: "3", name: "민준", mbti: "ISTP", subInfo: "25세 · 기계공학과", commonCount: 1, bgColor: "#5B5FE9" },
+  {
+    id: "1",
+    name: "지효",
+    mbti: "ENFP",
+    subInfo: "24세 · 컴퓨터공학과",
+    commonCount: 3,
+    bgColor: "#4F46E5",
+    alreadyKokedMe: true,
+  },
+  {
+    id: "2",
+    name: "서연",
+    mbti: "INFJ",
+    subInfo: "22세 · 시각디자인과",
+    commonCount: 2,
+    bgColor: "#22C55E",
+    alreadyKokedMe: false,
+  },
+  {
+    id: "3",
+    name: "민준",
+    mbti: "ISTP",
+    subInfo: "25세 · 기계공학과",
+    commonCount: 1,
+    bgColor: "#5B5FE9",
+    alreadyKokedMe: false,
+  },
 ];
 
 export function MainScreen() {
+  const router = useRouter();
   const [activeFilter, setActiveFilter] = useState<FilterKey>("all");
   const [kokTarget, setKokTarget] = useState<Member | null>(null);
+
+  const handleKokConfirm = () => {
+    if (!kokTarget) {
+      return;
+    }
+
+    setKokTarget(null);
+
+    if (kokTarget.alreadyKokedMe) {
+      router.push(`/match/${kokTarget.id}/matched`);
+    }
+  };
 
   return (
     <PhoneFrame>
@@ -172,7 +211,7 @@ export function MainScreen() {
             name={kokTarget.name}
             bgColor={kokTarget.bgColor}
             onCancel={() => setKokTarget(null)}
-            onConfirm={() => setKokTarget(null)}
+            onConfirm={handleKokConfirm}
           />
         ) : null}
       </BottomSheet>
