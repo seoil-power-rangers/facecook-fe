@@ -1,4 +1,4 @@
-import { X } from "lucide-react";
+import { User, X } from "lucide-react";
 
 type AvatarSize = "sm" | "md" | "lg" | "xl";
 
@@ -15,6 +15,13 @@ const sizeClasses: Record<AvatarSize, string> = {
   md: "h-10 w-10 text-sm",
   lg: "h-12 w-12 text-base",
   xl: "h-16 w-16 text-lg",
+};
+
+const personIconSizeClasses: Record<AvatarSize, string> = {
+  sm: "h-4.5 w-4.5",
+  md: "h-5.5 w-5.5",
+  lg: "h-6.5 w-6.5",
+  xl: "h-9 w-9",
 };
 
 const dotSizeClasses: Record<AvatarSize, string> = {
@@ -39,15 +46,15 @@ const badgeIconSizeClasses: Record<AvatarSize, string> = {
 };
 
 export function Avatar({ name, size = "md", online, suspended, bgColor }: AvatarProps) {
-  const initial = name.charAt(0);
-
   return (
     <span className="relative inline-flex shrink-0">
       <span
+        role="img"
+        aria-label={name}
         className={`flex items-center justify-center rounded-full font-semibold text-(--color-text-on-primary) ${sizeClasses[size]} ${suspended ? "opacity-50" : ""}`}
         style={{ backgroundColor: bgColor ?? "var(--color-primary)" }}
       >
-        {initial}
+        <User className={personIconSizeClasses[size]} fill="currentColor" strokeWidth={0} />
       </span>
       {suspended ? (
         <span
