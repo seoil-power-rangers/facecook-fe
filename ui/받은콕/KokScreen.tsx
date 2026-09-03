@@ -184,9 +184,9 @@ function SentKokPanel() {
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium text-(--color-text-strong)">행사 전체 콕 사용량</span>
         </div>
-        <p className="mt-1 text-lg font-bold text-(--color-text-strong)">12 / 20회</p>
+        <p className="mt-1 text-lg font-bold text-(--color-text-strong)">5 / 9회</p>
         <div className="mt-2 h-1.5 w-full rounded-full bg-(--color-surface)">
-          <div className="h-full rounded-full bg-(--color-primary)" style={{ width: "60%" }} />
+          <div className="h-full rounded-full bg-(--color-primary)" style={{ width: "56%" }} />
         </div>
       </div>
     </div>
