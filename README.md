@@ -1,74 +1,73 @@
-# face 콕
+# face 콕 — Frontend
 
-제52회 용마대동제 소개팅 부스 웹서비스입니다.
-
-폴더를 열면 **딱 3개**만 보면 됩니다.
-
-```text
-ui        ← 프론트   (화면, 버튼, 디자인)
-function  ← 기능     (로그인, 콕 보내기, 채팅 같은 동작)
-db        ← 백그라운드 (서버 API, 데이터베이스)
-```
-
-흐름은 이렇습니다.
-
-```text
-사람이 화면을 누름     ui
-        ↓
-기능이 규칙을 처리함   function
-        ↓
-DB에 저장하거나 읽어옴 db
-```
+제52회 용마대동제 소개팅 부스 웹서비스의 **프론트엔드 전용** 레포입니다.
+백엔드는 [`facecook-be`](https://github.com/seoil-power-rangers/facecook-be)
+(Java Spring Boot)로 분리되어 있습니다.
 
 ---
 
-## 누가 어디를 하나요
+## 실행
 
-| 하고 싶은 일 | 가는 폴더 |
+```bash
+npm install
+npm run dev
+```
+
+http://localhost:3000
+
+시작 화면은 QR 진입입니다.
+
+---
+
+## 화면 목록
+
+| 주소 | 화면 |
 | --- | --- |
-| 로그인 화면 만들기 | `ui/로그인` |
-| 참가자 목록 / 메인 | `ui/메인` |
-| 콕 보내기 버튼 | `ui/프로필상세` + `function/콕보내기` |
-| 하루 3회 제한, 맞콕 매칭 | `function/콕보내기`, `function/매칭성사` |
-| 채팅 화면 | `ui/채팅` |
-| 채팅 저장 | `function/채팅` + `db` |
-| 테이블 추가/수정 | `db/테이블` |
-| 서버 API | `db/api` |
-| 관리자 페이지 | `ui/관리자` + `function/관리자` |
-
-자기 폴더만 고치면 다른 사람이랑 잘 안 겹칩니다.
+| `/` | QR 진입 |
+| `/login` | 로그인 (관리자 로그인 포함) |
+| `/onboarding/email` | 이메일 인증 |
+| `/onboarding/basic` | 필수 프로필 |
+| `/onboarding/mbti` | MBTI |
+| `/onboarding/hobby` | 취미 |
+| `/onboarding/optional` | 선택 프로필 |
+| `/onboarding/done` | 온보딩 완료 |
+| `/main` | 참가자 목록 |
+| `/kok` | 받은 콕 |
+| `/profile/[userId]` | 프로필 상세 + 콕 보내기 |
+| `/profile/[userId]/report` | 신고 |
+| `/match` | 매칭 목록 |
+| `/match/[roomId]` | 채팅 |
+| `/match/[roomId]/matched` | 매칭 성사 |
+| `/match/[roomId]/mission` | 미션 |
+| `/mypage` | 마이페이지 |
+| `/admin/dashboard` | 관리자 통계 |
+| `/admin/mission` | 미션 완료 처리 |
+| `/admin/report` | 신고 검토 |
+| `/admin/chat/[reportId]` | 채팅 열람 |
 
 ---
 
-## 폴더 전체
+## 폴더 구조
 
 ```text
-ui/                 프론트 (보이는 것)
-  로그인/
-  프로필작성/
-  메인/
-  프로필상세/
-  받은콕/
-  매칭/
-  채팅/
-  마이페이지/
-  관리자/
+src/app/   라우팅 (Next.js App Router)
+           대부분 page.tsx는 route param만 받아서 ui/의 화면 컴포넌트에
+           그대로 넘기는 얇은 래퍼다. 여기에 데이터 로직을 넣지 않는다.
 
-function/           기능 (동작)
-  로그인인증/
-  프로필/
-  콕보내기/
-  매칭성사/
-  채팅/
-  미션/
-  신고/
-  관리자/
+ui/        실제 화면 컴포넌트
+  공통/    버튼, 입력창 등 공용 컴포넌트
+  각 화면 폴더 안에 그 화면이 쓰는 mock 데이터(*.mock.ts)가 같이 있다
 
-db/                 백그라운드 (서버 + DB)
-  테이블/           회원, 프로필, 콕, 매칭, 채팅, 미션, 신고
-  api/              서버 API
+public/    정적 파일
 ```
 
-각 폴더 안 README를 보면 그 폴더가 뭔지 적혀 있습니다.
+경로 별칭: `@/*` → `src/*`, `@ui/*` → `ui/*`
 
-아직 GitHub에는 올리지 마세요. 구조 확인된 뒤에 올리면 됩니다.
+---
+
+## 범위
+
+이 레포는 화면(`ui/`, `src/app`)만 다룹니다. 백엔드 로직(인증, DB 접근,
+API 서버)은 `facecook-be`의 책임이고 이 레포에 두지 않습니다.
+
+작업 방식은 [CONTRIBUTING.md](./CONTRIBUTING.md)를 따릅니다.
