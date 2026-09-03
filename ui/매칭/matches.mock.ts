@@ -1,4 +1,5 @@
 import type { ChatItem, Presence } from "@ui/채팅/ChatScreen";
+import type { UserStatus } from "@ui/공통/types";
 
 export interface MatchRoom {
   id: string;
@@ -7,6 +8,7 @@ export interface MatchRoom {
   department: string;
   bgColor: string;
   presence: Presence;
+  status: UserStatus;
   sharedInterests: string[];
   lastMessage: string;
   lastMessageAt: string;
@@ -22,6 +24,7 @@ export const matchRooms: MatchRoom[] = [
     department: "화학과",
     bgColor: "#F59E0B",
     presence: { kind: "online" },
+    status: "active",
     sharedInterests: ["클라이밍", "사진", "조용한 카페"],
     lastMessage: "좋아요 내일 봐요!",
     lastMessageAt: "방금",
@@ -53,6 +56,7 @@ export const matchRooms: MatchRoom[] = [
     department: "물리학과",
     bgColor: "#22C55E",
     presence: { kind: "lastActive", minutesAgo: 12 },
+    status: "active",
     sharedInterests: ["보드게임", "커피"],
     lastMessage: "네 알겠습니다!",
     lastMessageAt: "1시간 전",
@@ -72,6 +76,7 @@ export const matchRooms: MatchRoom[] = [
     department: "경제학과",
     bgColor: "#EF4444",
     presence: { kind: "away" },
+    status: "suspended",
     sharedInterests: ["농구", "여행"],
     lastMessage: "아직 메시지가 없어요",
     lastMessageAt: "방금",

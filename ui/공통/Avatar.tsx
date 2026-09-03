@@ -1,9 +1,12 @@
+import { X } from "lucide-react";
+
 type AvatarSize = "sm" | "md" | "lg" | "xl";
 
 interface AvatarProps {
   name: string;
   size?: AvatarSize;
   online?: boolean;
+  suspended?: boolean;
   bgColor?: string;
 }
 
@@ -21,18 +24,39 @@ const dotSizeClasses: Record<AvatarSize, string> = {
   xl: "h-3.5 w-3.5",
 };
 
-export function Avatar({ name, size = "md", online, bgColor }: AvatarProps) {
+const badgeSizeClasses: Record<AvatarSize, string> = {
+  sm: "h-3.5 w-3.5",
+  md: "h-4 w-4",
+  lg: "h-4.5 w-4.5",
+  xl: "h-5 w-5",
+};
+
+const badgeIconSizeClasses: Record<AvatarSize, string> = {
+  sm: "h-2 w-2",
+  md: "h-2.5 w-2.5",
+  lg: "h-3 w-3",
+  xl: "h-3.5 w-3.5",
+};
+
+export function Avatar({ name, size = "md", online, suspended, bgColor }: AvatarProps) {
   const initial = name.charAt(0);
 
   return (
     <span className="relative inline-flex shrink-0">
       <span
-        className={`flex items-center justify-center rounded-full font-semibold text-(--color-text-on-primary) ${sizeClasses[size]}`}
+        className={`flex items-center justify-center rounded-full font-semibold text-(--color-text-on-primary) ${sizeClasses[size]} ${suspended ? "opacity-50" : ""}`}
         style={{ backgroundColor: bgColor ?? "var(--color-primary)" }}
       >
         {initial}
       </span>
-      {online ? (
+      {suspended ? (
+        <span
+          className={`absolute bottom-0 right-0 flex items-center justify-center rounded-full border-2 border-(--color-surface) bg-(--color-danger) ${badgeSizeClasses[size]}`}
+          aria-label="영구정지된 사용자"
+        >
+          <X className={`${badgeIconSizeClasses[size]} text-(--color-text-on-primary)`} strokeWidth={3} />
+        </span>
+      ) : online ? (
         <span
           className={`absolute bottom-0 right-0 rounded-full border-2 border-(--color-surface) bg-(--color-online) ${dotSizeClasses[size]}`}
           aria-hidden="true"
