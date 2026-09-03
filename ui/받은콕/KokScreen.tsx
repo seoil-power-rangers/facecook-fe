@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Clock, Sparkles } from "lucide-react";
 import { Avatar } from "@ui/공통/Avatar";
@@ -10,6 +10,9 @@ import { Tag } from "@ui/공통/Tag";
 import { TabBar } from "@ui/공통/TabBar";
 
 type KokTab = "sent" | "received";
+
+/** 하단 네비는 항상 /kok으로만 이동해서 URL에 탭을 실어 보낼 수 없다 — 세션 동안은 마지막으로 본 탭을 기억한다. */
+const KOK_TAB_STORAGE_KEY = "kok-tab";
 
 interface SentKok {
   id: string;
@@ -94,6 +97,21 @@ const expiredKoks: { id: string; name: string; subInfo: string }[] = [
 export function KokScreen() {
   const [tab, setTab] = useState<KokTab>("received");
 
+  useEffect(() => {
+    const stored = sessionStorage.getItem(KOK_TAB_STORAGE_KEY);
+    if (stored === "sent" || stored === "received") {
+      // 마운트 직후 한 번, 브라우저에만 있는 값을 React 상태로 들여온다 — 렌더링 중엔 sessionStorage를
+      // 읽을 수 없어(서버에 없음) 이 방식이 유일하게 하이드레이션 불일치 없이 복원하는 방법이다.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setTab(stored);
+    }
+  }, []);
+
+  const handleTabChange = (next: KokTab) => {
+    setTab(next);
+    sessionStorage.setItem(KOK_TAB_STORAGE_KEY, next);
+  };
+
   return (
     <PhoneFrame>
       <header className="flex h-14 w-full shrink-0 items-center gap-2 border-b border-(--color-border) bg-(--color-surface) px-4">
@@ -107,10 +125,10 @@ export function KokScreen() {
 
       <div className="flex shrink-0 justify-center border-b border-(--color-border) bg-(--color-surface) py-3">
         <div className="inline-flex rounded-full bg-(--color-disabled-bg) p-1">
-          <TabToggleButton active={tab === "sent"} onClick={() => setTab("sent")}>
+          <TabToggleButton active={tab === "sent"} onClick={() => handleTabChange("sent")}>
             보낸 콕
           </TabToggleButton>
-          <TabToggleButton active={tab === "received"} onClick={() => setTab("received")}>
+          <TabToggleButton active={tab === "received"} onClick={() => handleTabChange("received")}>
             받은 콕
           </TabToggleButton>
         </div>
