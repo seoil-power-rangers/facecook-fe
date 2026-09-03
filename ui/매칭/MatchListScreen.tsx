@@ -27,9 +27,16 @@ export function MatchListScreen() {
               <Link
                 key={room.id}
                 href={`/match/${room.id}`}
-                className="flex items-center gap-3 rounded-(--radius-lg) border border-(--color-border) bg-(--color-surface) p-3"
+                className={`flex items-center gap-3 rounded-(--radius-lg) border border-(--color-border) bg-(--color-surface) p-3 ${
+                  room.status === "suspended" ? "opacity-60" : ""
+                }`}
               >
-                <Avatar name={room.name} size="lg" bgColor={room.bgColor} />
+                <Avatar
+                  name={room.name}
+                  size="lg"
+                  bgColor={room.bgColor}
+                  suspended={room.status === "suspended"}
+                />
                 <div className="flex flex-1 flex-col gap-0.5 overflow-hidden">
                   <div className="flex items-center justify-between gap-2">
                     <span className="truncate text-sm font-semibold text-(--color-text-strong)">

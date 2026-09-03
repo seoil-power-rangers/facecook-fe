@@ -22,6 +22,7 @@ export default async function MatchRoomPage({
       department={room.department}
       bgColor={room.bgColor}
       presence={room.presence}
+      status={room.status}
       messages={room.messages}
     />
   );

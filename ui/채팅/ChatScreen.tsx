@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, Clock, Lock, Send, Ticket } from "lucide-react";
+import { Ban, ChevronLeft, Clock, Lock, Send, Ticket } from "lucide-react";
 import { Avatar } from "@ui/공통/Avatar";
 import { PhoneFrame } from "@ui/공통/PhoneFrame";
 import { Tag } from "@ui/공통/Tag";
+import type { UserStatus } from "@ui/공통/types";
 
 const CHAT_OPEN_HOUR = 9;
 const CHAT_CLOSE_HOUR = 18;
@@ -32,6 +33,7 @@ export interface ChatScreenProps {
   department: string;
   bgColor: string;
   presence: Presence;
+  status: UserStatus;
   messages: ChatItem[];
 }
 
@@ -42,10 +44,12 @@ export function ChatScreen({
   department,
   bgColor,
   presence,
+  status,
   messages,
 }: ChatScreenProps) {
   const router = useRouter();
 
+  const isSuspended = status === "suspended";
   const currentHour = new Date().getHours();
   const isOpen = isWithinOperatingHours(currentHour);
 
@@ -56,11 +60,17 @@ export function ChatScreen({
           <ChevronLeft className="h-5 w-5 text-(--color-text-strong)" />
         </button>
         <Link href={`/profile/${userId}`} className="flex flex-1 items-center gap-3 overflow-hidden">
-          <Avatar name={name} size="md" bgColor={bgColor} online={presence.kind === "online"} />
+          <Avatar
+            name={name}
+            size="md"
+            bgColor={bgColor}
+            online={presence.kind === "online"}
+            suspended={isSuspended}
+          />
           <div className="flex flex-1 flex-col overflow-hidden">
             <div className="flex items-center gap-1.5">
               <span className="truncate text-sm font-semibold text-(--color-text-strong)">{name}</span>
-              <PresenceBadge presence={presence} />
+              {isSuspended ? <Tag variant="warning">영구정지</Tag> : <PresenceBadge presence={presence} />}
             </div>
             <span className="truncate text-xs text-(--color-text-sub)">
               {mbti} · {department}
@@ -82,7 +92,7 @@ export function ChatScreen({
         ))}
       </main>
 
-      {isOpen ? <OpenComposer /> : <ClosedComposer />}
+      {isSuspended ? <SuspendedComposer /> : isOpen ? <OpenComposer /> : <ClosedComposer />}
     </PhoneFrame>
   );
 }
@@ -203,6 +213,35 @@ function ClosedComposer() {
         <span className="flex-1 text-xs text-(--color-text-muted)">
           {String(CHAT_OPEN_HOUR).padStart(2, "0")}:00에 다시 열려요
         </span>
+        <button
+          type="button"
+          disabled
+          aria-label="메시지 전송"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-(--color-disabled-bg) text-(--color-disabled-text)"
+        >
+          <Send className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function SuspendedComposer() {
+  return (
+    <div className="flex shrink-0 flex-col gap-3 border-t border-(--color-border) bg-(--color-surface) p-4">
+      <div className="flex flex-col items-center gap-2 rounded-(--radius-lg) bg-(--color-surface) p-4 text-center shadow-(--shadow-card)">
+        <span className="flex h-11 w-11 items-center justify-center rounded-full bg-(--color-danger)/15 text-(--color-danger)">
+          <Ban className="h-5 w-5" />
+        </span>
+        <p className="text-sm font-bold text-(--color-text-strong)">이거 영구정지된 사용자입니다</p>
+        <p className="text-xs text-(--color-text-sub)">더 이상 메시지를 보낼 수 없어요.</p>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center text-(--color-text-muted)">
+          <Lock className="h-4 w-4" />
+        </span>
+        <span className="flex-1 text-xs text-(--color-text-muted)">이 대화는 더 이상 이어갈 수 없어요</span>
         <button
           type="button"
           disabled
