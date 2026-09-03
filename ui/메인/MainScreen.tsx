@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Bell, MousePointerClick, Settings } from "lucide-react";
+import { Bell, MousePointerClick } from "lucide-react";
 import { Avatar } from "@ui/공통/Avatar";
 import { BottomSheet } from "@ui/공통/BottomSheet";
 import { Button } from "@ui/공통/Button";
@@ -98,13 +98,6 @@ export function MainScreen() {
             className="flex h-8 w-8 items-center justify-center rounded-full border border-(--color-border) text-(--color-text-sub)"
           >
             <Bell className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            aria-label="설정"
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-(--color-border) text-(--color-text-sub)"
-          >
-            <Settings className="h-4 w-4" />
           </button>
         </div>
       </header>
