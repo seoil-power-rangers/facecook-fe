@@ -11,6 +11,7 @@ import { StepHeader, Accent } from "@ui/공통/StepHeader";
 import { TextField } from "@ui/공통/TextField";
 import { CODE_LENGTH, EVENT, TERMS } from "@ui/공통/constants";
 import { useOnboarding } from "@ui/공통/onboarding";
+import { authErrorMessage, requestCode, verifySignup } from "./authApi";
 import { useVerificationCode } from "./verificationCode";
 
 const REQUIRED_TERM_IDS: string[] = TERMS.filter((term) => term.required).map(
@@ -24,9 +25,12 @@ const REQUIRED_TERM_IDS: string[] = TERMS.filter((term) => term.required).map(
 export function EmailVerifyScreen() {
   const router = useRouter();
   const { draft, set, update } = useOnboarding();
-  const { code, change, request, sent, expired, filled, remaining } =
+  const { code, change, start, reset, sent, expired, filled, remaining } =
     useVerificationCode();
   const [termsOpen, setTermsOpen] = useState(false);
+  const [isRequesting, setIsRequesting] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const agreed = draft.agreedTerms;
   const requiredAgreed = REQUIRED_TERM_IDS.every((id) => agreed.includes(id));
@@ -64,6 +68,42 @@ export function EmailVerifyScreen() {
   const canSubmit =
     draft.email.includes("@") && filled && !expired && requiredAgreed;
 
+  const changeEmail = (value: string) => {
+    set("email", value);
+    reset();
+    setError(null);
+  };
+
+  const requestVerificationCode = async () => {
+    if (!draft.email.includes("@") || isRequesting) return;
+
+    setIsRequesting(true);
+    setError(null);
+    try {
+      const response = await requestCode(draft.email, "signup");
+      start(response.expiresInSeconds);
+    } catch (requestError) {
+      setError(authErrorMessage(requestError));
+    } finally {
+      setIsRequesting(false);
+    }
+  };
+
+  const submit = async () => {
+    if (!canSubmit || isSubmitting) return;
+
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      await verifySignup(draft.email, code, draft.agreedTerms);
+      router.push("/onboarding/basic");
+    } catch (submitError) {
+      setError(authErrorMessage(submitError));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="flex min-h-full flex-col">
       <StepHeader
@@ -83,15 +123,15 @@ export function EmailVerifyScreen() {
           inputMode="email"
           placeholder="star2026@gmail.com"
           value={draft.email}
-          onChange={(event) => set("email", event.target.value)}
+          onChange={(event) => changeEmail(event.target.value)}
           trailing={
             <button
               type="button"
-              onClick={request}
-              disabled={!draft.email.includes("@")}
+              onClick={requestVerificationCode}
+              disabled={!draft.email.includes("@") || isRequesting}
               className="shrink-0 text-[13px] font-bold text-(--color-primary) disabled:text-(--color-text-muted)"
             >
-              {sent ? "재발송" : "인증요청"}
+              {isRequesting ? "전송 중" : sent ? "재발송" : "인증요청"}
             </button>
           }
         />
@@ -131,6 +171,12 @@ export function EmailVerifyScreen() {
 
         <InfoBox>인증한 이메일로만 로그인할 수 있어요.</InfoBox>
 
+        {error ? (
+          <p role="alert" className="text-[12px] text-(--color-danger)">
+            {error}
+          </p>
+        ) : null}
+
         <div className="rounded-(--radius-md) bg-(--color-primary-light) px-3.5">
           <CheckRow
             checked={requiredAgreed}
@@ -156,10 +202,10 @@ export function EmailVerifyScreen() {
       <div className="mt-auto pt-8">
         <Button
           fullWidth
-          disabled={!canSubmit}
-          onClick={() => router.push("/onboarding/basic")}
+          disabled={!canSubmit || isSubmitting}
+          onClick={submit}
         >
-          동의하고 시작하기
+          {isSubmitting ? "확인 중..." : "동의하고 시작하기"}
         </Button>
       </div>
 

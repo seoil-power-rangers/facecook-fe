@@ -10,10 +10,14 @@
 
 ```bash
 npm install
+cp .env.example .env.local
 npm run dev
 ```
 
 http://localhost:3000
+
+로컬 프론트엔드는 `.env.local`의 `NEXT_PUBLIC_API_BASE_URL`을 사용해
+`http://localhost:8080/api/...`의 백엔드 API를 호출합니다.
 
 시작 화면은 QR 진입입니다.
 

@@ -9,6 +9,7 @@ import { PhoneFrame } from "@ui/공통/PhoneFrame";
 import { TextField } from "@ui/공통/TextField";
 import { CODE_LENGTH } from "@ui/공통/constants";
 import { useSession } from "@ui/공통/session";
+import { authErrorMessage, requestCode, verifyLogin } from "./authApi";
 import { useVerificationCode } from "./verificationCode";
 
 type LoginTab = "participant" | "admin";
@@ -87,15 +88,50 @@ function ParticipantForm() {
   const router = useRouter();
   const { signIn } = useSession();
   const [email, setEmail] = useState("");
-  const { code, change, request, sent, expired, filled, remaining } =
+  const { code, change, start, reset, sent, expired, filled, remaining } =
     useVerificationCode();
+  const [isRequesting, setIsRequesting] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const emailFilled = email.includes("@");
   const canSubmit = emailFilled && filled && !expired;
 
-  const submit = () => {
-    signIn({ role: "participant", name: email.trim() });
-    router.push("/main");
+  const changeEmail = (value: string) => {
+    setEmail(value);
+    reset();
+    setError(null);
+  };
+
+  const requestVerificationCode = async () => {
+    if (!emailFilled || isRequesting) return;
+
+    setIsRequesting(true);
+    setError(null);
+    try {
+      const response = await requestCode(email, "login");
+      start(response.expiresInSeconds);
+    } catch (requestError) {
+      setError(authErrorMessage(requestError));
+    } finally {
+      setIsRequesting(false);
+    }
+  };
+
+  const submit = async () => {
+    if (!canSubmit || isSubmitting) return;
+
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      const user = await verifyLogin(email, code);
+      signIn({ role: "participant", name: user.email });
+      router.push("/main");
+    } catch (submitError) {
+      setError(authErrorMessage(submitError));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -104,7 +140,7 @@ function ParticipantForm() {
       onSubmit={(event) => {
         event.preventDefault();
         if (canSubmit) {
-          submit();
+          void submit();
         }
       }}
     >
@@ -116,15 +152,15 @@ function ParticipantForm() {
           autoComplete="email"
           placeholder="star2026@gmail.com"
           value={email}
-          onChange={(event) => setEmail(event.target.value)}
+          onChange={(event) => changeEmail(event.target.value)}
           trailing={
             <button
               type="button"
-              onClick={request}
-              disabled={!emailFilled}
+              onClick={requestVerificationCode}
+              disabled={!emailFilled || isRequesting}
               className="shrink-0 text-[13px] font-bold text-(--color-primary) disabled:text-(--color-text-muted)"
             >
-              {sent ? "재발송" : "인증요청"}
+              {isRequesting ? "전송 중" : sent ? "재발송" : "인증요청"}
             </button>
           }
         />
@@ -161,11 +197,21 @@ function ParticipantForm() {
               : `가입할 때 인증한 이메일로 ${CODE_LENGTH}자리 번호를 보내요`}
           </p>
         </div>
+
+        {error ? (
+          <p role="alert" className="text-[12px] text-(--color-danger)">
+            {error}
+          </p>
+        ) : null}
       </div>
 
       <div className="mt-auto pt-8">
-        <Button type="submit" fullWidth disabled={!canSubmit}>
-          로그인
+        <Button
+          type="submit"
+          fullWidth
+          disabled={!canSubmit || isSubmitting}
+        >
+          {isSubmitting ? "로그인 중..." : "로그인"}
         </Button>
       </div>
     </form>
