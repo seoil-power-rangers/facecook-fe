@@ -18,6 +18,13 @@ Next.js(App Router)로 만들어졌다. 백엔드는 `facecook-be`(Java Spring B
   않는다 — 전부 `facecook-be`의 책임이다
 - 데이터는 `facecook-be`의 REST API를 fetch로 호출해서 받는다. 화면이
   당장 붙일 API가 없으면 해당 화면 폴더 안의 `*.mock.ts`로 대체한다
+- `docs/API명세.md`, `docs/ERD.md`는 이 레포에서도 참고하지만 **원본은
+  `facecook-be`**다. 여기서 임의로 고치지 않는다 — API 계약이 안 맞으면
+  `facecook-be` 쪽에 갱신을 요청하고, 반영되면 이 레포의 사본도 같이
+  갱신한다
+- `docs/`에는 API명세·ERD 외에도 기능명세·인프라설계·보안체크리스트·
+  테스트_장애대응·CICD·온보딩 문서가 있다. 화면 관련 결정이 바뀌면 해당
+  문서도 같이 갱신한다
 
 ## 3. 구조
 
