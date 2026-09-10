@@ -1,7 +1,17 @@
+// 이 값을 모듈 로드 시점에 검사(throw)하면 안 된다 — Next.js가 /login, /mypage를
+// 빌드 시점에 정적 생성(prerender)하면서 이 모듈을 불러오기만 해도 그 검사가
+// 실행되고, 배포 환경에 NEXT_PUBLIC_API_BASE_URL이 아직 없으면 빌드 자체가
+// 깨진다. 실제로 호출하는 시점(런타임)에만 확인한다.
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "");
 
-if (!API_BASE_URL) {
-  throw new Error("NEXT_PUBLIC_API_BASE_URL 환경변수가 필요합니다.");
+function requireApiBaseUrl(): string {
+  if (!API_BASE_URL) {
+    throw new AuthApiError(
+      "MISSING_API_BASE_URL",
+      "NEXT_PUBLIC_API_BASE_URL 환경변수가 설정되지 않았습니다.",
+    );
+  }
+  return API_BASE_URL;
 }
 
 type VerificationPurpose = "signup" | "login";
@@ -60,7 +70,7 @@ export function verifyLogin(email: string, code: string) {
 
 /** 세션 쿠키는 HttpOnly라 여기서 지우는 게 아니라 BE 응답의 Set-Cookie로 지워진다. */
 export async function logout(): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/api/auth/logout`, {
+  const response = await fetch(`${requireApiBaseUrl()}/api/auth/logout`, {
     method: "POST",
     credentials: "include",
   });
@@ -78,9 +88,10 @@ export function authErrorMessage(error: unknown) {
 }
 
 async function post<T>(path: string, body: unknown): Promise<T> {
+  const baseUrl = requireApiBaseUrl();
   let response: Response;
   try {
-    response = await fetch(`${API_BASE_URL}${path}`, {
+    response = await fetch(`${baseUrl}${path}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
