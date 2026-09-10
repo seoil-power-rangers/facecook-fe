@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { ChevronRight, Lock, Shield, Sparkles } from "lucide-react";
 import { Avatar } from "@ui/공통/Avatar";
 import { Button } from "@ui/공통/Button";
@@ -8,12 +9,34 @@ import { PhoneFrame } from "@ui/공통/PhoneFrame";
 import { StatCard } from "@ui/공통/StatCard";
 import { Tag } from "@ui/공통/Tag";
 import { TabBar } from "@ui/공통/TabBar";
+import { useSession } from "@ui/공통/session";
+import { authErrorMessage, logout } from "@ui/로그인/authApi";
 
 export function MyPageScreen() {
+  const router = useRouter();
+  const { signOut } = useSession();
   const [bio, setBio] = useState("주말엔 주로 암장 가거나 필름카메라 들고 산책해요.");
   const [department, setDepartment] = useState("컴퓨터공학과");
   const [grade, setGrade] = useState("3학년");
   const [idealType, setIdealType] = useState("유머 있는 사람");
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [logoutError, setLogoutError] = useState<string | null>(null);
+
+  const handleLogout = async () => {
+    if (isLoggingOut) return;
+
+    setIsLoggingOut(true);
+    setLogoutError(null);
+    try {
+      await logout();
+      signOut();
+      router.push("/login");
+    } catch (error) {
+      setLogoutError(authErrorMessage(error));
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
 
   return (
     <PhoneFrame>
@@ -126,9 +149,20 @@ export function MyPageScreen() {
               </button>
             </div>
 
-            <button type="button" className="py-1 text-left text-sm text-(--color-text-sub)">
-              로그아웃
+            <button
+              type="button"
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+              className="py-1 text-left text-sm text-(--color-text-sub) disabled:text-(--color-text-muted)"
+            >
+              {isLoggingOut ? "로그아웃 중..." : "로그아웃"}
             </button>
+
+            {logoutError ? (
+              <p role="alert" className="text-[12px] text-(--color-danger)">
+                {logoutError}
+              </p>
+            ) : null}
           </div>
         </div>
       </main>
