@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronRight, Lock, Shield, Sparkles } from "lucide-react";
 import { Avatar } from "@ui/공통/Avatar";
@@ -11,16 +11,69 @@ import { Tag } from "@ui/공통/Tag";
 import { TabBar } from "@ui/공통/TabBar";
 import { useSession } from "@ui/공통/session";
 import { authErrorMessage, logout } from "@ui/로그인/authApi";
+import {
+  getMyProfile,
+  profileErrorMessage,
+  type ProfileResponse,
+  updateMyProfile,
+} from "@ui/프로필작성/profileApi";
 
 export function MyPageScreen() {
   const router = useRouter();
   const { signOut } = useSession();
-  const [bio, setBio] = useState("주말엔 주로 암장 가거나 필름카메라 들고 산책해요.");
-  const [department, setDepartment] = useState("컴퓨터공학과");
-  const [grade, setGrade] = useState("3학년");
-  const [idealType, setIdealType] = useState("유머 있는 사람");
+  const [profile, setProfile] = useState<ProfileResponse | null>(null);
+  const [bio, setBio] = useState("");
+  const [department, setDepartment] = useState("");
+  const [grade, setGrade] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadProfile = async () => {
+      setIsLoading(true);
+      setProfileError(null);
+      try {
+        const response = await getMyProfile();
+        if (!active) return;
+        setProfile(response);
+        setBio(response.bio ?? "");
+        setDepartment(response.department ?? "");
+        setGrade(response.grade ?? "");
+      } catch (error) {
+        if (active) setProfileError(profileErrorMessage(error));
+      } finally {
+        if (active) setIsLoading(false);
+      }
+    };
+
+    void loadProfile();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const handleProfileUpdate = async () => {
+    if (!profile || isSubmitting) return;
+
+    setIsSubmitting(true);
+    setProfileError(null);
+    try {
+      const response = await updateMyProfile({ department, grade, bio });
+      setProfile(response);
+      setBio(response.bio ?? "");
+      setDepartment(response.department ?? "");
+      setGrade(response.grade ?? "");
+    } catch (error) {
+      setProfileError(profileErrorMessage(error));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleLogout = async () => {
     if (isLoggingOut) return;
@@ -49,19 +102,42 @@ export function MyPageScreen() {
 
       <main className="flex-1 overflow-y-auto pb-16">
         <div className="flex flex-col gap-5 p-4">
-          <div className="flex items-center gap-3 rounded-(--radius-lg) border border-(--color-border) bg-(--color-surface) p-4">
-            <Avatar name="나" size="xl" online />
-            <div className="flex flex-1 flex-col gap-1 overflow-hidden">
-              <div className="flex items-center gap-1.5">
-                <span className="text-base font-bold text-(--color-text-strong)">지호</span>
-                <Tag variant="primary">ENFP</Tag>
+          {isLoading ? (
+            <p className="py-8 text-center text-sm text-(--color-text-sub)">
+              프로필을 불러오는 중...
+            </p>
+          ) : profile ? (
+            <div className="flex items-center gap-3 rounded-(--radius-lg) border border-(--color-border) bg-(--color-surface) p-4">
+              <Avatar name={profile.nickname} size="xl" online />
+              <div className="flex flex-1 flex-col gap-1 overflow-hidden">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-base font-bold text-(--color-text-strong)">
+                    {profile.nickname}
+                  </span>
+                  <Tag variant="primary">{profile.mbti}</Tag>
+                </div>
+                <span className="truncate text-xs text-(--color-text-sub)">
+                  {[`${profile.age}세`, profile.bloodType, profile.department, profile.grade]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </span>
               </div>
-              <span className="truncate text-xs text-(--color-text-sub)">24세 · O형 · 컴퓨터공학과 3학년</span>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={isSubmitting}
+                onClick={handleProfileUpdate}
+              >
+                {isSubmitting ? "저장 중..." : "저장"}
+              </Button>
             </div>
-            <Button size="sm" variant="outline">
-              수정
-            </Button>
-          </div>
+          ) : null}
+
+          {profileError ? (
+            <p role="alert" className="text-[12px] text-(--color-danger)">
+              {profileError}
+            </p>
+          ) : null}
 
           <div className="flex items-center justify-between rounded-(--radius-lg) bg-(--color-primary-lighter) px-4 py-3">
             <span className="text-sm font-medium text-(--color-text-strong)">오늘 남은 콕</span>
@@ -101,7 +177,9 @@ export function MyPageScreen() {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-(--color-text-sub)">학과 · 학년 · 이상형</label>
+              <label className="text-xs font-medium text-(--color-text-sub)">
+                학과 · 학년
+              </label>
               <div className="flex gap-2">
                 <input
                   value={department}
@@ -114,11 +192,6 @@ export function MyPageScreen() {
                   className="h-11 w-24 shrink-0 rounded-(--radius-lg) border border-(--color-border) bg-(--color-surface) px-3 text-sm text-(--color-text-strong) outline-none"
                 />
               </div>
-              <input
-                value={idealType}
-                onChange={(event) => setIdealType(event.target.value)}
-                className="h-11 rounded-(--radius-lg) border border-(--color-border) bg-(--color-surface) px-3 text-sm text-(--color-text-strong) outline-none"
-              />
             </div>
           </div>
 

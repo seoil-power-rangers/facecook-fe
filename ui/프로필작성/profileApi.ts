@@ -1,0 +1,153 @@
+import type { OnboardingDraft } from "@ui/공통/types";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "");
+
+interface ApiErrorResponse {
+  code?: string;
+  message?: string;
+}
+
+export interface CreateProfileRequest {
+  nickname: string;
+  gender: string;
+  age: number;
+  mbti: string;
+  hobby: string;
+  bloodType: string;
+  department?: string;
+  grade?: string;
+  bio?: string;
+  idealType?: string;
+  /** 백엔드는 업로드 파일이 아니라 URL 문자열만 받는다. */
+  photo?: string;
+}
+
+export interface UpdateProfileRequest {
+  department?: string;
+  grade?: string;
+  bio?: string;
+  /** 백엔드는 업로드 파일이 아니라 URL 문자열만 받는다. */
+  photo?: string;
+}
+
+export interface ProfileResponse {
+  userId: number;
+  nickname: string;
+  gender: string;
+  age: number;
+  mbti: string;
+  hobby: string;
+  bloodType: string;
+  department: string | null;
+  grade: string | null;
+  bio: string | null;
+  idealType: string | null;
+  photo: string | null;
+}
+
+export class ProfileApiError extends Error {
+  constructor(
+    public readonly code: string,
+    message: string,
+  ) {
+    super(message);
+    this.name = "ProfileApiError";
+  }
+}
+
+export function profileErrorMessage(error: unknown) {
+  if (error instanceof ProfileApiError) {
+    return error.message;
+  }
+  return "백엔드 서버에 연결할 수 없습니다. 실행 상태를 확인해주세요.";
+}
+
+export function createProfileRequestFromDraft(
+  draft: OnboardingDraft,
+): CreateProfileRequest {
+  return {
+    nickname: draft.nickname.trim(),
+    gender: draft.gender,
+    age: Number(draft.age),
+    mbti: draft.mbti.join(""),
+    hobby: draft.activities.join(","),
+    bloodType: draft.bloodType,
+    ...optionalField("department", draft.department),
+    ...optionalField("grade", draft.grade),
+    ...optionalField("bio", draft.bio),
+    ...optionalField("idealType", draft.idealType),
+    ...optionalField("photo", draft.photoUrl),
+  };
+}
+
+export function createProfile(request: CreateProfileRequest) {
+  return requestProfile<ProfileResponse>("/api/profile", {
+    method: "POST",
+    body: JSON.stringify(request),
+  });
+}
+
+export function getMyProfile() {
+  return requestProfile<ProfileResponse>("/api/profile");
+}
+
+export function updateMyProfile(request: UpdateProfileRequest) {
+  return requestProfile<ProfileResponse>("/api/profile", {
+    method: "PATCH",
+    body: JSON.stringify(request),
+  });
+}
+
+export function getProfiles() {
+  return requestProfile<ProfileResponse[]>("/api/profiles");
+}
+
+export function getProfile(userId: number) {
+  return requestProfile<ProfileResponse>(`/api/profiles/${userId}`);
+}
+
+function optionalField<K extends string>(key: K, value: string) {
+  const trimmed = value.trim();
+  return trimmed ? ({ [key]: trimmed } as Record<K, string>) : {};
+}
+
+function requireApiBaseUrl(): string {
+  if (!API_BASE_URL) {
+    throw new ProfileApiError(
+      "MISSING_API_BASE_URL",
+      "NEXT_PUBLIC_API_BASE_URL 환경변수가 설정되지 않았습니다.",
+    );
+  }
+  return API_BASE_URL;
+}
+
+async function requestProfile<T>(
+  path: string,
+  init: RequestInit = {},
+): Promise<T> {
+  let response: Response;
+  try {
+    response = await fetch(`${requireApiBaseUrl()}${path}`, {
+      ...init,
+      headers: init.body ? { "Content-Type": "application/json" } : undefined,
+      credentials: "include",
+    });
+  } catch (error) {
+    if (error instanceof ProfileApiError) {
+      throw error;
+    }
+    throw new ProfileApiError("NETWORK", "백엔드 서버에 연결할 수 없습니다.");
+  }
+
+  const payload = (await response.json().catch(() => ({}))) as T &
+    ApiErrorResponse;
+
+  if (!response.ok) {
+    throw new ProfileApiError(
+      payload.code ?? "UNKNOWN",
+      payload.message ?? "요청을 처리하지 못했습니다.",
+    );
+  }
+
+  return payload;
+}
