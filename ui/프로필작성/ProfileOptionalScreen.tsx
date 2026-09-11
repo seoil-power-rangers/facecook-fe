@@ -1,8 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, Search, User } from "lucide-react";
+import { Search } from "lucide-react";
 import { Button } from "@ui/공통/Button";
 import { ChipGroup } from "@ui/공통/ChipGroup";
 import { StepHeader, Accent } from "@ui/공통/StepHeader";
@@ -10,6 +10,11 @@ import { TextField } from "@ui/공통/TextField";
 import { Textarea } from "@ui/공통/Textarea";
 import { GRADES } from "@ui/공통/constants";
 import { useOnboarding } from "@ui/공통/onboarding";
+import {
+  createProfile,
+  createProfileRequestFromDraft,
+  profileErrorMessage,
+} from "./profileApi";
 
 const BIO_MAX = 100;
 
@@ -21,8 +26,23 @@ const BIO_MAX = 100;
 export function ProfileOptionalScreen() {
   const router = useRouter();
   const { draft, set } = useOnboarding();
-  const fileRef = useRef<HTMLInputElement>(null);
-  const [photo, setPhoto] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async () => {
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      await createProfile(createProfileRequestFromDraft(draft));
+      router.push("/onboarding/done");
+    } catch (submitError) {
+      setError(profileErrorMessage(submitError));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="flex min-h-full flex-col">
@@ -41,47 +61,7 @@ export function ProfileOptionalScreen() {
         }
       />
 
-      <div className="flex flex-col items-center">
-        <button
-          type="button"
-          onClick={() => fileRef.current?.click()}
-          className="relative h-24 w-24 rounded-(--radius-full) bg-(--color-surface-alt)"
-        >
-          {photo ? (
-            // 미리보기는 브라우저 안에서만 쓴다 — 업로드는 서버 붙은 뒤.
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={photo}
-              alt="프로필 미리보기"
-              className="h-full w-full rounded-(--radius-full) object-cover"
-            />
-          ) : (
-            <span className="flex h-full w-full items-center justify-center text-(--color-border-strong)">
-              <User className="h-12 w-12" />
-            </span>
-          )}
-          <span className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-(--radius-full) border-2 border-(--color-surface) bg-(--color-primary) text-(--color-text-on-primary)">
-            <Camera className="h-4 w-4" />
-          </span>
-        </button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            if (file) {
-              setPhoto(URL.createObjectURL(file));
-            }
-          }}
-        />
-        <p className="mt-2.5 text-[12px] text-(--color-text-sub)">
-          사진을 올리면 프로필이 더 눈에 띄어요
-        </p>
-      </div>
-
-      <div className="mt-7 space-y-5">
+      <div className="space-y-5">
         <TextField
           label="학과선택"
           placeholder="컴퓨터공학과"
@@ -111,11 +91,20 @@ export function ProfileOptionalScreen() {
       </div>
 
       <div className="mt-auto pt-8">
+        {error ? (
+          <p
+            role="alert"
+            className="mb-2 text-center text-[12px] text-(--color-danger)"
+          >
+            {error}
+          </p>
+        ) : null}
         <Button
           fullWidth
-          onClick={() => router.push("/onboarding/done")}
+          disabled={isSubmitting}
+          onClick={submit}
         >
-          완료하고 시작
+          {isSubmitting ? "등록 중..." : "완료하고 시작"}
         </Button>
       </div>
     </div>

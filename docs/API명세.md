@@ -110,6 +110,10 @@
 | --- | --- | --- | --- |
 | GET | `/api/matches/{matchId}/messages?before={messageId}&limit=50` | 메시지 히스토리 조회 (페이지네이션) | 참가자(해당 매칭 당사자만) |
 
+- 응답은 `messageId` 내림차순 배열이며, 다음 페이지는 마지막 항목의
+  `messageId`를 `before`로 보낸다. `limit` 기본값은 50, 허용 범위는 1~100이다.
+- 메시지 항목: `{ messageId, matchId, senderId, content, clientMessageId, sentAt }`
+
 ### WebSocket (STOMP)
 
 | 구분 | 목적지 | 설명 |
@@ -117,8 +121,13 @@
 | CONNECT | `/ws` | 세션 쿠키로 인증, 연결 시 Redis 접속자 명단에 등록 |
 | SUBSCRIBE | `/topic/chat/{matchId}` | 해당 채팅방 메시지 실시간 수신 — **구독 시점에 이 matchId 당사자인지 서버가 검증** |
 | SEND | `/app/chat/{matchId}/send` | 메시지 전송, body: `{ content, clientMessageId }` |
+| SUBSCRIBE | `/user/queue/chat-acks` | DB 저장이 끝난 SEND 결과 수신. 재전송이면 기존 메시지를 동일한 형식으로 반환 |
 | — | — | 운영시간(09:00~18:00) 외 전송 시 `CLOSED` 에러 반환 |
 | DISCONNECT | — | 연결 종료 시 Redis 접속자 명단에서 제거 |
+
+`/topic/chat/{matchId}`와 `/user/queue/chat-acks`의 메시지 형식은 REST 메시지
+항목과 같다. STOMP 처리 실패는 ERROR frame의 JSON body
+`{ "code": "ERROR_CODE", "message": "..." }`로 반환한다.
 
 ## 5. 미션
 
@@ -144,12 +153,46 @@
 | --- | --- | --- | --- |
 | GET | `/api/admin/stats` | 가입자수/활성사용자/콕사용량/매칭수/미션완료수/대기신고수 | 관리자 |
 
+응답:
+
+```json
+{
+  "totalUsers": 214,
+  "activeToday": 200,
+  "totalCooks": 487,
+  "totalMatches": 63,
+  "missionCleared": 21,
+  "pendingReports": 2
+}
+```
+
+- `activeToday`는 기본적으로 `users.status = ACTIVE`인 사용자 수다. 현재
+  `last_active_at` 갱신 로직이 없어 실제 당일 활동 수를 신뢰할 수 없기 때문이다.
+- `ADMIN_STATS_ACTIVE_USER_CRITERION=LAST_ACTIVE_TODAY`로 설정하면
+  `Asia/Seoul` 기준 당일 `last_active_at`이 기록된 사용자 수를 집계한다. 이 기준은
+  사용자 활동 시각 갱신 로직을 도입한 뒤 사용한다.
+
 ## 8. 알림 (웹 푸시)
 
 | Method | Path | 설명 | 인증 |
 | --- | --- | --- | --- |
 | POST | `/api/push/subscribe` | 브라우저 푸시 구독 정보 등록 (`endpoint, keys`) | 참가자 |
-| DELETE | `/api/push/subscribe` | 구독 해제 | 참가자 |
+| DELETE | `/api/push/subscribe` | 현재 사용자의 모든 기기 구독 해제 | 참가자 |
+
+`POST /api/push/subscribe` 요청:
+
+```json
+{
+  "endpoint": "https://push.example/subscription",
+  "keys": {
+    "p256dh": "browser-public-key",
+    "auth": "browser-auth-secret"
+  }
+}
+```
+
+- 동일한 `(user_id, endpoint)`를 재등록하면 `keys`를 갱신한다.
+- 등록과 해제 성공 응답은 모두 `204 No Content`이다.
 
 발송 전용 엔드포인트는 없음 — 콕/매칭/메시지 이벤트 발생 시 서버가 내부적으로 판단해 자동 발송(기능명세 8번 참고).
 
