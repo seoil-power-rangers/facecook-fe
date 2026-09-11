@@ -1,18 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { ChevronRight, MessagesSquare } from "lucide-react";
 import { BottomSheet } from "@ui/공통/BottomSheet";
 import { Button } from "@ui/공통/Button";
 import { InfoBox } from "@ui/공통/InfoBox";
 import { Tag } from "@ui/공통/Tag";
-import { AdminShell } from "./AdminShell";
 import {
-  adminReports,
-  type AdminReport,
+  adminErrorMessage,
+  getAdminReport,
+  getAdminReports,
+  getAdminUserNames,
+  resolveAdminReport,
+  type AdminReportResponse,
   type AdminReportStatus,
-} from "./admin.mock";
+} from "./adminApi";
+import { AdminLoadState } from "./AdminLoadState";
+import { AdminShell } from "./AdminShell";
 
 type ActionKind = "suspended" | "dismissed";
 
@@ -24,30 +29,84 @@ const TABS: { key: AdminReportStatus; label: string }[] = [
 /** 10 admin-report — 신고를 보고 영구정지 또는 종결 처리한다. */
 export function AdminReportScreen() {
   const [tab, setTab] = useState<AdminReportStatus>("pending");
-  const [reports, setReports] = useState(adminReports);
-  const [opened, setOpened] = useState<AdminReport | null>(null);
+  const [reports, setReports] = useState<AdminReportResponse[]>([]);
+  const [userNames, setUserNames] = useState<Record<number, string>>({});
+  const [opened, setOpened] = useState<AdminReportResponse | null>(null);
   const [confirming, setConfirming] = useState<ActionKind | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [isDetailLoading, setIsDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const [isResolving, setIsResolving] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const loadReports = useCallback(async () => {
+    setIsLoading(true);
+    setLoadError(null);
+    try {
+      const response = await getAdminReports();
+      setReports(response);
+      setUserNames(
+        await getAdminUserNames(
+          response.flatMap((report) => [report.reporterId, report.reportedUserId]),
+        ),
+      );
+    } catch (error) {
+      setLoadError(adminErrorMessage(error));
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadReports();
+  }, [loadReports]);
+
+  const openReport = async (report: AdminReportResponse) => {
+    setOpened(report);
+    setConfirming(null);
+    setActionError(null);
+    setIsDetailLoading(true);
+    setDetailError(null);
+    try {
+      const detail = await getAdminReport(report.reportId);
+      setOpened((current) =>
+        current?.reportId === report.reportId ? detail : current,
+      );
+    } catch (error) {
+      setDetailError(adminErrorMessage(error));
+    } finally {
+      setIsDetailLoading(false);
+    }
+  };
+
+  const applyAction = async () => {
+    if (!opened || !confirming || isResolving) return;
+
+    setIsResolving(true);
+    setActionError(null);
+    try {
+      const updated = await resolveAdminReport(
+        opened.reportId,
+        confirming === "suspended",
+      );
+      setReports((current) =>
+        current.map((report) =>
+          report.reportId === updated.reportId ? updated : report,
+        ),
+      );
+      setOpened(updated);
+      setConfirming(null);
+    } catch (error) {
+      setActionError(adminErrorMessage(error));
+    } finally {
+      setIsResolving(false);
+    }
+  };
 
   const visible = reports.filter((report) => report.status === tab);
-  const pendingCount = reports.filter(
-    (report) => report.status === "pending",
-  ).length;
-
-  const applyAction = () => {
-    if (!opened || !confirming) {
-      return;
-    }
-    // 서버가 붙으면 report.status와 user.status를 여기서 갱신한다.
-    setReports((prev) =>
-      prev.map((report) =>
-        report.reportId === opened.reportId
-          ? { ...report, status: "reviewed", action: confirming }
-          : report,
-      ),
-    );
-    setConfirming(null);
-    setOpened(null);
-  };
+  const pendingCount = reports.filter((report) => report.status === "pending").length;
 
   return (
     <AdminShell title="신고 처리">
@@ -56,7 +115,6 @@ export function AdminReportScreen() {
           {TABS.map((item) => {
             const on = tab === item.key;
             const badge = item.key === "pending" ? pendingCount : 0;
-
             return (
               <button
                 key={item.key}
@@ -69,18 +127,21 @@ export function AdminReportScreen() {
                     : "bg-(--color-surface) text-(--color-text-sub)"
                 }`}
               >
-                {item.label}
-                {badge > 0 ? ` ${badge}` : ""}
+                {item.label}{badge > 0 ? ` ${badge}` : ""}
               </button>
             );
           })}
         </div>
 
-        {visible.length === 0 ? (
+        {isLoading || loadError ? (
+          <AdminLoadState
+            loading={isLoading}
+            error={loadError}
+            onRetry={() => void loadReports()}
+          />
+        ) : visible.length === 0 ? (
           <p className="py-12 text-center text-sm text-(--color-text-sub)">
-            {tab === "pending"
-              ? "미처리 신고가 없어요."
-              : "처리한 신고가 없어요."}
+            {tab === "pending" ? "미처리 신고가 없어요." : "처리한 신고가 없어요."}
           </p>
         ) : (
           <ul className="flex flex-col gap-2">
@@ -88,29 +149,19 @@ export function AdminReportScreen() {
               <li key={report.reportId}>
                 <button
                   type="button"
-                  onClick={() => setOpened(report)}
+                  onClick={() => void openReport(report)}
                   className="flex w-full items-center gap-3 rounded-(--radius-lg) bg-(--color-surface) p-3.5 text-left shadow-(--shadow-card)"
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <p className="truncate text-sm font-bold text-(--color-text-strong)">
-                        {report.reporterName} → {report.reportedName}
+                        {displayName(userNames, report.reporterId)} → {displayName(userNames, report.reportedUserId)}
                       </p>
-                      {report.action ? (
-                        <Tag
-                          variant={
-                            report.action === "suspended" ? "warning" : "default"
-                          }
-                        >
-                          {report.action === "suspended" ? "영구정지" : "종결"}
-                        </Tag>
-                      ) : null}
+                      {report.status === "reviewed" ? <Tag variant="default">처리완료</Tag> : null}
                     </div>
-                    <p className="mt-0.5 truncate text-xs text-(--color-text-sub)">
-                      {report.reason}
-                    </p>
+                    <p className="mt-0.5 truncate text-xs text-(--color-text-sub)">{report.reason}</p>
                     <p className="mt-0.5 text-xs text-(--color-text-muted)">
-                      {report.createdAt} 접수
+                      {formatDateTime(report.createdAt)} 접수
                     </p>
                   </div>
                   <ChevronRight className="h-4 w-4 shrink-0 text-(--color-text-muted)" />
@@ -124,23 +175,41 @@ export function AdminReportScreen() {
       <BottomSheet
         open={opened !== null}
         onClose={() => {
+          if (isResolving) return;
           setOpened(null);
           setConfirming(null);
+          setDetailError(null);
         }}
       >
         {opened ? (
           <div className="max-h-[70vh] overflow-y-auto px-5 pt-3">
-            {confirming ? (
+            {isDetailLoading ? (
+              <p className="py-8 text-center text-sm text-(--color-text-sub)">신고 상세를 불러오는 중...</p>
+            ) : detailError ? (
+              <div role="alert" className="flex flex-col items-center gap-3 py-8 text-center text-sm text-(--color-danger)">
+                <span>{detailError}</span>
+                <Button size="sm" variant="outline" onClick={() => void openReport(opened)}>
+                  다시 시도
+                </Button>
+              </div>
+            ) : confirming ? (
               <ActionConfirm
                 kind={confirming}
-                targetName={opened.reportedName}
+                targetName={displayName(userNames, opened.reportedUserId)}
+                loading={isResolving}
+                error={actionError}
                 onCancel={() => setConfirming(null)}
-                onConfirm={applyAction}
+                onConfirm={() => void applyAction()}
               />
             ) : (
               <ReportDetail
                 report={opened}
-                onAction={(kind) => setConfirming(kind)}
+                reporterName={displayName(userNames, opened.reporterId)}
+                reportedName={displayName(userNames, opened.reportedUserId)}
+                onAction={(kind) => {
+                  setActionError(null);
+                  setConfirming(kind);
+                }}
               />
             )}
           </div>
@@ -152,67 +221,54 @@ export function AdminReportScreen() {
 
 function ReportDetail({
   report,
+  reporterName,
+  reportedName,
   onAction,
 }: {
-  report: AdminReport;
+  report: AdminReportResponse;
+  reporterName: string;
+  reportedName: string;
   onAction: (kind: ActionKind) => void;
 }) {
   const done = report.status === "reviewed";
 
   return (
     <>
-      <h2 className="text-[17px] font-bold text-(--color-text-strong)">
-        {report.reportedName} 님에 대한 신고
-      </h2>
+      <h2 className="text-[17px] font-bold text-(--color-text-strong)">{reportedName} 님에 대한 신고</h2>
       <p className="mt-1 text-xs text-(--color-text-muted)">
-        신고자 {report.reporterName} · {report.createdAt} 접수
+        신고자 {reporterName} · {formatDateTime(report.createdAt)} 접수
       </p>
 
       <div className="mt-4 rounded-(--radius-lg) bg-(--color-surface-alt) p-3.5">
-        <p className="text-sm font-bold text-(--color-text-strong)">
-          {report.reason}
-        </p>
+        <p className="text-sm font-bold text-(--color-text-strong)">{report.reason}</p>
         <p className="mt-1.5 text-sm leading-relaxed text-(--color-text-body)">
-          {report.detail}
+          {report.detail || "작성된 상세 내용이 없습니다."}
         </p>
       </div>
 
-      {report.chatroomId ? (
-        <Link
-          href={`/admin/chat/${report.reportId}`}
-          className="mt-3 flex items-center gap-3 rounded-(--radius-lg) border border-(--color-border) px-3.5 py-3"
-        >
-          <MessagesSquare className="h-5 w-5 shrink-0 text-(--color-primary)" />
-          <span className="flex-1 text-sm font-semibold text-(--color-text-strong)">
-            이 신고 건의 채팅 보기
-          </span>
-          <ChevronRight className="h-4 w-4 shrink-0 text-(--color-text-muted)" />
-        </Link>
-      ) : (
-        <p className="mt-3 text-xs text-(--color-text-muted)">
-          이 신고에 엮인 채팅방이 없어요.
-        </p>
-      )}
+      <Link
+        href={`/admin/chat/${report.reportId}`}
+        className="mt-3 flex items-center gap-3 rounded-(--radius-lg) border border-(--color-border) px-3.5 py-3"
+      >
+        <MessagesSquare className="h-5 w-5 shrink-0 text-(--color-primary)" />
+        <span className="flex-1 text-sm font-semibold text-(--color-text-strong)">이 신고 건의 채팅 보기</span>
+        <ChevronRight className="h-4 w-4 shrink-0 text-(--color-text-muted)" />
+      </Link>
 
       {done ? (
         <div className="mt-5">
           <InfoBox>
-            이미 처리한 신고입니다 —{" "}
-            {report.action === "suspended" ? "영구정지" : "정지 없이 종결"}.
+            {report.reviewedAt
+              ? `${formatDateTime(report.reviewedAt)}에 처리한 신고입니다.`
+              : "이미 처리한 신고입니다."}
           </InfoBox>
         </div>
       ) : (
         <div className="mt-5 flex flex-col gap-2">
-          <Button
-            variant="secondary"
-            fullWidth
-            onClick={() => onAction("dismissed")}
-          >
+          <Button variant="secondary" fullWidth onClick={() => onAction("dismissed")}>
             정지 없이 종결
           </Button>
-          <Button fullWidth onClick={() => onAction("suspended")}>
-            영구정지
-          </Button>
+          <Button fullWidth onClick={() => onAction("suspended")}>영구정지</Button>
         </div>
       )}
     </>
@@ -222,16 +278,19 @@ function ReportDetail({
 function ActionConfirm({
   kind,
   targetName,
+  loading,
+  error,
   onCancel,
   onConfirm,
 }: {
   kind: ActionKind;
   targetName: string;
+  loading: boolean;
+  error: string | null;
   onCancel: () => void;
   onConfirm: () => void;
 }) {
   const suspend = kind === "suspended";
-
   return (
     <>
       <h2 className="text-[17px] font-bold text-(--color-text-strong)">
@@ -242,20 +301,23 @@ function ActionConfirm({
           ? "이 참가자는 즉시 서비스를 쓸 수 없게 되고, 행사 기간 내내 다시 들어올 수 없어요."
           : "신고를 처리 완료로 표시만 하고 참가자에게는 아무 조치도 하지 않아요."}
       </p>
-      {suspend ? (
-        <p className="mt-2 text-xs text-(--color-danger)">
-          되돌리는 화면이 아직 없어요. 신중하게 눌러주세요.
-        </p>
-      ) : null}
+      {suspend ? <p className="mt-2 text-xs text-(--color-danger)">되돌리는 화면이 아직 없어요. 신중하게 눌러주세요.</p> : null}
+      {error ? <p role="alert" className="mt-3 text-sm text-(--color-danger)">{error}</p> : null}
 
       <div className="mt-5 flex gap-2">
-        <Button variant="secondary" fullWidth onClick={onCancel}>
-          취소
-        </Button>
-        <Button fullWidth onClick={onConfirm}>
-          {suspend ? "영구정지" : "종결"}
+        <Button variant="secondary" fullWidth disabled={loading} onClick={onCancel}>취소</Button>
+        <Button fullWidth disabled={loading} onClick={onConfirm}>
+          {loading ? "처리 중..." : suspend ? "영구정지" : "종결"}
         </Button>
       </div>
     </>
   );
+}
+
+function displayName(names: Record<number, string>, userId: number) {
+  return names[userId] ?? `참가자 #${userId}`;
+}
+
+function formatDateTime(value: string) {
+  return value.replace("T", " ").slice(5, 16);
 }
