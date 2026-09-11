@@ -1,9 +1,22 @@
 "use client";
 
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, ChevronLeft, Gift, Lock } from "lucide-react";
+import { Button } from "@ui/공통/Button";
 import { PhoneFrame } from "@ui/공통/PhoneFrame";
 import { Tag } from "@ui/공통/Tag";
+import {
+  getMatch,
+  matchErrorMessage,
+  type MatchResponse,
+} from "@ui/매칭/matchApi";
+import {
+  getMissionProgress,
+  MissionApiError,
+  missionErrorMessage,
+  type MissionProgressResponse,
+} from "./missionApi";
 
 type StepStatus = "done" | "progress" | "locked";
 
@@ -15,55 +28,121 @@ interface MissionStep {
   meta?: string;
 }
 
-const missionSteps: MissionStep[] = [
+const MISSION_CONTENT = [
   {
-    step: 1,
-    status: "done",
     title: "둘이 함께 인증사진 찍기",
-    description: "부스에서 인증받고 선물을 받았어요.",
-    meta: "음료 쿠폰 받음 · 09:58 인증",
+    description: "함께 인증사진을 찍고 부스에서 인증받으세요.",
+    completedLabel: "인증사진 미션 완료",
   },
   {
-    step: 2,
-    status: "progress",
     title: "부스 미션 카드 뽑고 수행하기",
     description: "카드에 적힌 미션을 함께 하고 부스에서 인증받으세요.",
+    completedLabel: "미션 카드 완료",
   },
   {
-    step: 3,
-    status: "locked",
-    title: "",
-    description: "STEP 2를 완료하면 열려요",
+    title: "최종 미션 수행하기",
+    description: "부스에서 안내받은 마지막 미션을 함께 수행하고 인증받으세요.",
+    completedLabel: "최종 미션 완료",
   },
-];
+] as const;
 
-const CURRENT_STEP = 2;
-const LAST_COMPLETED_STEP = 1;
-
-export function MissionScreen({ partnerName }: { partnerName: string }) {
+export function MissionScreen({ matchId }: { matchId: string }) {
   const router = useRouter();
+  const numericMatchId = Number(matchId);
+  const [progress, setProgress] = useState<MissionProgressResponse | null>(null);
+  const [match, setMatch] = useState<MatchResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadMission = useCallback(async () => {
+    if (!Number.isInteger(numericMatchId) || numericMatchId <= 0) {
+      setError("올바르지 않은 미션 주소예요.");
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+    try {
+      const [missionProgress, matchDetail] = await Promise.all([
+        getMissionProgress(numericMatchId),
+        getMatch(numericMatchId),
+      ]);
+      setProgress(missionProgress);
+      setMatch(matchDetail);
+    } catch (loadError) {
+      setError(
+        loadError instanceof MissionApiError
+          ? missionErrorMessage(loadError)
+          : matchErrorMessage(loadError),
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, [numericMatchId]);
+
+  useEffect(() => {
+    // 라우트의 matchId가 바뀌면 해당 매칭의 미션 진행 상태를 다시 불러온다.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadMission();
+  }, [loadMission]);
+
+  if (isLoading || error || !progress || !match) {
+    return (
+      <PhoneFrame>
+        <MissionHeader onBack={() => router.back()} />
+        <div
+          role={error ? "alert" : undefined}
+          className={`flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center text-sm ${
+            error ? "text-(--color-danger)" : "text-(--color-text-sub)"
+          }`}
+        >
+          <span>{error ?? "미션 진행 상황을 불러오는 중..."}</span>
+          {error ? (
+            <Button size="sm" variant="outline" onClick={() => void loadMission()}>
+              다시 시도
+            </Button>
+          ) : null}
+        </div>
+      </PhoneFrame>
+    );
+  }
+
+  const missionSteps = createMissionSteps(progress);
+  const lastCompletedStep = missionSteps.filter((mission) => mission.status === "done").length;
+  const allCompleted = progress.currentStep >= 4;
 
   return (
     <PhoneFrame>
-      <header className="flex h-14 w-full shrink-0 items-center gap-3 border-b border-(--color-border) bg-(--color-surface) px-3">
-        <button type="button" aria-label="뒤로가기" className="p-1" onClick={() => router.back()}>
-          <ChevronLeft className="h-5 w-5 text-(--color-text-strong)" />
-        </button>
-        <h1 className="flex-1 text-center text-base font-bold text-(--color-text-strong)">미션</h1>
-        <span className="w-7" aria-hidden="true" />
-      </header>
+      <MissionHeader onBack={() => router.back()} />
 
       <main className="flex-1 overflow-y-auto p-4">
         <div className="flex flex-col gap-5">
           <div>
-            <p className="text-xs text-(--color-text-sub)">{partnerName}님과 함께</p>
-            <p className="mt-1 text-lg font-bold text-(--color-text-strong)">
-              <span className="text-(--color-primary)">STEP {LAST_COMPLETED_STEP}</span> 완료!
-            </p>
-            <p className="mt-0.5 text-sm text-(--color-text-sub)">부스에서 인증받고 선물을 받았어요.</p>
+            <p className="text-xs text-(--color-text-sub)">{match.partner.nickname}님과 함께</p>
+            {allCompleted ? (
+              <>
+                <p className="mt-1 text-lg font-bold text-(--color-text-strong)">
+                  <span className="text-(--color-success)">모든 미션</span> 완료!
+                </p>
+                <p className="mt-0.5 text-sm text-(--color-text-sub)">최종 선물을 받아보세요.</p>
+              </>
+            ) : lastCompletedStep > 0 ? (
+              <>
+                <p className="mt-1 text-lg font-bold text-(--color-text-strong)">
+                  <span className="text-(--color-primary)">STEP {lastCompletedStep}</span> 완료!
+                </p>
+                <p className="mt-0.5 text-sm text-(--color-text-sub)">다음 미션도 함께 도전해보세요.</p>
+              </>
+            ) : (
+              <>
+                <p className="mt-1 text-lg font-bold text-(--color-text-strong)">첫 미션을 시작해보세요!</p>
+                <p className="mt-0.5 text-sm text-(--color-text-sub)">현장 부스에서 인증하면 다음 STEP이 열려요.</p>
+              </>
+            )}
           </div>
 
-          <StepIndicator currentStep={CURRENT_STEP} />
+          <StepIndicator currentStep={progress.currentStep} />
 
           <div className="flex flex-col gap-3">
             {missionSteps.map((mission) => (
@@ -76,8 +155,12 @@ export function MissionScreen({ partnerName }: { partnerName: string }) {
               <Gift className="h-4 w-4" />
             </span>
             <div className="flex flex-col">
-              <span className="text-xs text-(--color-text-sub)">STEP 3까지 완료하면</span>
-              <span className="text-sm font-bold text-(--color-text-strong)">최종 선물을 받을 수 있어요</span>
+              <span className="text-xs text-(--color-text-sub)">
+                {allCompleted ? "모든 STEP을 완료했어요" : "STEP 3까지 완료하면"}
+              </span>
+              <span className="text-sm font-bold text-(--color-text-strong)">
+                {allCompleted ? "부스에서 최종 선물을 받아보세요" : "최종 선물을 받을 수 있어요"}
+              </span>
             </div>
           </div>
         </div>
@@ -86,15 +169,25 @@ export function MissionScreen({ partnerName }: { partnerName: string }) {
   );
 }
 
-function StepIndicator({ currentStep }: { currentStep: number }) {
-  const steps = [1, 2, 3];
+function MissionHeader({ onBack }: { onBack: () => void }) {
+  return (
+    <header className="flex h-14 w-full shrink-0 items-center gap-3 border-b border-(--color-border) bg-(--color-surface) px-3">
+      <button type="button" aria-label="뒤로가기" className="p-1" onClick={onBack}>
+        <ChevronLeft className="h-5 w-5 text-(--color-text-strong)" />
+      </button>
+      <h1 className="flex-1 text-center text-base font-bold text-(--color-text-strong)">미션</h1>
+      <span className="w-7" aria-hidden="true" />
+    </header>
+  );
+}
 
+function StepIndicator({ currentStep }: { currentStep: number }) {
   return (
     <div className="flex items-center px-2">
-      {steps.map((step, index) => {
+      {[1, 2, 3].map((step, index) => {
         const isDone = step < currentStep;
         const isCurrent = step === currentStep;
-        const isLast = index === steps.length - 1;
+        const isLast = index === 2;
 
         let nodeClassName = "flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold";
         if (isDone) {
@@ -105,8 +198,7 @@ function StepIndicator({ currentStep }: { currentStep: number }) {
           nodeClassName += " border-2 border-(--color-border) text-(--color-text-muted)";
         }
 
-        let lineClassName = "h-0.5 flex-1";
-        lineClassName += step < currentStep ? " bg-(--color-success)" : " bg-(--color-border)";
+        const lineClassName = `h-0.5 flex-1 ${step < currentStep ? "bg-(--color-success)" : "bg-(--color-border)"}`;
 
         return (
           <div key={step} className="flex flex-1 items-center last:flex-none">
@@ -166,4 +258,49 @@ function MissionCard({ mission }: { mission: MissionStep }) {
       <Check className="mt-1 h-4 w-4 shrink-0 text-(--color-success)" aria-hidden="true" />
     </div>
   );
+}
+
+function createMissionSteps(progress: MissionProgressResponse): MissionStep[] {
+  const completedAt = [
+    progress.step1CompletedAt,
+    progress.step2CompletedAt,
+    progress.step3CompletedAt,
+  ];
+
+  return MISSION_CONTENT.map((content, index) => {
+    const step = index + 1;
+    const completed = completedAt[index];
+    const status: StepStatus =
+      completed || step < progress.currentStep
+        ? "done"
+        : step === progress.currentStep
+          ? "progress"
+          : "locked";
+
+    return {
+      step,
+      status,
+      title: content.title,
+      description:
+        status === "locked"
+          ? `STEP ${step - 1}를 완료하면 열려요`
+          : status === "done"
+            ? "부스에서 인증을 완료했어요."
+            : content.description,
+      meta: completed
+        ? `${content.completedLabel} · ${formatCompletedAt(completed)}`
+        : undefined,
+    };
+  });
+}
+
+function formatCompletedAt(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "완료 시각 확인 불가";
+  return new Intl.DateTimeFormat("ko-KR", {
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
 }
