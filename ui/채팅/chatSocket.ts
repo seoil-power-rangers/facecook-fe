@@ -1,0 +1,154 @@
+import { Client, type IMessage, type StompSubscription } from "@stomp/stompjs";
+import type { ChatMessageResponse } from "./chatApi";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "");
+
+export type ChatConnectionStatus =
+  | "connecting"
+  | "connected"
+  | "disconnected"
+  | "error";
+
+export interface ChatSocketError {
+  code: string;
+  message: string;
+}
+
+interface ConnectChatSocketOptions {
+  matchId: number;
+  onMessage: (message: ChatMessageResponse) => void;
+  onAck: (message: ChatMessageResponse) => void;
+  onError: (error: ChatSocketError) => void;
+  onStatusChange: (status: ChatConnectionStatus) => void;
+}
+
+export interface ChatSocketConnection {
+  send: (content: string, clientMessageId: string) => void;
+  disconnect: () => Promise<void>;
+}
+
+const SOCKET_ERROR_MESSAGES: Record<string, string> = {
+  CLOSED: "채팅 운영시간이 끝났어요. 내일 09:00에 다시 이용해주세요.",
+  UNAUTHORIZED: "로그인이 만료됐어요. 다시 로그인해주세요.",
+  FORBIDDEN: "이 채팅방에 접근할 수 없어요.",
+  NOT_FOUND: "채팅방을 찾을 수 없어요.",
+  SUSPENDED: "정지된 계정은 채팅을 이용할 수 없어요.",
+  VALIDATION: "메시지 내용을 확인해주세요.",
+};
+
+export function connectChatSocket({
+  matchId,
+  onMessage,
+  onAck,
+  onError,
+  onStatusChange,
+}: ConnectChatSocketOptions): ChatSocketConnection {
+  let intentionalDisconnect = false;
+  let topicSubscription: StompSubscription | undefined;
+  let ackSubscription: StompSubscription | undefined;
+
+  const client = new Client({
+    brokerURL: requireWebSocketUrl(),
+    reconnectDelay: 0,
+    connectionTimeout: 10_000,
+    heartbeatIncoming: 10_000,
+    heartbeatOutgoing: 10_000,
+    onConnect: () => {
+      onStatusChange("connected");
+      topicSubscription = client.subscribe(`/topic/chat/${matchId}`, (frame) => {
+        parseMessage(frame, onMessage, onError);
+      });
+      ackSubscription = client.subscribe("/user/queue/chat-acks", (frame) => {
+        parseMessage(frame, onAck, onError);
+      });
+    },
+    onStompError: (frame) => {
+      onStatusChange("error");
+      onError(parseError(frame.body, frame.headers.message));
+    },
+    onWebSocketError: () => {
+      if (intentionalDisconnect) return;
+      onStatusChange("error");
+      onError({
+        code: "CONNECTION_FAILED",
+        message: "실시간 채팅 서버에 연결하지 못했어요.",
+      });
+    },
+    onWebSocketClose: () => {
+      if (!intentionalDisconnect) onStatusChange("disconnected");
+    },
+  });
+
+  onStatusChange("connecting");
+  client.activate();
+
+  return {
+    send(content, clientMessageId) {
+      if (!client.connected) {
+        throw new Error("실시간 채팅 서버에 연결되어 있지 않습니다.");
+      }
+      client.publish({
+        destination: `/app/chat/${matchId}/send`,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ content, clientMessageId }),
+      });
+    },
+    async disconnect() {
+      intentionalDisconnect = true;
+      if (client.connected) {
+        topicSubscription?.unsubscribe();
+        ackSubscription?.unsubscribe();
+      }
+      await client.deactivate();
+      onStatusChange("disconnected");
+    },
+  };
+}
+
+function requireWebSocketUrl() {
+  if (!API_BASE_URL) {
+    throw new Error("NEXT_PUBLIC_API_BASE_URL 환경변수가 설정되지 않았습니다.");
+  }
+
+  const url = new URL(API_BASE_URL);
+  url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+  url.pathname = `${url.pathname.replace(/\/$/, "")}/ws`;
+  url.search = "";
+  url.hash = "";
+
+  // 브라우저 WebSocket API에는 credentials 옵션이나 Cookie 헤더 설정 기능이 없다.
+  // 핸드셰이크 대상 URL에 적용 가능한 세션 쿠키는 브라우저가 자동으로 포함한다.
+  return url.toString();
+}
+
+function parseMessage(
+  frame: IMessage,
+  handler: (message: ChatMessageResponse) => void,
+  onError: (error: ChatSocketError) => void,
+) {
+  try {
+    handler(JSON.parse(frame.body) as ChatMessageResponse);
+  } catch {
+    onError({ code: "INVALID_MESSAGE", message: "채팅 메시지를 읽지 못했어요." });
+  }
+}
+
+function parseError(body: string, fallback?: string): ChatSocketError {
+  try {
+    const payload = JSON.parse(body) as { code?: string; message?: string };
+    const code = payload.code ?? "SOCKET_ERROR";
+    return {
+      code,
+      message:
+        SOCKET_ERROR_MESSAGES[code] ??
+        payload.message ??
+        fallback ??
+        "실시간 채팅 중 오류가 발생했어요.",
+    };
+  } catch {
+    return {
+      code: "SOCKET_ERROR",
+      message: fallback ?? "실시간 채팅 중 오류가 발생했어요.",
+    };
+  }
+}

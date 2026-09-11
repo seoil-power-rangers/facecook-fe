@@ -1,5 +1,15 @@
-import type { ChatItem, Presence } from "@ui/채팅/ChatScreen";
 import type { UserStatus } from "@ui/공통/types";
+
+type ChatItem =
+  | { kind: "system"; id: string; text: string }
+  | { kind: "mission"; id: string; step: number; title: string; description: string }
+  | { kind: "message"; id: string; from: "me" | "other"; text: string }
+  | { kind: "divider"; id: string; label: string };
+
+type Presence =
+  | { kind: "online" }
+  | { kind: "away" }
+  | { kind: "lastActive"; minutesAgo: number };
 
 export interface MatchRoom {
   id: string;
