@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, Footprints, MousePointerClick, Send, Siren, Utensils } from "lucide-react";
@@ -10,26 +10,122 @@ import { Button } from "@ui/공통/Button";
 import { KokConfirmSheet } from "@ui/공통/KokConfirmSheet";
 import { PhoneFrame } from "@ui/공통/PhoneFrame";
 import { Tag } from "@ui/공통/Tag";
+import { Toast } from "@ui/공통/Toast";
+import {
+  getMyProfile,
+  getProfile,
+  profileErrorMessage,
+  type ProfileResponse,
+} from "@ui/프로필작성/profileApi";
+import { cookErrorMessage, sendCook } from "@ui/받은콕/cookApi";
 
-const infoRows: { label: string; value: string }[] = [
-  { label: "MBTI", value: "ENFP" },
-  { label: "혈액형", value: "O형" },
-  { label: "성별", value: "남성" },
-  { label: "나이", value: "24세" },
-];
-
-const hobbies: { label: string; icon: LucideIcon }[] = [
-  { label: "맛집탐방", icon: Utensils },
-  { label: "산책", icon: Footprints },
-  { label: "여행", icon: Send },
-];
+const HOBBY_ICONS: LucideIcon[] = [Utensils, Footprints, Send];
 
 export function ProfileDetailScreen({ userId }: { userId: string }) {
   const router = useRouter();
+  const numericUserId = Number(userId);
+  const [profile, setProfile] = useState<ProfileResponse | null>(null);
+  const [commonCount, setCommonCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [kokSheetOpen, setKokSheetOpen] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const loadProfile = useCallback(async () => {
+    if (!Number.isInteger(numericUserId) || numericUserId <= 0) {
+      setError("올바르지 않은 프로필 주소예요.");
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+    try {
+      const target = await getProfile(numericUserId);
+      setProfile(target);
+
+      try {
+        const mine = await getMyProfile();
+        setCommonCount(commonHobbies(target.hobby, mine.hobby));
+      } catch {
+        setCommonCount(0);
+      }
+    } catch (loadError) {
+      setError(profileErrorMessage(loadError));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [numericUserId]);
+
+  useEffect(() => {
+    // 라우트의 userId가 바뀌면 해당 프로필을 다시 불러온다.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadProfile();
+  }, [loadProfile]);
+
+  const handleSendCook = async () => {
+    if (!profile) return;
+    setIsSending(true);
+    try {
+      const result = await sendCook(profile.userId);
+      setKokSheetOpen(false);
+      if (result.matched && result.matchId !== null) {
+        router.push(`/match/${result.matchId}/matched`);
+        return;
+      }
+      setToastMessage("콕을 보냈어요. 상대의 콕을 기다려주세요.");
+    } catch (sendError) {
+      setToastMessage(cookErrorMessage(sendError));
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  if (isLoading || error || !profile) {
+    return (
+      <PhoneFrame>
+        <header className="flex h-14 shrink-0 items-center border-b border-(--color-border) bg-(--color-surface) px-3">
+          <button type="button" aria-label="뒤로가기" className="p-1" onClick={() => router.back()}>
+            <ChevronLeft className="h-5 w-5" />
+          </button>
+        </header>
+        <div
+          role={error ? "alert" : undefined}
+          className={`flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center text-sm ${
+            error ? "text-(--color-danger)" : "text-(--color-text-sub)"
+          }`}
+        >
+          <span>{error ?? "프로필을 불러오는 중..."}</span>
+          {error ? (
+            <Button size="sm" variant="outline" onClick={() => void loadProfile()}>
+              다시 시도
+            </Button>
+          ) : null}
+        </div>
+      </PhoneFrame>
+    );
+  }
+
+  const hobbies = splitHobbies(profile.hobby);
+  const infoRows = [
+    { label: "MBTI", value: profile.mbti },
+    { label: "혈액형", value: bloodTypeLabel(profile.bloodType) },
+    { label: "성별", value: genderLabel(profile.gender) },
+    { label: "나이", value: `${profile.age}세` },
+  ];
+  const subInfo = [profile.nickname, `${profile.age}세`, profile.department, profile.grade]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <PhoneFrame>
+      <Toast
+        open={toastMessage !== null}
+        message={toastMessage ?? ""}
+        onDismiss={() => setToastMessage(null)}
+      />
+
       <div className="flex-1 overflow-y-auto">
         <div className="bg-(--color-hero-bg) px-4 pb-10 pt-3 text-(--color-hero-text)">
           <div className="flex items-center justify-between">
@@ -41,20 +137,15 @@ export function ProfileDetailScreen({ userId }: { userId: string }) {
             </Link>
           </div>
 
-          <h1 className="mt-4 text-lg font-bold">주말엔 암장에서 살아요</h1>
-          <p className="mt-1 text-sm text-(--color-hero-text-sub)">지호 · 24세 · 컴퓨터공학과 3학년</p>
-
-          <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-xs font-medium">
-            <span className="h-1.5 w-1.5 rounded-full bg-(--color-online)" aria-hidden="true" />
-            활동 중
-          </span>
+          <h1 className="mt-4 text-lg font-bold">{profile.bio || `${profile.nickname}님의 프로필`}</h1>
+          <p className="mt-1 text-sm text-(--color-hero-text-sub)">{subInfo}</p>
         </div>
 
         <div className="-mt-12 flex flex-col items-center gap-2">
           <div className="flex h-24 w-24 items-center justify-center rounded-full bg-(--color-primary-lighter) text-3xl font-bold text-(--color-primary) ring-4 ring-(--color-surface)">
-            지
+            {profile.nickname.charAt(0)}
           </div>
-          <Tag variant="primary">공통 관심사 3개</Tag>
+          {commonCount > 0 ? <Tag variant="primary">공통 관심사 {commonCount}개</Tag> : null}
         </div>
 
         <div className="flex flex-col gap-6 px-4 pb-6 pt-6">
@@ -73,23 +164,39 @@ export function ProfileDetailScreen({ userId }: { userId: string }) {
           <section>
             <h2 className="mb-2 text-sm font-semibold text-(--color-text-strong)">자기소개</h2>
             <p className="rounded-(--radius-lg) bg-(--color-surface-alt) p-4 text-sm leading-relaxed text-(--color-text-body)">
-              주말엔 주로 암장 가거나 필름카메라 들고 산책해요. 조용한 카페 좋아합니다.
+              {profile.bio || "아직 작성한 자기소개가 없어요."}
             </p>
           </section>
 
           <section>
             <h2 className="mb-3 text-sm font-semibold text-(--color-text-strong)">이런 걸 하고 싶어요</h2>
-            <div className="flex justify-around">
-              {hobbies.map((hobby) => (
-                <div key={hobby.label} className="flex flex-col items-center gap-2">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-(--color-primary-lighter) text-(--color-primary)">
-                    <hobby.icon className="h-6 w-6" />
-                  </div>
-                  <span className="text-xs text-(--color-text-sub)">{hobby.label}</span>
-                </div>
-              ))}
-            </div>
+            {hobbies.length > 0 ? (
+              <div className="flex flex-wrap justify-around gap-4">
+                {hobbies.map((hobby, index) => {
+                  const HobbyIcon = HOBBY_ICONS[index % HOBBY_ICONS.length];
+                  return (
+                    <div key={hobby} className="flex min-w-20 flex-col items-center gap-2">
+                      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-(--color-primary-lighter) text-(--color-primary)">
+                        <HobbyIcon className="h-6 w-6" />
+                      </div>
+                      <span className="text-xs text-(--color-text-sub)">{hobby}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-(--color-text-sub)">등록한 관심사가 없어요.</p>
+            )}
           </section>
+
+          {profile.idealType ? (
+            <section>
+              <h2 className="mb-2 text-sm font-semibold text-(--color-text-strong)">이상형</h2>
+              <p className="rounded-(--radius-lg) bg-(--color-surface-alt) p-4 text-sm text-(--color-text-body)">
+                {profile.idealType}
+              </p>
+            </section>
+          ) : null}
         </div>
       </div>
 
@@ -100,13 +207,37 @@ export function ProfileDetailScreen({ userId }: { userId: string }) {
         </Button>
       </div>
 
-      <BottomSheet open={kokSheetOpen} onClose={() => setKokSheetOpen(false)}>
+      <BottomSheet open={kokSheetOpen} onClose={() => !isSending && setKokSheetOpen(false)}>
         <KokConfirmSheet
-          name="지호"
+          name={profile.nickname}
           onCancel={() => setKokSheetOpen(false)}
-          onConfirm={() => setKokSheetOpen(false)}
+          onConfirm={() => void handleSendCook()}
+          isSubmitting={isSending}
         />
       </BottomSheet>
     </PhoneFrame>
   );
+}
+
+function splitHobbies(hobby: string) {
+  return hobby.split(",").map((item) => item.trim()).filter(Boolean);
+}
+
+function commonHobbies(targetHobby: string, myHobby: string) {
+  const mine = new Set(splitHobbies(myHobby));
+  return splitHobbies(targetHobby).filter((hobby) => mine.has(hobby)).length;
+}
+
+function genderLabel(gender: string) {
+  const labels: Record<string, string> = {
+    male: "남성",
+    female: "여성",
+    man: "남성",
+    woman: "여성",
+  };
+  return labels[gender.toLowerCase()] ?? gender;
+}
+
+function bloodTypeLabel(bloodType: string) {
+  return bloodType.endsWith("형") ? bloodType : `${bloodType}형`;
 }

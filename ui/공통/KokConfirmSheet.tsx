@@ -8,6 +8,7 @@ interface KokConfirmSheetProps {
   bgColor?: string;
   onCancel: () => void;
   onConfirm: () => void;
+  isSubmitting?: boolean;
 }
 
 const rules = [
@@ -16,7 +17,13 @@ const rules = [
   "만료돼도 오늘 횟수는 되돌아오지 않아요",
 ];
 
-export function KokConfirmSheet({ name, bgColor, onCancel, onConfirm }: KokConfirmSheetProps) {
+export function KokConfirmSheet({
+  name,
+  bgColor,
+  onCancel,
+  onConfirm,
+  isSubmitting = false,
+}: KokConfirmSheetProps) {
   return (
     <div className="flex flex-col items-center gap-4 px-6 pt-2">
       <Avatar name={name} size="xl" bgColor={bgColor} />
@@ -51,10 +58,15 @@ export function KokConfirmSheet({ name, bgColor, onCancel, onConfirm }: KokConfi
         </div>
       </div>
 
-      <Button fullWidth onClick={onConfirm}>
-        콕 보내기
+      <Button fullWidth onClick={onConfirm} disabled={isSubmitting}>
+        {isSubmitting ? "보내는 중..." : "콕 보내기"}
       </Button>
-      <button type="button" onClick={onCancel} className="text-sm text-(--color-text-sub)">
+      <button
+        type="button"
+        onClick={onCancel}
+        disabled={isSubmitting}
+        className="text-sm text-(--color-text-sub) disabled:text-(--color-disabled-text)"
+      >
         취소
       </button>
     </div>

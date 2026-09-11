@@ -1,119 +1,88 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Clock, Sparkles } from "lucide-react";
 import { Avatar } from "@ui/공통/Avatar";
 import { Button } from "@ui/공통/Button";
 import { PhoneFrame } from "@ui/공통/PhoneFrame";
 import { Tag } from "@ui/공통/Tag";
 import { TabBar } from "@ui/공통/TabBar";
+import { Toast } from "@ui/공통/Toast";
+import {
+  cookErrorMessage,
+  getCooks,
+  sendCook,
+  type CookItemResponse,
+  type CookListResponse,
+} from "./cookApi";
 
 type KokTab = "sent" | "received";
 
-/** 하단 네비는 항상 /kok으로만 이동해서 URL에 탭을 실어 보낼 수 없다 — 세션 동안은 마지막으로 본 탭을 기억한다. */
 const KOK_TAB_STORAGE_KEY = "kok-tab";
-
-interface SentKok {
-  id: string;
-  name: string;
-  bgColor: string;
-  status: "pending" | "expired" | "matched";
-  sentAt: string;
-  note: string;
-  remainingRatio?: number;
-}
-
-const sentKoks: SentKok[] = [
-  {
-    id: "1",
-    name: "지호",
-    bgColor: "#4F46E5",
-    status: "pending",
-    sentAt: "09:41에 보냄",
-    note: "43분 남음 · 상대가 콕하면 매칭돼요",
-    remainingRatio: 0.72,
-  },
-  {
-    id: "7",
-    name: "서연",
-    bgColor: "#9CA3AF",
-    status: "expired",
-    sentAt: "어제 18:20에 보냄 · 맞콕 없음",
-    note: "재신청은 할 수 없어요",
-  },
-  {
-    id: "8",
-    name: "유진",
-    bgColor: "#F59E0B",
-    status: "matched",
-    sentAt: "09:12에 보냄 · 09:41 매칭",
-    note: "",
-  },
-];
-
-interface ReceivedKok {
-  id: string;
-  matchRoomId: string;
-  name: string;
-  bgColor: string;
-  mbti: string;
-  subInfo: string;
-  commonCount: number;
-  remaining: string;
-  online?: boolean;
-  highlight?: boolean;
-}
-
-const receivedKoks: ReceivedKok[] = [
-  {
-    id: "4",
-    matchRoomId: "1",
-    name: "유진",
-    bgColor: "#F59E0B",
-    mbti: "ISFP",
-    subInfo: "23세 · 화학과",
-    commonCount: 3,
-    remaining: "52분 남음",
-    online: true,
-    highlight: true,
-  },
-  {
-    id: "5",
-    matchRoomId: "3",
-    name: "도윤",
-    bgColor: "#EF4444",
-    mbti: "ESTJ",
-    subInfo: "25세 · 경제학과",
-    commonCount: 1,
-    remaining: "11분 남음",
-  },
-];
-
-const expiredKoks: { id: string; name: string; subInfo: string }[] = [
-  { id: "6", name: "태오", subInfo: "24세 · 건축학과 · 어제" },
-];
+const AVATAR_COLORS = ["#4F46E5", "#22C55E", "#5B5FE9", "#F59E0B", "#EF4444"];
 
 export function KokScreen() {
+  const router = useRouter();
   const [tab, setTab] = useState<KokTab>("received");
+  const [data, setData] = useState<CookListResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [sendingUserId, setSendingUserId] = useState<number | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const loadCooks = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      setData(await getCooks());
+    } catch (loadError) {
+      setError(cookErrorMessage(loadError));
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     const stored = sessionStorage.getItem(KOK_TAB_STORAGE_KEY);
     if (stored === "sent" || stored === "received") {
-      // 마운트 직후 한 번, 브라우저에만 있는 값을 React 상태로 들여온다 — 렌더링 중엔 sessionStorage를
-      // 읽을 수 없어(서버에 없음) 이 방식이 유일하게 하이드레이션 불일치 없이 복원하는 방법이다.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setTab(stored);
     }
-  }, []);
+    void loadCooks();
+  }, [loadCooks]);
 
   const handleTabChange = (next: KokTab) => {
     setTab(next);
     sessionStorage.setItem(KOK_TAB_STORAGE_KEY, next);
   };
 
+  const handleSendCook = async (userId: number) => {
+    setSendingUserId(userId);
+    try {
+      const result = await sendCook(userId);
+      if (result.matched && result.matchId !== null) {
+        router.push(`/match/${result.matchId}/matched`);
+        return;
+      }
+      setToastMessage("콕을 보냈어요.");
+      await loadCooks();
+    } catch (sendError) {
+      setToastMessage(cookErrorMessage(sendError));
+    } finally {
+      setSendingUserId(null);
+    }
+  };
+
   return (
     <PhoneFrame>
+      <Toast
+        open={toastMessage !== null}
+        message={toastMessage ?? ""}
+        onDismiss={() => setToastMessage(null)}
+      />
+
       <header className="flex h-14 w-full shrink-0 items-center gap-2 border-b border-(--color-border) bg-(--color-surface) px-4">
         <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-(--color-primary) text-(--color-text-on-primary)">
           <Sparkles className="h-4 w-4" />
@@ -135,11 +104,40 @@ export function KokScreen() {
       </div>
 
       <main className="flex-1 overflow-y-auto pb-16">
-        {tab === "sent" ? <SentKokPanel /> : <ReceivedKokPanel />}
+        {isLoading ? <ScreenMessage>콕 목록을 불러오는 중...</ScreenMessage> : null}
+        {!isLoading && error ? (
+          <ScreenMessage error>
+            <span>{error}</span>
+            <Button size="sm" variant="outline" onClick={() => void loadCooks()}>
+              다시 시도
+            </Button>
+          </ScreenMessage>
+        ) : null}
+        {!isLoading && !error && data && tab === "sent" ? <SentKokPanel data={data} /> : null}
+        {!isLoading && !error && data && tab === "received" ? (
+          <ReceivedKokPanel
+            cooks={data.received}
+            sendingUserId={sendingUserId}
+            onSend={handleSendCook}
+          />
+        ) : null}
       </main>
 
       <TabBar />
     </PhoneFrame>
+  );
+}
+
+function ScreenMessage({ children, error = false }: { children: React.ReactNode; error?: boolean }) {
+  return (
+    <div
+      role={error ? "alert" : undefined}
+      className={`flex flex-col items-center gap-3 px-6 py-20 text-center text-sm ${
+        error ? "text-(--color-danger)" : "text-(--color-text-sub)"
+      }`}
+    >
+      {children}
+    </div>
   );
 }
 
@@ -152,108 +150,131 @@ function TabToggleButton({
   onClick: () => void;
   children: string;
 }) {
-  let className = "rounded-full px-5 py-2 text-sm font-semibold transition-colors";
-  if (active) {
-    className += " bg-(--color-surface) text-(--color-text-strong) shadow-(--shadow-card)";
-  } else {
-    className += " text-(--color-text-sub)";
-  }
-
   return (
-    <button type="button" onClick={onClick} className={className}>
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-full px-5 py-2 text-sm font-semibold transition-colors ${
+        active
+          ? "bg-(--color-surface) text-(--color-text-strong) shadow-(--shadow-card)"
+          : "text-(--color-text-sub)"
+      }`}
+    >
       {children}
     </button>
   );
 }
 
-function SentKokPanel() {
+function SentKokPanel({ data }: { data: CookListResponse }) {
+  const usageRatio = Math.min(
+    100,
+    (data.usage.todayUsed / Math.max(data.usage.dailyLimit, 1)) * 100,
+  );
+
   return (
     <div className="flex flex-col gap-4 p-4">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-(--color-text-strong)">오늘 보낸 콕</h2>
-        <span className="text-xs text-(--color-text-sub)">3회 중 2회 사용</span>
+        <span className="text-xs text-(--color-text-sub)">
+          {data.usage.dailyLimit}회 중 {data.usage.todayUsed}회 사용
+        </span>
       </div>
 
-      <div className="flex flex-col gap-3">
-        {sentKoks.map((kok) => (
-          <SentKokCard key={kok.id} kok={kok} />
-        ))}
+      <div className="h-1.5 w-full rounded-full bg-(--color-disabled-bg)">
+        <div
+          className="h-full rounded-full bg-(--color-primary)"
+          style={{ width: `${usageRatio}%` }}
+        />
       </div>
+
+      {data.sent.length === 0 ? (
+        <p className="py-8 text-center text-sm text-(--color-text-sub)">아직 보낸 콕이 없어요.</p>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {data.sent.map((cook) => (
+            <SentKokCard key={cook.cookId} cook={cook} />
+          ))}
+        </div>
+      )}
 
       <div className="rounded-(--radius-lg) bg-(--color-primary-lighter) p-4">
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-(--color-text-strong)">행사 전체 콕 사용량</span>
-        </div>
-        <p className="mt-1 text-lg font-bold text-(--color-text-strong)">5 / 9회</p>
-        <div className="mt-2 h-1.5 w-full rounded-full bg-(--color-surface)">
-          <div className="h-full rounded-full bg-(--color-primary)" style={{ width: "56%" }} />
-        </div>
+        <span className="text-sm font-medium text-(--color-text-strong)">행사 전체 콕 사용량</span>
+        <p className="mt-1 text-lg font-bold text-(--color-text-strong)">{data.usage.totalUsed}회 사용</p>
+        <p className="mt-1 text-xs text-(--color-text-sub)">행사 기간 동안 보낸 누적 횟수예요.</p>
       </div>
     </div>
   );
 }
 
-const sentStatusTag: Record<SentKok["status"], { label: string; variant: "primary" | "default" }> = {
-  pending: { label: "승인 대기", variant: "default" },
-  expired: { label: "만료됨", variant: "default" },
-  matched: { label: "매칭 완료", variant: "primary" },
+const sentStatusTag = {
+  pending: { label: "승인 대기", variant: "default" as const },
+  expired: { label: "만료됨", variant: "default" as const },
+  matched: { label: "매칭 완료", variant: "primary" as const },
 };
 
-function SentKokCard({ kok }: { kok: SentKok }) {
-  const isExpired = kok.status === "expired";
-
-  let containerClassName = "flex flex-col gap-2 rounded-(--radius-lg) border bg-(--color-surface) p-3";
-  if (kok.status === "pending") {
-    containerClassName += " border-(--color-border-active)";
-  } else {
-    containerClassName += " border-(--color-border)";
-  }
-  if (isExpired) {
-    containerClassName += " opacity-60";
-  }
-
-  const statusTag = sentStatusTag[kok.status];
+function SentKokCard({ cook }: { cook: CookItemResponse }) {
+  const note =
+    cook.status === "pending"
+      ? `${formatRemaining(cook.sentAt)} · 상대가 콕하면 매칭돼요`
+      : cook.status === "expired"
+        ? "맞콕 없이 만료됐어요"
+        : "서로 콕해 매칭됐어요";
 
   return (
-    <div className={containerClassName}>
+    <div
+      className={`flex flex-col gap-2 rounded-(--radius-lg) border bg-(--color-surface) p-3 ${
+        cook.status === "pending" ? "border-(--color-border-active)" : "border-(--color-border)"
+      } ${cook.status === "expired" ? "opacity-60" : ""}`}
+    >
       <div className="flex items-center gap-3">
-        <Link href={`/profile/${kok.id}`}>
-          <Avatar name={kok.name} size="lg" bgColor={kok.bgColor} />
+        <Link href={`/profile/${cook.userId}`}>
+          <Avatar name={cook.profile.nickname} size="lg" bgColor={avatarColor(cook.userId)} />
         </Link>
         <div className="flex flex-1 flex-col gap-1 overflow-hidden">
           <div className="flex items-center gap-1.5">
-            <span className="truncate text-sm font-semibold text-(--color-text-strong)">{kok.name}</span>
-            <Tag variant={statusTag.variant}>{statusTag.label}</Tag>
+            <span className="truncate text-sm font-semibold text-(--color-text-strong)">
+              {cook.profile.nickname}
+            </span>
+            <Tag variant={sentStatusTag[cook.status].variant}>{sentStatusTag[cook.status].label}</Tag>
           </div>
-          <span className="truncate text-xs text-(--color-text-sub)">{kok.sentAt}</span>
+          <span className="truncate text-xs text-(--color-text-sub)">{formatDateTime(cook.sentAt)}에 보냄</span>
         </div>
-        {kok.status === "matched" ? (
-          <Link href="/match/1">
+        {cook.status === "matched" && cook.matchId !== null ? (
+          <Link href={`/match/${cook.matchId}`}>
             <Button size="sm">채팅 열기</Button>
           </Link>
         ) : null}
       </div>
 
-      {kok.status === "pending" && kok.remainingRatio !== undefined ? (
+      {cook.status === "pending" ? (
         <div className="h-1.5 w-full rounded-full bg-(--color-disabled-bg)">
           <div
             className="h-full rounded-full bg-(--color-primary)"
-            style={{ width: `${kok.remainingRatio * 100}%` }}
+            style={{ width: `${getRemainingRatio(cook.sentAt) * 100}%` }}
           />
         </div>
       ) : null}
 
-      {kok.note ? (
-        <div className="flex items-center gap-1 text-xs text-(--color-text-sub)">
-          {kok.status === "pending" ? <Clock className="h-3 w-3" /> : null}
-          {kok.note}
-        </div>
-      ) : null}
+      <div className="flex items-center gap-1 text-xs text-(--color-text-sub)">
+        {cook.status === "pending" ? <Clock className="h-3 w-3" /> : null}
+        {note}
+      </div>
     </div>
   );
 }
 
-function ReceivedKokPanel() {
+function ReceivedKokPanel({
+  cooks,
+  sendingUserId,
+  onSend,
+}: {
+  cooks: CookItemResponse[];
+  sendingUserId: number | null;
+  onSend: (userId: number) => Promise<void>;
+}) {
+  const activeCooks = cooks.filter((cook) => cook.status !== "expired");
+  const expiredCooks = cooks.filter((cook) => cook.status === "expired");
+
   return (
     <div className="flex flex-col gap-5 p-4">
       <div className="flex items-center gap-3 rounded-(--radius-lg) bg-(--color-primary-lighter) p-4">
@@ -266,81 +287,157 @@ function ReceivedKokPanel() {
         </div>
       </div>
 
-      <div>
+      <section>
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-(--color-text-strong)">나를 콕한 사람</h2>
-          <span className="text-xs text-(--color-text-sub)">{receivedKoks.length}명</span>
+          <span className="text-xs text-(--color-text-sub)">{activeCooks.length}명</span>
         </div>
+        {activeCooks.length === 0 ? (
+          <p className="py-8 text-center text-sm text-(--color-text-sub)">아직 받은 콕이 없어요.</p>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {activeCooks.map((cook, index) => (
+              <ReceivedKokCard
+                key={cook.cookId}
+                cook={cook}
+                highlight={index === 0}
+                sending={sendingUserId === cook.userId}
+                onSend={onSend}
+              />
+            ))}
+          </div>
+        )}
+      </section>
 
-        <div className="flex flex-col gap-3">
-          {receivedKoks.map((kok) => (
-            <ReceivedKokCard key={kok.id} kok={kok} />
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <h2 className="mb-3 text-sm font-semibold text-(--color-text-strong)">만료된 콕</h2>
-        <div className="flex flex-col gap-3">
-          {expiredKoks.map((person) => (
-            <div
-              key={person.id}
-              className="flex items-center gap-3 rounded-(--radius-lg) border border-(--color-border) bg-(--color-surface) p-3 opacity-60"
-            >
-              <Link href={`/profile/${person.id}`}>
-                <Avatar name={person.name} size="lg" />
-              </Link>
-              <div className="flex flex-1 flex-col overflow-hidden">
-                <span className="truncate text-sm font-semibold text-(--color-text-strong)">
-                  {person.name}
-                </span>
-                <span className="truncate text-xs text-(--color-text-sub)">{person.subInfo}</span>
+      {expiredCooks.length > 0 ? (
+        <section>
+          <h2 className="mb-3 text-sm font-semibold text-(--color-text-strong)">만료된 콕</h2>
+          <div className="flex flex-col gap-3">
+            {expiredCooks.map((cook) => (
+              <div
+                key={cook.cookId}
+                className="flex items-center gap-3 rounded-(--radius-lg) border border-(--color-border) bg-(--color-surface) p-3 opacity-60"
+              >
+                <Link href={`/profile/${cook.userId}`}>
+                  <Avatar name={cook.profile.nickname} size="lg" bgColor={avatarColor(cook.userId)} />
+                </Link>
+                <div className="flex flex-1 flex-col overflow-hidden">
+                  <span className="truncate text-sm font-semibold text-(--color-text-strong)">
+                    {cook.profile.nickname}
+                  </span>
+                  <span className="truncate text-xs text-(--color-text-sub)">{profileSubInfo(cook)}</span>
+                </div>
+                <span className="shrink-0 text-xs text-(--color-text-sub)">만료됨</span>
               </div>
-              <span className="shrink-0 text-xs text-(--color-text-sub)">만료됨</span>
-            </div>
-          ))}
+            ))}
+          </div>
+        </section>
+      ) : null}
+    </div>
+  );
+}
+
+function ReceivedKokCard({
+  cook,
+  highlight,
+  sending,
+  onSend,
+}: {
+  cook: CookItemResponse;
+  highlight: boolean;
+  sending: boolean;
+  onSend: (userId: number) => Promise<void>;
+}) {
+  return (
+    <div
+      className={`flex flex-col gap-2 rounded-(--radius-lg) border bg-(--color-surface) p-3 ${
+        highlight ? "border-(--color-border-active)" : "border-(--color-border)"
+      }`}
+    >
+      <div className="flex items-center gap-3">
+        <Link href={`/profile/${cook.userId}`}>
+          <Avatar name={cook.profile.nickname} size="lg" bgColor={avatarColor(cook.userId)} />
+        </Link>
+        <div className="flex flex-1 flex-col gap-1 overflow-hidden">
+          <div className="flex items-center gap-1.5">
+            <span className="truncate text-sm font-semibold text-(--color-text-strong)">
+              {cook.profile.nickname}
+            </span>
+            <Tag variant="primary">{cook.profile.mbti}</Tag>
+          </div>
+          <div className="flex items-center gap-1.5 text-xs text-(--color-text-sub)">
+            <span className="truncate">{profileSubInfo(cook)}</span>
+            {cook.status === "pending" ? (
+              <span className="flex shrink-0 items-center gap-0.5">
+                <Clock className="h-3 w-3" />
+                {formatRemaining(cook.sentAt)}
+              </span>
+            ) : null}
+          </div>
         </div>
+        {cook.status === "matched" && cook.matchId !== null ? (
+          <Link href={`/match/${cook.matchId}`}>
+            <Button size="sm" variant="outline">채팅 열기</Button>
+          </Link>
+        ) : (
+          <Button
+            size="sm"
+            variant={highlight ? "primary" : "outline"}
+            disabled={sending}
+            onClick={() => void onSend(cook.userId)}
+          >
+            {sending ? "보내는 중" : "나도 콕"}
+          </Button>
+        )}
+      </div>
+      <div className="border-t border-(--color-border) pt-2">
+        <Link href={`/profile/${cook.userId}`} className="text-xs text-(--color-text-sub)">
+          프로필 보기
+        </Link>
       </div>
     </div>
   );
 }
 
-function ReceivedKokCard({ kok }: { kok: ReceivedKok }) {
-  let containerClassName = "flex flex-col gap-2 rounded-(--radius-lg) border bg-(--color-surface) p-3";
-  containerClassName += kok.highlight ? " border-(--color-border-active)" : " border-(--color-border)";
+function avatarColor(userId: number) {
+  return AVATAR_COLORS[userId % AVATAR_COLORS.length];
+}
 
-  return (
-    <div className={containerClassName}>
-      <div className="flex items-center gap-3">
-        <Link href={`/profile/${kok.id}`}>
-          <Avatar name={kok.name} size="lg" bgColor={kok.bgColor} online={kok.online} />
-        </Link>
-        <div className="flex flex-1 flex-col gap-1 overflow-hidden">
-          <div className="flex items-center gap-1.5">
-            <span className="truncate text-sm font-semibold text-(--color-text-strong)">{kok.name}</span>
-            <Tag variant="primary">{kok.mbti}</Tag>
-          </div>
-          <div className="flex items-center gap-1.5 text-xs text-(--color-text-sub)">
-            <span className="truncate">{kok.subInfo}</span>
-            <Tag variant="default">공통 {kok.commonCount}개</Tag>
-            <span className="flex shrink-0 items-center gap-0.5">
-              <Clock className="h-3 w-3" />
-              {kok.remaining}
-            </span>
-          </div>
-        </div>
-        <Link href={`/match/${kok.matchRoomId}/matched`}>
-          <Button size="sm" variant={kok.highlight ? "primary" : "outline"}>
-            나도 콕
-          </Button>
-        </Link>
-      </div>
+function profileSubInfo(cook: CookItemResponse) {
+  return [`${cook.profile.age}세`, cook.profile.department].filter(Boolean).join(" · ");
+}
 
-      <div className="border-t border-(--color-border) pt-2">
-        <Link href={`/profile/${kok.id}`} className="text-xs text-(--color-text-sub)">
-          프로필 보기
-        </Link>
-      </div>
-    </div>
+function parseDate(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function formatDateTime(value: string) {
+  const date = parseDate(value);
+  if (!date) return "시간 정보 없음";
+  return new Intl.DateTimeFormat("ko-KR", {
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function formatRemaining(sentAt: string) {
+  const date = parseDate(sentAt);
+  if (!date) return "만료 시간 확인 불가";
+  const minutes = Math.max(
+    0,
+    Math.ceil((date.getTime() + 60 * 60 * 1000 - Date.now()) / 60_000),
+  );
+  return minutes > 0 ? `${minutes}분 남음` : "곧 만료";
+}
+
+function getRemainingRatio(sentAt: string) {
+  const date = parseDate(sentAt);
+  if (!date) return 0;
+  return Math.max(
+    0,
+    Math.min(1, (date.getTime() + 60 * 60 * 1000 - Date.now()) / (60 * 60 * 1000)),
   );
 }
