@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronRight, Lock, Shield, Sparkles } from "lucide-react";
+import { Bell, ChevronRight, Lock, Shield, Sparkles } from "lucide-react";
 import { Avatar } from "@ui/공통/Avatar";
 import { Button } from "@ui/공통/Button";
 import { PhoneFrame } from "@ui/공통/PhoneFrame";
 import { StatCard } from "@ui/공통/StatCard";
 import { Tag } from "@ui/공통/Tag";
 import { TabBar } from "@ui/공통/TabBar";
+import { Toast } from "@ui/공통/Toast";
 import { useSession } from "@ui/공통/session";
 import { authErrorMessage, logout } from "@ui/로그인/authApi";
 import {
@@ -17,6 +18,15 @@ import {
   type ProfileResponse,
   updateMyProfile,
 } from "@ui/프로필작성/profileApi";
+import {
+  disablePushNotifications,
+  enablePushNotifications,
+  getNotificationPermission,
+  hasPushSubscription,
+  notificationErrorMessage,
+} from "./notificationApi";
+
+type PushStatus = "checking" | "disabled" | "enabled" | "denied" | "unsupported";
 
 export function MyPageScreen() {
   const router = useRouter();
@@ -30,6 +40,9 @@ export function MyPageScreen() {
   const [profileError, setProfileError] = useState<string | null>(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState<string | null>(null);
+  const [pushStatus, setPushStatus] = useState<PushStatus>("checking");
+  const [isUpdatingPush, setIsUpdatingPush] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -52,6 +65,34 @@ export function MyPageScreen() {
     };
 
     void loadProfile();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadPushStatus = async () => {
+      const permission = getNotificationPermission();
+      if (permission === "unsupported") {
+        if (active) setPushStatus("unsupported");
+        return;
+      }
+      if (permission === "denied") {
+        if (active) setPushStatus("denied");
+        return;
+      }
+
+      try {
+        const subscribed = await hasPushSubscription();
+        if (active) setPushStatus(subscribed ? "enabled" : "disabled");
+      } catch {
+        if (active) setPushStatus("disabled");
+      }
+    };
+
+    void loadPushStatus();
     return () => {
       active = false;
     };
@@ -91,8 +132,43 @@ export function MyPageScreen() {
     }
   };
 
+  const handlePushToggle = async () => {
+    if (isUpdatingPush || pushStatus === "checking") return;
+    if (pushStatus === "unsupported") {
+      setToastMessage("이 브라우저에서는 푸시 알림을 사용할 수 없어요.");
+      return;
+    }
+    if (pushStatus === "denied") {
+      setToastMessage("사이트 설정에서 알림 권한을 허용해주세요.");
+      return;
+    }
+
+    setIsUpdatingPush(true);
+    try {
+      if (pushStatus === "enabled") {
+        await disablePushNotifications();
+        setPushStatus("disabled");
+        setToastMessage("푸시 알림을 껐어요.");
+      } else {
+        await enablePushNotifications();
+        setPushStatus("enabled");
+        setToastMessage("푸시 알림을 켰어요.");
+      }
+    } catch (error) {
+      if (getNotificationPermission() === "denied") setPushStatus("denied");
+      setToastMessage(notificationErrorMessage(error));
+    } finally {
+      setIsUpdatingPush(false);
+    }
+  };
+
   return (
     <PhoneFrame>
+      <Toast
+        open={toastMessage !== null}
+        message={toastMessage ?? ""}
+        onDismiss={() => setToastMessage(null)}
+      />
       <header className="flex h-14 w-full shrink-0 items-center gap-2 border-b border-(--color-border) bg-(--color-surface) px-4">
         <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-(--color-primary) text-(--color-text-on-primary)">
           <Sparkles className="h-4 w-4" />
@@ -205,10 +281,20 @@ export function MyPageScreen() {
             <div className="flex flex-col gap-2">
               <button
                 type="button"
-                className="flex items-center justify-between rounded-(--radius-lg) border border-(--color-border) bg-(--color-surface) px-4 py-3 text-left"
+                onClick={() => void handlePushToggle()}
+                disabled={isUpdatingPush || pushStatus === "checking"}
+                className="flex items-center justify-between rounded-(--radius-lg) border border-(--color-border) bg-(--color-surface) px-4 py-3 text-left disabled:text-(--color-text-muted)"
               >
-                <span className="text-sm text-(--color-text-strong)">알림 설정</span>
-                <ChevronRight className="h-4 w-4 text-(--color-text-muted)" />
+                <span className="flex items-center gap-2">
+                  <Bell className="h-4 w-4 text-(--color-text-muted)" aria-hidden="true" />
+                  <span className="flex flex-col">
+                    <span className="text-sm text-(--color-text-strong)">푸시 알림</span>
+                    <span className="text-xs text-(--color-text-muted)">{pushStatusLabel(pushStatus)}</span>
+                  </span>
+                </span>
+                <span className="text-xs font-semibold text-(--color-primary)">
+                  {isUpdatingPush ? "처리 중..." : pushStatus === "enabled" ? "끄기" : "켜기"}
+                </span>
               </button>
               <button
                 type="button"
@@ -243,4 +329,15 @@ export function MyPageScreen() {
       <TabBar />
     </PhoneFrame>
   );
+}
+
+function pushStatusLabel(status: PushStatus) {
+  const labels: Record<PushStatus, string> = {
+    checking: "설정을 확인하는 중...",
+    disabled: "새 콕·매칭·메시지 알림을 받아보세요",
+    enabled: "이 브라우저에서 알림을 받고 있어요",
+    denied: "브라우저에서 알림 권한이 차단됐어요",
+    unsupported: "이 브라우저에서는 지원하지 않아요",
+  };
+  return labels[status];
 }
