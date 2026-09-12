@@ -8,6 +8,7 @@ import { InfoBox } from "@ui/공통/InfoBox";
 import { PhoneFrame } from "@ui/공통/PhoneFrame";
 import { TextField } from "@ui/공통/TextField";
 import { useSession } from "@ui/공통/session";
+import { authErrorMessage, login } from "./authApi";
 
 type LoginTab = "participant" | "admin";
 
@@ -86,14 +87,25 @@ function ParticipantForm() {
   const { signIn } = useSession();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const canSubmit = email.includes("@") && password.length > 0;
 
-  const submit = () => {
-    // TODO: 백엔드에 이메일+비밀번호 로그인 API가 생기면 여기서 실제로 호출해야 한다.
-    // 지금은 관리자 로그인과 마찬가지로 화면만 만들어둔 상태다.
-    signIn({ role: "participant", name: email.trim() });
-    router.push("/main");
+  const submit = async () => {
+    if (!canSubmit || isSubmitting) return;
+
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      const user = await login(email, password);
+      signIn({ role: "participant", name: user.email });
+      router.push("/main");
+    } catch (submitError) {
+      setError(authErrorMessage(submitError));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -102,7 +114,7 @@ function ParticipantForm() {
       onSubmit={(event) => {
         event.preventDefault();
         if (canSubmit) {
-          submit();
+          void submit();
         }
       }}
     >
@@ -114,7 +126,10 @@ function ParticipantForm() {
           autoComplete="email"
           placeholder="star2026@gmail.com"
           value={email}
-          onChange={(event) => setEmail(event.target.value)}
+          onChange={(event) => {
+            setEmail(event.target.value);
+            setError(null);
+          }}
         />
 
         <TextField
@@ -123,13 +138,26 @@ function ParticipantForm() {
           autoComplete="current-password"
           placeholder="비밀번호"
           value={password}
-          onChange={(event) => setPassword(event.target.value)}
+          onChange={(event) => {
+            setPassword(event.target.value);
+            setError(null);
+          }}
         />
+
+        {error ? (
+          <p role="alert" className="text-[12px] text-(--color-danger)">
+            {error}
+          </p>
+        ) : null}
       </div>
 
       <div className="mt-auto pt-8">
-        <Button type="submit" fullWidth disabled={!canSubmit}>
-          로그인
+        <Button
+          type="submit"
+          fullWidth
+          disabled={!canSubmit || isSubmitting}
+        >
+          {isSubmitting ? "로그인 중..." : "로그인"}
         </Button>
       </div>
     </form>
