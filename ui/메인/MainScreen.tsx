@@ -3,16 +3,18 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Bell } from "lucide-react";
+import { Bell, MousePointerClick } from "lucide-react";
 import { Avatar } from "@ui/공통/Avatar";
 import { BottomSheet } from "@ui/공통/BottomSheet";
 import { Button } from "@ui/공통/Button";
 import { KokConfirmSheet } from "@ui/공통/KokConfirmSheet";
 import { PhoneFrame } from "@ui/공통/PhoneFrame";
+import { StatCard } from "@ui/공통/StatCard";
 import { Tag } from "@ui/공통/Tag";
-import { TabBar } from "@ui/공통/TabBar";
+import { TabBarMain } from "@ui/공통/TabBar";
 import { Toast } from "@ui/공통/Toast";
-import { cookErrorMessage, sendCook } from "@ui/받은콕/cookApi";
+import { cookErrorMessage, getCooks, sendCook } from "@ui/받은콕/cookApi";
+import { getMatches } from "@ui/매칭/matchApi";
 import {
   getMyProfile,
   getProfiles,
@@ -41,6 +43,10 @@ export function MainScreen() {
   const [error, setError] = useState<string | null>(null);
   const [isSendingKok, setIsSendingKok] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [kokRemaining, setKokRemaining] = useState(0);
+  const [sentCookCount, setSentCookCount] = useState(0);
+  const [pendingCookCount, setPendingCookCount] = useState(0);
+  const [matchCount, setMatchCount] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -64,6 +70,28 @@ export function MainScreen() {
     };
 
     void loadProfiles();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    Promise.all([getCooks(), getMatches()])
+      .then(([cooks, matches]) => {
+        if (!active) return;
+        setKokRemaining(Math.max(cooks.usage.dailyLimit - cooks.usage.todayUsed, 0));
+        setSentCookCount(cooks.usage.totalUsed);
+        setPendingCookCount(
+          cooks.received.filter((cook) => cook.status === "pending").length,
+        );
+        setMatchCount(matches.length);
+      })
+      .catch(() => {
+        // 통계는 부가 정보라 조회 실패해도 화면 전체를 에러로 막지 않는다.
+      });
+
     return () => {
       active = false;
     };
@@ -113,107 +141,121 @@ export function MainScreen() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto pb-16">
-        <div className="flex flex-col gap-5 p-4">
-          <p className="text-sm font-medium text-(--color-text-strong)">
-            참가자 · <span className="text-(--color-primary)">{members.length}명</span>
+      <TabBarMain className="gap-5 p-4">
+        <div className="relative overflow-hidden rounded-(--radius-lg) bg-(--color-primary-light) p-4">
+          <p className="text-xs font-medium text-(--color-primary)">오늘의 콕</p>
+          <p className="mt-1 text-xl font-bold text-(--color-text-strong)">
+            콕 {kokRemaining}회 남았어요
           </p>
+          <p className="mt-1 text-sm text-(--color-text-sub)">마음이 가면, 상대방에게 보내보세요</p>
+          <MousePointerClick
+            className="absolute right-4 top-4 h-8 w-8 rotate-12 text-(--color-primary)"
+            aria-hidden="true"
+          />
+        </div>
 
-          <div className="flex gap-2 overflow-x-auto">
-            {filters.map((filter) => {
-              const isActive = filter.key === activeFilter;
+        <div className="flex gap-2">
+          <StatCard label="보낸 콕" value={`${sentCookCount}개`} />
+          <StatCard label="승인 대기" value={`${pendingCookCount}건`} highlight />
+          <StatCard label="매칭" value={`${matchCount}커플`} />
+        </div>
 
-              let chipClassName =
-                "shrink-0 rounded-full px-3 py-1.5 text-sm font-medium transition-colors";
-              if (isActive) {
-                chipClassName += " bg-(--color-primary) text-(--color-text-on-primary)";
-              } else {
-                chipClassName += " border border-(--color-border) bg-(--color-surface) text-(--color-text-sub)";
-              }
+        <p className="text-sm font-medium text-(--color-text-strong)">
+          참가자 · <span className="text-(--color-primary)">{members.length}명</span>
+        </p>
 
-              return (
-                <button
-                  key={filter.key}
-                  type="button"
-                  onClick={() => setActiveFilter(filter.key)}
-                  className={chipClassName}
-                >
-                  {filter.label}
-                </button>
-              );
-            })}
-          </div>
+        <div className="flex gap-2 overflow-x-auto">
+          {filters.map((filter) => {
+            const isActive = filter.key === activeFilter;
 
-          <div className="flex flex-col gap-2">
-            {isLoading ? (
-              <p className="py-8 text-center text-sm text-(--color-text-sub)">
-                참가자 프로필을 불러오는 중...
-              </p>
-            ) : null}
-            {error ? (
-              <p role="alert" className="py-8 text-center text-sm text-(--color-danger)">
-                {error}
-              </p>
-            ) : null}
-            {!isLoading && !error && visibleMembers.length === 0 ? (
-              <p className="py-8 text-center text-sm text-(--color-text-sub)">
-                조건에 맞는 참가자가 없어요.
-              </p>
-            ) : null}
-            {visibleMembers.map((member) => {
-              const commonCount = myProfile
-                ? commonHobbies(member, myProfile)
-                : 0;
-              const subInfo = [`${member.age}세`, member.department]
-                .filter(Boolean)
-                .join(" · ");
+            let chipClassName =
+              "shrink-0 rounded-full px-3 py-1.5 text-sm font-medium transition-colors";
+            if (isActive) {
+              chipClassName += " bg-(--color-primary) text-(--color-text-on-primary)";
+            } else {
+              chipClassName += " border border-(--color-border) bg-(--color-surface) text-(--color-text-sub)";
+            }
 
-              return (
-                <div
-                  key={member.userId}
-                  className="relative flex items-center gap-3 rounded-(--radius-lg) border border-(--color-border) bg-(--color-surface) p-3"
-                >
-                  <Link
-                    href={`/profile/${member.userId}`}
-                    className="absolute inset-0 z-0"
-                    aria-label={`${member.nickname} 프로필 보기`}
+            return (
+              <button
+                key={filter.key}
+                type="button"
+                onClick={() => setActiveFilter(filter.key)}
+                className={chipClassName}
+              >
+                {filter.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="flex flex-col gap-2">
+          {isLoading ? (
+            <p className="py-8 text-center text-sm text-(--color-text-sub)">
+              참가자 프로필을 불러오는 중...
+            </p>
+          ) : null}
+          {error ? (
+            <p role="alert" className="py-8 text-center text-sm text-(--color-danger)">
+              {error}
+            </p>
+          ) : null}
+          {!isLoading && !error && visibleMembers.length === 0 ? (
+            <p className="py-8 text-center text-sm text-(--color-text-sub)">
+              조건에 맞는 참가자가 없어요.
+            </p>
+          ) : null}
+          {visibleMembers.map((member) => {
+            const commonCount = myProfile
+              ? commonHobbies(member, myProfile)
+              : 0;
+            const subInfo = [`${member.age}세`, member.department]
+              .filter(Boolean)
+              .join(" · ");
+
+            return (
+              <div
+                key={member.userId}
+                className="relative flex items-center gap-3 rounded-(--radius-lg) border border-(--color-border) bg-(--color-surface) p-3"
+              >
+                <Link
+                  href={`/profile/${member.userId}`}
+                  className="absolute inset-0 z-0"
+                  aria-label={`${member.nickname} 프로필 보기`}
+                />
+                <div className="pointer-events-none relative z-10 flex flex-1 items-center gap-3 overflow-hidden">
+                  <Avatar
+                    name={member.nickname}
+                    size="lg"
+                    bgColor={
+                      AVATAR_COLORS[member.userId % AVATAR_COLORS.length]
+                    }
                   />
-                  <div className="pointer-events-none relative z-10 flex flex-1 items-center gap-3 overflow-hidden">
-                    <Avatar
-                      name={member.nickname}
-                      size="lg"
-                      bgColor={
-                        AVATAR_COLORS[member.userId % AVATAR_COLORS.length]
-                      }
-                    />
-                    <div className="flex flex-1 flex-col gap-1 overflow-hidden">
-                      <div className="flex items-center gap-1.5">
-                        <span className="truncate text-sm font-semibold text-(--color-text-strong)">
-                          {member.nickname}
-                        </span>
-                        <Tag variant="primary">{member.mbti}</Tag>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="truncate text-xs text-(--color-text-sub)">
-                          {subInfo}
-                        </span>
-                        <Tag variant="default">공통 {commonCount}개</Tag>
-                      </div>
+                  <div className="flex flex-1 flex-col gap-1 overflow-hidden">
+                    <div className="flex items-center gap-1.5">
+                      <span className="truncate text-sm font-semibold text-(--color-text-strong)">
+                        {member.nickname}
+                      </span>
+                      <Tag variant="primary">{member.mbti}</Tag>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="truncate text-xs text-(--color-text-sub)">
+                        {subInfo}
+                      </span>
+                      <Tag variant="default">공통 {commonCount}개</Tag>
                     </div>
                   </div>
-                  <div className="relative z-10">
-                    <Button size="sm" onClick={() => setKokTarget(member)}>
-                      콕
-                    </Button>
-                  </div>
                 </div>
-              );
-            })}
-          </div>
+                <div className="relative z-10">
+                  <Button size="sm" onClick={() => setKokTarget(member)}>
+                    콕
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
         </div>
-      </main>
-
-      <TabBar />
+      </TabBarMain>
 
       <BottomSheet open={kokTarget !== null} onClose={() => setKokTarget(null)}>
         {kokTarget ? (

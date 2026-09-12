@@ -6,7 +6,7 @@ import { MessageCircleOff } from "lucide-react";
 import { Avatar } from "@ui/공통/Avatar";
 import { Button } from "@ui/공통/Button";
 import { PhoneFrame } from "@ui/공통/PhoneFrame";
-import { TabBar } from "@ui/공통/TabBar";
+import { TabBarMain } from "@ui/공통/TabBar";
 import { getMatches, matchErrorMessage, type MatchResponse } from "./matchApi";
 
 const AVATAR_COLORS = ["#4F46E5", "#22C55E", "#5B5FE9", "#F59E0B", "#EF4444"];
@@ -40,7 +40,7 @@ export function MatchListScreen() {
         <h1 className="text-lg font-bold text-(--color-text-strong)">매칭</h1>
       </header>
 
-      <main className="flex-1 overflow-y-auto pb-16">
+      <TabBarMain>
         {isLoading ? (
           <p className="px-6 py-20 text-center text-sm text-(--color-text-sub)">매칭 목록을 불러오는 중...</p>
         ) : null}
@@ -60,9 +60,7 @@ export function MatchListScreen() {
             ))}
           </div>
         ) : null}
-      </main>
-
-      <TabBar />
+      </TabBarMain>
     </PhoneFrame>
   );
 }

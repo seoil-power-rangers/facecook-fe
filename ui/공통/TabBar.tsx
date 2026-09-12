@@ -1,11 +1,30 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Compass, Inbox, User, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { getCooks } from "@ui/받은콕/cookApi";
+
+interface TabBarMainProps {
+  children: ReactNode;
+  className?: string;
+}
+
+/**
+ * 탭바가 있는 화면의 <main> 영역. 콘텐츠가 화면보다 짧으면 탭바가 하단에
+ * 붙고, 콘텐츠가 길면 탭바까지 함께 스크롤된다(고정 배치 아님).
+ */
+export function TabBarMain({ children, className = "" }: TabBarMainProps) {
+  return (
+    <main className="flex flex-1 flex-col overflow-y-auto">
+      <div className={`flex flex-1 flex-col ${className}`.trim()}>{children}</div>
+      <TabBar />
+    </main>
+  );
+}
 
 interface TabConfig {
   href: string;
@@ -43,7 +62,7 @@ export function TabBar() {
   ];
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 mx-auto flex h-16 w-full max-w-[430px] items-stretch border-t border-(--color-border) bg-(--color-surface)">
+    <nav className="flex h-16 w-full shrink-0 items-stretch border-t border-(--color-border) bg-(--color-surface)">
       {tabs.map((tab) => {
         const isActive = pathname.startsWith(tab.href);
         const Icon = tab.icon;

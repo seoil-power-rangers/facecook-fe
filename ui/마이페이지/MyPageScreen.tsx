@@ -8,7 +8,7 @@ import { Button } from "@ui/공통/Button";
 import { PhoneFrame } from "@ui/공통/PhoneFrame";
 import { StatCard } from "@ui/공통/StatCard";
 import { Tag } from "@ui/공통/Tag";
-import { TabBar } from "@ui/공통/TabBar";
+import { TabBarMain } from "@ui/공통/TabBar";
 import { Toast } from "@ui/공통/Toast";
 import { useSession } from "@ui/공통/session";
 import { authErrorMessage, logout } from "@ui/로그인/authApi";
@@ -48,6 +48,8 @@ export function MyPageScreen() {
   const [sentCookCount, setSentCookCount] = useState(0);
   const [receivedCookCount, setReceivedCookCount] = useState(0);
   const [matchCount, setMatchCount] = useState(0);
+  const [kokRemaining, setKokRemaining] = useState(0);
+  const [kokDailyLimit, setKokDailyLimit] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -84,6 +86,8 @@ export function MyPageScreen() {
         setSentCookCount(cooks.usage.totalUsed);
         setReceivedCookCount(cooks.received.length);
         setMatchCount(matches.length);
+        setKokRemaining(Math.max(cooks.usage.dailyLimit - cooks.usage.todayUsed, 0));
+        setKokDailyLimit(cooks.usage.dailyLimit);
       })
       .catch(() => {
         // 통계는 부가 정보라 조회 실패해도 화면 전체를 에러로 막지 않는다.
@@ -200,9 +204,8 @@ export function MyPageScreen() {
         <h1 className="text-lg font-bold text-(--color-text-strong)">마이</h1>
       </header>
 
-      <main className="flex-1 overflow-y-auto pb-16">
-        <div className="flex flex-col gap-5 p-4">
-          {isLoading ? (
+      <TabBarMain className="gap-5 p-4">
+        {isLoading ? (
             <p className="py-8 text-center text-sm text-(--color-text-sub)">
               프로필을 불러오는 중...
             </p>
@@ -241,14 +244,9 @@ export function MyPageScreen() {
 
           <div className="flex items-center justify-between rounded-(--radius-lg) bg-(--color-primary-lighter) px-4 py-3">
             <span className="text-sm font-medium text-(--color-text-strong)">오늘 남은 콕</span>
-            <div className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-(--color-primary)" aria-hidden="true" />
-              <span className="h-2 w-2 rounded-full bg-(--color-primary)" aria-hidden="true" />
-              <span
-                className="h-2 w-2 rounded-full border border-(--color-border-strong)"
-                aria-hidden="true"
-              />
-            </div>
+            <span className="text-sm font-semibold text-(--color-primary)">
+              {kokRemaining}/{kokDailyLimit}
+            </span>
           </div>
 
           <div className="flex gap-2">
@@ -347,10 +345,7 @@ export function MyPageScreen() {
               </p>
             ) : null}
           </div>
-        </div>
-      </main>
-
-      <TabBar />
+      </TabBarMain>
     </PhoneFrame>
   );
 }
