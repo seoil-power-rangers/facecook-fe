@@ -12,6 +12,8 @@ import { TabBar } from "@ui/공통/TabBar";
 import { Toast } from "@ui/공통/Toast";
 import { useSession } from "@ui/공통/session";
 import { authErrorMessage, logout } from "@ui/로그인/authApi";
+import { getCooks } from "@ui/받은콕/cookApi";
+import { getMatches } from "@ui/매칭/matchApi";
 import {
   getMyProfile,
   profileErrorMessage,
@@ -43,6 +45,9 @@ export function MyPageScreen() {
   const [pushStatus, setPushStatus] = useState<PushStatus>("checking");
   const [isUpdatingPush, setIsUpdatingPush] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [sentCookCount, setSentCookCount] = useState(0);
+  const [receivedCookCount, setReceivedCookCount] = useState(0);
+  const [matchCount, setMatchCount] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -65,6 +70,25 @@ export function MyPageScreen() {
     };
 
     void loadProfile();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    Promise.all([getCooks(), getMatches()])
+      .then(([cooks, matches]) => {
+        if (!active) return;
+        setSentCookCount(cooks.usage.totalUsed);
+        setReceivedCookCount(cooks.received.length);
+        setMatchCount(matches.length);
+      })
+      .catch(() => {
+        // 통계는 부가 정보라 조회 실패해도 화면 전체를 에러로 막지 않는다.
+      });
+
     return () => {
       active = false;
     };
@@ -228,9 +252,9 @@ export function MyPageScreen() {
           </div>
 
           <div className="flex gap-2">
-            <StatCard label="보낸 콕" value="2" />
-            <StatCard label="받은 콕" value="2" />
-            <StatCard label="매칭" value="1" />
+            <StatCard label="보낸 콕" value={`${sentCookCount}`} />
+            <StatCard label="받은 콕" value={`${receivedCookCount}`} />
+            <StatCard label="매칭" value={`${matchCount}`} />
           </div>
 
           <div className="flex flex-col gap-4">
