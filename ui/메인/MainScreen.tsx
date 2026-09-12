@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Bell } from "lucide-react";
 import { Avatar } from "@ui/공통/Avatar";
 import { BottomSheet } from "@ui/공통/BottomSheet";
@@ -10,6 +11,8 @@ import { KokConfirmSheet } from "@ui/공통/KokConfirmSheet";
 import { PhoneFrame } from "@ui/공통/PhoneFrame";
 import { Tag } from "@ui/공통/Tag";
 import { TabBar } from "@ui/공통/TabBar";
+import { Toast } from "@ui/공통/Toast";
+import { cookErrorMessage, sendCook } from "@ui/받은콕/cookApi";
 import {
   getMyProfile,
   getProfiles,
@@ -29,12 +32,15 @@ const filters: { key: FilterKey; label: string }[] = [
 const AVATAR_COLORS = ["#4F46E5", "#22C55E", "#5B5FE9", "#F59E0B", "#EF4444"];
 
 export function MainScreen() {
+  const router = useRouter();
   const [activeFilter, setActiveFilter] = useState<FilterKey>("all");
   const [members, setMembers] = useState<ProfileResponse[]>([]);
   const [myProfile, setMyProfile] = useState<ProfileResponse | null>(null);
   const [kokTarget, setKokTarget] = useState<ProfileResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isSendingKok, setIsSendingKok] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -74,8 +80,22 @@ export function MainScreen() {
     return commonHobbies(member, myProfile) > 0;
   });
 
-  const handleKokConfirm = () => {
-    setKokTarget(null);
+  const handleKokConfirm = async () => {
+    if (!kokTarget) return;
+    setIsSendingKok(true);
+    try {
+      const result = await sendCook(kokTarget.userId);
+      setKokTarget(null);
+      if (result.matched && result.matchId !== null) {
+        router.push(`/match/${result.matchId}/matched`);
+        return;
+      }
+      setToastMessage("콕을 보냈어요. 상대의 콕을 기다려주세요.");
+    } catch (sendError) {
+      setToastMessage(cookErrorMessage(sendError));
+    } finally {
+      setIsSendingKok(false);
+    }
   };
 
   return (
@@ -201,10 +221,17 @@ export function MainScreen() {
             name={kokTarget.nickname}
             bgColor={AVATAR_COLORS[kokTarget.userId % AVATAR_COLORS.length]}
             onCancel={() => setKokTarget(null)}
-            onConfirm={handleKokConfirm}
+            onConfirm={() => void handleKokConfirm()}
+            isSubmitting={isSendingKok}
           />
         ) : null}
       </BottomSheet>
+
+      <Toast
+        open={toastMessage !== null}
+        message={toastMessage ?? ""}
+        onDismiss={() => setToastMessage(null)}
+      />
     </PhoneFrame>
   );
 }
