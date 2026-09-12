@@ -7,10 +7,7 @@ import { Button } from "@ui/공통/Button";
 import { InfoBox } from "@ui/공통/InfoBox";
 import { PhoneFrame } from "@ui/공통/PhoneFrame";
 import { TextField } from "@ui/공통/TextField";
-import { CODE_LENGTH } from "@ui/공통/constants";
 import { useSession } from "@ui/공통/session";
-import { authErrorMessage, requestCode, verifyLogin } from "./authApi";
-import { useVerificationCode } from "./verificationCode";
 
 type LoginTab = "participant" | "admin";
 
@@ -22,8 +19,8 @@ const TABS: { key: LoginTab; label: string }[] = [
 /**
  * 이미 가입한 사람이 다시 들어오는 화면. 약관·온보딩을 건너뛰고 바로 /main으로 간다.
  *
- * AUTH-02가 참가자 로그인을 이메일 인증으로 정해두어 관리자(아이디+비밀번호)와
- * 입력 방식이 다르다. 그래서 한 화면에 두되 탭으로 갈라둔다.
+ * 참가자·관리자 둘 다 이메일(또는 아이디)+비밀번호로 들어온다 — 인증코드는
+ * 최초 가입(이메일 인증) 때만 쓰고, 그 이후 로그인은 이 화면으로 통일한다.
  */
 export function LoginScreen() {
   const router = useRouter();
@@ -83,55 +80,20 @@ export function LoginScreen() {
   );
 }
 
-/** 참가자 — AUTH-02, 이메일 인증으로 로그인한다. */
+/** 참가자 — 이메일+비밀번호로 로그인한다(가입할 때 설정한 비밀번호). */
 function ParticipantForm() {
   const router = useRouter();
   const { signIn } = useSession();
   const [email, setEmail] = useState("");
-  const { code, change, start, reset, sent, expired, filled, remaining } =
-    useVerificationCode();
-  const [isRequesting, setIsRequesting] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [password, setPassword] = useState("");
 
-  const emailFilled = email.includes("@");
-  const canSubmit = emailFilled && filled && !expired;
+  const canSubmit = email.includes("@") && password.length > 0;
 
-  const changeEmail = (value: string) => {
-    setEmail(value);
-    reset();
-    setError(null);
-  };
-
-  const requestVerificationCode = async () => {
-    if (!emailFilled || isRequesting) return;
-
-    setIsRequesting(true);
-    setError(null);
-    try {
-      const response = await requestCode(email, "login");
-      start(response.expiresInSeconds);
-    } catch (requestError) {
-      setError(authErrorMessage(requestError));
-    } finally {
-      setIsRequesting(false);
-    }
-  };
-
-  const submit = async () => {
-    if (!canSubmit || isSubmitting) return;
-
-    setIsSubmitting(true);
-    setError(null);
-    try {
-      const user = await verifyLogin(email, code);
-      signIn({ role: "participant", name: user.email });
-      router.push("/main");
-    } catch (submitError) {
-      setError(authErrorMessage(submitError));
-    } finally {
-      setIsSubmitting(false);
-    }
+  const submit = () => {
+    // TODO: 백엔드에 이메일+비밀번호 로그인 API가 생기면 여기서 실제로 호출해야 한다.
+    // 지금은 관리자 로그인과 마찬가지로 화면만 만들어둔 상태다.
+    signIn({ role: "participant", name: email.trim() });
+    router.push("/main");
   };
 
   return (
@@ -140,7 +102,7 @@ function ParticipantForm() {
       onSubmit={(event) => {
         event.preventDefault();
         if (canSubmit) {
-          void submit();
+          submit();
         }
       }}
     >
@@ -152,66 +114,22 @@ function ParticipantForm() {
           autoComplete="email"
           placeholder="star2026@gmail.com"
           value={email}
-          onChange={(event) => changeEmail(event.target.value)}
-          trailing={
-            <button
-              type="button"
-              onClick={requestVerificationCode}
-              disabled={!emailFilled || isRequesting}
-              className="shrink-0 text-[13px] font-bold text-(--color-primary) disabled:text-(--color-text-muted)"
-            >
-              {isRequesting ? "전송 중" : sent ? "재발송" : "인증요청"}
-            </button>
-          }
+          onChange={(event) => setEmail(event.target.value)}
         />
 
-        <div>
-          <TextField
-            label="인증번호"
-            inputMode="numeric"
-            maxLength={CODE_LENGTH}
-            placeholder="000000"
-            disabled={!sent}
-            value={code}
-            onChange={(event) => change(event.target.value)}
-            className="tracking-[0.3em]"
-            trailing={
-              sent ? (
-                <span
-                  className={`shrink-0 text-[13px] tabular-nums ${
-                    expired ? "text-(--color-danger)" : "text-(--color-text-sub)"
-                  }`}
-                >
-                  {remaining}
-                </span>
-              ) : undefined
-            }
-          />
-          <p
-            className={`mt-1.5 text-[12px] ${
-              expired ? "text-(--color-danger)" : "text-(--color-text-sub)"
-            }`}
-          >
-            {expired
-              ? "인증번호가 만료됐어요. 다시 받아주세요."
-              : `가입할 때 인증한 이메일로 ${CODE_LENGTH}자리 번호를 보내요`}
-          </p>
-        </div>
-
-        {error ? (
-          <p role="alert" className="text-[12px] text-(--color-danger)">
-            {error}
-          </p>
-        ) : null}
+        <TextField
+          label="비밀번호"
+          type="password"
+          autoComplete="current-password"
+          placeholder="비밀번호"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+        />
       </div>
 
       <div className="mt-auto pt-8">
-        <Button
-          type="submit"
-          fullWidth
-          disabled={!canSubmit || isSubmitting}
-        >
-          {isSubmitting ? "로그인 중..." : "로그인"}
+        <Button type="submit" fullWidth disabled={!canSubmit}>
+          로그인
         </Button>
       </div>
     </form>
