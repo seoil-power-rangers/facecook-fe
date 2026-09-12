@@ -100,9 +100,12 @@ export function EmailVerifyScreen() {
     setIsSubmitting(true);
     setError(null);
     try {
-      // TODO: 백엔드가 비밀번호 설정을 지원하면 draft.password를 같이 보내야 한다.
-      // 지금은 이메일 인증만으로 가입이 되고, 비밀번호는 화면에서만 받아둔다.
-      await verifySignup(draft.email, code, draft.agreedTerms);
+      await verifySignup(
+        draft.email,
+        code,
+        draft.password,
+        draft.agreedTerms,
+      );
       router.push("/onboarding/basic");
     } catch (submitError) {
       setError(authErrorMessage(submitError));

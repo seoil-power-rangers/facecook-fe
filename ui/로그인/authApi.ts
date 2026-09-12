@@ -52,12 +52,21 @@ export function requestCode(email: string, purpose: VerificationPurpose) {
 export function verifySignup(
   email: string,
   code: string,
+  password: string,
   agreedTerms: string[],
 ) {
   return post<AuthVerificationResponse>("/api/auth/verify-signup", {
     email: email.trim(),
     code,
+    password,
     agreedTerms,
+  });
+}
+
+export function login(email: string, password: string) {
+  return post<AuthVerificationResponse>("/api/auth/login", {
+    email: email.trim(),
+    password,
   });
 }
 
@@ -82,6 +91,9 @@ export async function logout(): Promise<void> {
 
 export function authErrorMessage(error: unknown) {
   if (error instanceof AuthApiError) {
+    if (error.code === "INVALID_CREDENTIALS") {
+      return "이메일 또는 비밀번호가 올바르지 않습니다.";
+    }
     return error.message;
   }
   return "백엔드 서버에 연결할 수 없습니다. 실행 상태를 확인해주세요.";
