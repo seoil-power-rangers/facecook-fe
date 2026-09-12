@@ -101,6 +101,8 @@ export interface Report {
  */
 export interface OnboardingDraft {
   email: string;
+  /** 최초 가입 시 함께 설정하는 비밀번호. 이후 로그인은 이메일 인증 대신 이걸로 한다. */
+  password: string;
   agreedTerms: string[];
   nickname: string;
   gender: string;
@@ -118,6 +120,7 @@ export interface OnboardingDraft {
 
 export const EMPTY_DRAFT: OnboardingDraft = {
   email: "",
+  password: "",
   agreedTerms: [],
   nickname: "",
   gender: "",

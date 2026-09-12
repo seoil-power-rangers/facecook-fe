@@ -70,6 +70,9 @@ export const TERMS = [
 export const CODE_LENGTH = 6;
 export const CODE_TTL_SECONDS = 5 * 60;
 
+/** 로그인 비밀번호 — 최초 가입 시 설정, 이후 로그인에 사용 */
+export const MIN_PASSWORD_LENGTH = 8;
+
 /** 온보딩 진행바 칸 수. 약관을 02에 합쳐 STEP 1~5가 됐다. */
 export const PROGRESS_SLOTS = 5;
 

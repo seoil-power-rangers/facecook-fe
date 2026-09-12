@@ -9,7 +9,7 @@ import { CheckRow } from "@ui/공통/CheckRow";
 import { InfoBox } from "@ui/공통/InfoBox";
 import { StepHeader, Accent } from "@ui/공통/StepHeader";
 import { TextField } from "@ui/공통/TextField";
-import { CODE_LENGTH, EVENT, TERMS } from "@ui/공통/constants";
+import { CODE_LENGTH, EVENT, MIN_PASSWORD_LENGTH, TERMS } from "@ui/공통/constants";
 import { useOnboarding } from "@ui/공통/onboarding";
 import { authErrorMessage, requestCode, verifySignup } from "./authApi";
 import { useVerificationCode } from "./verificationCode";
@@ -65,8 +65,13 @@ export function EmailVerifyScreen() {
       };
     });
 
+  const passwordFilled = draft.password.length >= MIN_PASSWORD_LENGTH;
   const canSubmit =
-    draft.email.includes("@") && filled && !expired && requiredAgreed;
+    draft.email.includes("@") &&
+    filled &&
+    !expired &&
+    passwordFilled &&
+    requiredAgreed;
 
   const changeEmail = (value: string) => {
     set("email", value);
@@ -95,6 +100,8 @@ export function EmailVerifyScreen() {
     setIsSubmitting(true);
     setError(null);
     try {
+      // TODO: 백엔드가 비밀번호 설정을 지원하면 draft.password를 같이 보내야 한다.
+      // 지금은 이메일 인증만으로 가입이 되고, 비밀번호는 화면에서만 받아둔다.
       await verifySignup(draft.email, code, draft.agreedTerms);
       router.push("/onboarding/basic");
     } catch (submitError) {
@@ -168,6 +175,15 @@ export function EmailVerifyScreen() {
               : `메일함에서 ${CODE_LENGTH}자리 인증번호를 확인하세요`}
           </p>
         </div>
+
+        <TextField
+          label="비밀번호"
+          type="password"
+          autoComplete="new-password"
+          placeholder={`${MIN_PASSWORD_LENGTH}자 이상 입력하세요`}
+          value={draft.password}
+          onChange={(event) => set("password", event.target.value)}
+        />
 
         <InfoBox>인증한 이메일로만 로그인할 수 있어요.</InfoBox>
 
