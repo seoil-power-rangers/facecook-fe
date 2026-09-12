@@ -8,7 +8,7 @@ import { Avatar } from "@ui/공통/Avatar";
 import { Button } from "@ui/공통/Button";
 import { PhoneFrame } from "@ui/공통/PhoneFrame";
 import { Tag } from "@ui/공통/Tag";
-import { TabBar } from "@ui/공통/TabBar";
+import { TabBarMain } from "@ui/공통/TabBar";
 import { Toast } from "@ui/공통/Toast";
 import {
   cookErrorMessage,
@@ -103,7 +103,7 @@ export function KokScreen() {
         </div>
       </div>
 
-      <main className="flex-1 overflow-y-auto pb-16">
+      <TabBarMain>
         {isLoading ? <ScreenMessage>콕 목록을 불러오는 중...</ScreenMessage> : null}
         {!isLoading && error ? (
           <ScreenMessage error>
@@ -121,9 +121,7 @@ export function KokScreen() {
             onSend={handleSendCook}
           />
         ) : null}
-      </main>
-
-      <TabBar />
+      </TabBarMain>
     </PhoneFrame>
   );
 }
@@ -197,11 +195,6 @@ function SentKokPanel({ data }: { data: CookListResponse }) {
         </div>
       )}
 
-      <div className="rounded-(--radius-lg) bg-(--color-primary-lighter) p-4">
-        <span className="text-sm font-medium text-(--color-text-strong)">행사 전체 콕 사용량</span>
-        <p className="mt-1 text-lg font-bold text-(--color-text-strong)">{data.usage.totalUsed}회 사용</p>
-        <p className="mt-1 text-xs text-(--color-text-sub)">행사 기간 동안 보낸 누적 횟수예요.</p>
-      </div>
     </div>
   );
 }
