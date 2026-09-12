@@ -26,8 +26,8 @@ import {
   type MatchResponse,
 } from "@ui/매칭/matchApi";
 
-const CHAT_OPEN_HOUR = 9;
-const CHAT_CLOSE_HOUR = 18;
+const CHAT_OPEN_HOUR = Number(process.env.NEXT_PUBLIC_CHAT_OPEN_HOUR ?? "9");
+const CHAT_CLOSE_HOUR = Number(process.env.NEXT_PUBLIC_CHAT_CLOSE_HOUR ?? "18");
 const PAGE_SIZE = 50;
 const ACK_TIMEOUT_MS = 10_000;
 const AVATAR_COLORS = ["#4F46E5", "#22C55E", "#5B5FE9", "#F59E0B", "#EF4444"];
@@ -468,7 +468,8 @@ function ClosedComposer() {
           <p className="text-sm font-bold text-(--color-text-strong)">지금은 채팅 운영시간이 아니에요</p>
           <p className="flex items-center gap-1 text-xs text-(--color-text-sub)">
             <Clock className="h-3 w-3" />
-            매일 09:00 ~ 18:00 · 서울시간
+            매일 {String(CHAT_OPEN_HOUR).padStart(2, "0")}:00 ~{" "}
+            {String(CHAT_CLOSE_HOUR).padStart(2, "0")}:00 · 서울시간
           </p>
         </div>
       </div>
