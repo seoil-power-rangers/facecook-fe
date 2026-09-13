@@ -2,12 +2,17 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ChevronRight, Heart, HeartHandshake, Search } from "lucide-react";
+import { Bell, ChevronRight, Heart, HeartHandshake, Search } from "lucide-react";
 import { PhoneFrame } from "@ui/공통/PhoneFrame";
 import { TabBarMain } from "@ui/공통/TabBar";
 import { getCooks } from "@ui/받은콕/cookApi";
 import { getMatches } from "@ui/매칭/matchApi";
 import { getProfiles } from "@ui/프로필작성/profileApi";
+import {
+  buildFeed,
+  countUnseen,
+  readLastSeen,
+} from "@ui/알림/notificationFeed";
 import { CampusScene } from "./CampusScene";
 import { Mascot } from "./Mascot";
 
@@ -24,6 +29,7 @@ export function MainScreen() {
   const [dailyLimit, setDailyLimit] = useState(0);
   const [pendingKokCount, setPendingKokCount] = useState(0);
   const [matchCount, setMatchCount] = useState(0);
+  const [unseenCount, setUnseenCount] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -48,10 +54,26 @@ export function MainScreen() {
     };
   }, []);
 
+  useEffect(() => {
+    let active = true;
+
+    buildFeed()
+      .then((feed) => {
+        if (active) setUnseenCount(countUnseen(feed, readLastSeen()));
+      })
+      .catch(() => {
+        // 배지는 부가 정보라 조회 실패 시 그냥 숨긴다.
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
     <PhoneFrame>
       <TabBarMain>
-        <Hero totalUsers={totalUsers} />
+        <Hero totalUsers={totalUsers} unseenCount={unseenCount} />
 
         <div className="flex flex-1 flex-col gap-4 bg-(--color-surface) px-4 pb-6 pt-5">
           <KokGauge used={todayUsed} limit={dailyLimit} />
@@ -99,10 +121,34 @@ export function MainScreen() {
 }
 
 /** 캠퍼스 풍경 위에 마스코트가 서 있는 영역. */
-function Hero({ totalUsers }: { totalUsers: number }) {
+function Hero({
+  totalUsers,
+  unseenCount,
+}: {
+  totalUsers: number;
+  unseenCount: number;
+}) {
   return (
     <section className="relative flex shrink-0 flex-col items-center bg-(--color-home-sky) px-5 pb-4 pt-6">
       <CampusScene />
+
+      <Link
+        href="/notifications"
+        aria-label={
+          unseenCount > 0 ? `알림 보관함, 새 알림 ${unseenCount}개` : "알림 보관함"
+        }
+        className="absolute right-4 top-5 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-(--color-surface)/85 text-(--color-text-body) shadow-(--shadow-card) backdrop-blur-sm"
+      >
+        <Bell className="h-5 w-5" aria-hidden="true" />
+        {unseenCount > 0 ? (
+          <span
+            className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-(--color-danger) px-1 text-[10px] font-bold text-(--color-text-on-primary)"
+            aria-hidden="true"
+          >
+            {unseenCount > 9 ? "9+" : unseenCount}
+          </span>
+        ) : null}
+      </Link>
 
       <div className="relative z-10 w-full">
         <p className="text-xs font-medium text-(--color-text-sub)">총 사용자</p>
