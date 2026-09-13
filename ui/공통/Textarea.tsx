@@ -17,8 +17,9 @@ export function Textarea({ label, hint, className, ...props }: TextareaProps) {
           {hint ? <span className="ml-1 font-normal">{hint}</span> : null}
         </span>
       ) : null}
+      {/* 16px 미만으로 줄이지 말 것 — iOS가 포커스 시 화면을 확대한다. */}
       <textarea
-        className={`w-full resize-none rounded-(--radius-md) border border-(--color-border) bg-(--color-surface-alt) px-4 py-3 text-[14px] leading-relaxed text-(--color-text-strong) outline-none placeholder:text-(--color-text-muted) ${className ?? ""}`}
+        className={`w-full resize-none rounded-(--radius-md) border border-(--color-border) bg-(--color-surface-alt) px-4 py-3 text-[16px] leading-relaxed text-(--color-text-strong) outline-none placeholder:text-(--color-text-muted) ${className ?? ""}`}
         {...props}
       />
     </label>

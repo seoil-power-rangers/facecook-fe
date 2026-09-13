@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Compass, Inbox, User, Users } from "lucide-react";
+import { Compass, House, Inbox, User, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { getCooks } from "@ui/받은콕/cookApi";
 
@@ -14,15 +14,21 @@ interface TabBarMainProps {
 }
 
 /**
- * 탭바가 있는 화면의 <main> 영역. 콘텐츠가 화면보다 짧으면 탭바가 하단에
- * 붙고, 콘텐츠가 길면 탭바까지 함께 스크롤된다(고정 배치 아님).
+ * 탭바가 있는 화면의 <main> 영역.
+ *
+ * 탭바는 화면 맨 아래에 고정하고 본문만 스크롤한다. PhoneFrame이 h-dvh
+ * 세로 flex라서, 스크롤되는 main을 flex-1로 늘리고 탭바를 그 형제로 두면
+ * 콘텐츠 길이와 상관없이 바닥에 붙는다. 탭바를 main 안에 넣으면 본문과
+ * 같이 밀려 내려가 스크롤해야 보인다.
  */
 export function TabBarMain({ children, className = "" }: TabBarMainProps) {
   return (
-    <main className="flex flex-1 flex-col overflow-y-auto">
-      <div className={`flex flex-1 flex-col ${className}`.trim()}>{children}</div>
+    <>
+      <main className="flex flex-1 flex-col overflow-y-auto">
+        <div className={`flex flex-1 flex-col ${className}`.trim()}>{children}</div>
+      </main>
       <TabBar />
-    </main>
+    </>
   );
 }
 
@@ -55,7 +61,8 @@ export function TabBar() {
   }, [pathname]);
 
   const tabs: TabConfig[] = [
-    { href: "/main", label: "탐색", icon: Compass },
+    { href: "/main", label: "홈", icon: House },
+    { href: "/explore", label: "탐색", icon: Compass },
     { href: "/kok", label: "받은 콕", icon: Inbox, badgeCount: pendingReceivedCount },
     { href: "/match", label: "매칭", icon: Users },
     { href: "/mypage", label: "마이", icon: User },
@@ -82,7 +89,9 @@ export function TabBar() {
                 </span>
               ) : null}
             </span>
-            <span className={`text-xs font-medium ${colorClassName}`}>{tab.label}</span>
+            <span className={`whitespace-nowrap text-xs font-medium ${colorClassName}`}>
+              {tab.label}
+            </span>
           </Link>
         );
       })}

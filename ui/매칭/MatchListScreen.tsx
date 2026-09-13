@@ -7,9 +7,8 @@ import { Avatar } from "@ui/공통/Avatar";
 import { Button } from "@ui/공통/Button";
 import { PhoneFrame } from "@ui/공통/PhoneFrame";
 import { TabBarMain } from "@ui/공통/TabBar";
+import { avatarColor } from "@ui/공통/avatarColor";
 import { getMatches, matchErrorMessage, type MatchResponse } from "./matchApi";
-
-const AVATAR_COLORS = ["#4F46E5", "#22C55E", "#5B5FE9", "#F59E0B", "#EF4444"];
 
 export function MatchListScreen() {
   const [matches, setMatches] = useState<MatchResponse[]>([]);
@@ -88,7 +87,7 @@ function MatchCard({ match }: { match: MatchResponse }) {
       <Avatar
         name={match.partner.nickname}
         size="lg"
-        bgColor={AVATAR_COLORS[match.partner.userId % AVATAR_COLORS.length]}
+        bgColor={avatarColor(match.partner.userId)}
       />
       <div className="flex flex-1 flex-col gap-0.5 overflow-hidden">
         <div className="flex items-center justify-between gap-2">

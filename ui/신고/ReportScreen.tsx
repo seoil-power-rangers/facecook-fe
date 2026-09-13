@@ -157,7 +157,7 @@ export function ReportScreen({ userId }: { userId: string }) {
               rows={4}
               maxLength={1000}
               disabled={isSubmitting}
-              className="resize-none rounded-(--radius-lg) border border-(--color-border) bg-(--color-surface) px-3 py-2.5 text-sm text-(--color-text-strong) outline-none placeholder:text-(--color-text-muted)"
+              className="resize-none rounded-(--radius-lg) border border-(--color-border) bg-(--color-surface) px-3 py-2.5 text-base text-(--color-text-strong) outline-none placeholder:text-(--color-text-muted)"
             />
             <span className="self-end text-xs text-(--color-text-muted)">{detail.length}/1000</span>
           </div>
