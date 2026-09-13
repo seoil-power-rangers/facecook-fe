@@ -54,11 +54,11 @@
   --color-disabled-border: #E5E7EB;
 
   /* ===== Chat ===== */
-  --color-chat-mine: #4F46E5;        /* 내 말풍선 */
+  --color-chat-mine: var(--color-accent); /* 내 말풍선 */
   --color-chat-mine-text: #FFFFFF;
   --color-chat-other: #FFFFFF;       /* 상대 말풍선 */
   --color-chat-other-text: #1A1A2E;
-  --color-chat-bg: #F5F6FA;
+  --color-chat-bg: #FDF9F7;          /* 흰 말풍선이 뜨도록 살짝 따뜻하게 */
   --color-chat-notice: #EEF0FE;      /* "오늘 채팅 종료" 안내 */
 
   /* ===== Overlay ===== */
