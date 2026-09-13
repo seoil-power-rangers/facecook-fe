@@ -413,12 +413,12 @@ function ReceivedKokPanel({
               >
                 {matched && cook.matchId !== null ? (
                   <ChatPill matchId={cook.matchId} />
-                ) : (
+                ) : cook.status === "pending" ? (
                   <KokBackButton
                     sending={sendingUserId === cook.userId}
                     onClick={() => void onSend(cook.userId)}
                   />
-                )}
+                ) : null}
               </KokCard>
             );
           })
