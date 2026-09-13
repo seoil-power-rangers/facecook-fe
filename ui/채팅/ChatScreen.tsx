@@ -24,6 +24,7 @@ import {
 } from "./chatSocket";
 import {
   getMatch,
+  markMatchRead,
   matchErrorMessage,
   type MatchResponse,
 } from "@ui/매칭/matchApi";
@@ -99,8 +100,17 @@ export function ChatScreen({ matchId }: { matchId: string }) {
 
     // 들어올 때와 나갈 때 모두 읽음으로 친다. 입장 시점에만 찍으면, 방에
     // 머무는 동안 온 메시지가 목록에서 안 읽음으로 남는다.
-    markRoomRead(numericMatchId);
-    return () => markRoomRead(numericMatchId);
+    //
+    // 서버에도 같이 알린다(markMatchRead) — 로컬 저장(markRoomRead)만으로는
+    // 기기 시계에 의존하게 되고, 다른 기기에서는 반영되지 않는다. 실패해도
+    // 배지 하나 안 지워지는 정도라 화면을 막지 않고 조용히 무시한다.
+    const markRead = () => {
+      markRoomRead(numericMatchId);
+      void markMatchRead(numericMatchId).catch(() => {});
+    };
+
+    markRead();
+    return markRead;
   }, [numericMatchId]);
 
   useEffect(() => {

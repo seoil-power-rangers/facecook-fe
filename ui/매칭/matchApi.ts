@@ -48,6 +48,11 @@ export function getMatch(matchId: number) {
   return requestMatch<MatchResponse>(`/api/matches/${matchId}`);
 }
 
+/** 채팅방을 읽었다고 서버에 알린다. 들어올 때와 나갈 때 모두 호출한다. */
+export function markMatchRead(matchId: number) {
+  return requestMatch<void>(`/api/matches/${matchId}/read`, { method: "PATCH" });
+}
+
 function requireApiBaseUrl() {
   if (!API_BASE_URL) {
     throw new MatchApiError(
@@ -58,15 +63,20 @@ function requireApiBaseUrl() {
   return API_BASE_URL;
 }
 
-async function requestMatch<T>(path: string): Promise<T> {
+async function requestMatch<T>(path: string, init: RequestInit = {}): Promise<T> {
   let response: Response;
   try {
     response = await fetch(`${requireApiBaseUrl()}${path}`, {
+      ...init,
       credentials: "include",
     });
   } catch (error) {
     if (error instanceof MatchApiError) throw error;
     throw new MatchApiError("NETWORK", "백엔드 서버에 연결할 수 없습니다.");
+  }
+
+  if (response.status === 204) {
+    return undefined as T;
   }
 
   const payload = (await response.json().catch(() => ({}))) as T &
