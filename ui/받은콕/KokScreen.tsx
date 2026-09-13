@@ -6,11 +6,13 @@ import { useRouter } from "next/navigation";
 import { Clock, Heart } from "lucide-react";
 import { Avatar } from "@ui/공통/Avatar";
 import { Button } from "@ui/공통/Button";
+import { BottomSheet } from "@ui/공통/BottomSheet";
 import { PhoneFrame } from "@ui/공통/PhoneFrame";
 import { Tag } from "@ui/공통/Tag";
 import { TabBarMain } from "@ui/공통/TabBar";
 import { Toast } from "@ui/공통/Toast";
 import {
+  cancelCook,
   cookErrorMessage,
   getCooks,
   sendCook,
@@ -30,6 +32,8 @@ export function KokScreen() {
   const [error, setError] = useState<string | null>(null);
   const [sendingUserId, setSendingUserId] = useState<number | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<CookItemResponse | null>(null);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   const loadCooks = useCallback(async () => {
     setIsLoading(true);
@@ -74,6 +78,22 @@ export function KokScreen() {
     }
   };
 
+  const handleCancelCook = async () => {
+    if (!cancelTarget) return;
+
+    setIsCancelling(true);
+    try {
+      await cancelCook(cancelTarget.cookId);
+      setCancelTarget(null);
+      setToastMessage("콕을 취소했어요.");
+      await loadCooks();
+    } catch (cancelError) {
+      setToastMessage(cookErrorMessage(cancelError));
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
   return (
     <PhoneFrame>
       <Toast
@@ -112,7 +132,7 @@ export function KokScreen() {
         ) : null}
 
         {!isLoading && !error && data && tab === "sent" ? (
-          <SentKokPanel cooks={data.sent} />
+          <SentKokPanel cooks={data.sent} onCancel={setCancelTarget} />
         ) : null}
 
         {!isLoading && !error && data && tab === "received" ? (
@@ -124,6 +144,19 @@ export function KokScreen() {
         ) : null}
       </TabBarMain>
 
+      <BottomSheet
+        open={cancelTarget !== null}
+        onClose={() => !isCancelling && setCancelTarget(null)}
+      >
+        {cancelTarget ? (
+          <CancelKokSheet
+            cook={cancelTarget}
+            isSubmitting={isCancelling}
+            onKeep={() => setCancelTarget(null)}
+            onCancelCook={() => void handleCancelCook()}
+          />
+        ) : null}
+      </BottomSheet>
     </PhoneFrame>
   );
 }
@@ -194,7 +227,13 @@ function SectionHead({ label, count }: { label: string; count: number }) {
   );
 }
 
-function SentKokPanel({ cooks }: { cooks: CookItemResponse[] }) {
+function SentKokPanel({
+  cooks,
+  onCancel,
+}: {
+  cooks: CookItemResponse[];
+  onCancel: (cook: CookItemResponse) => void;
+}) {
   return (
     <section className="flex flex-col gap-3">
       <SectionHead label="내가 콕한 사람" count={cooks.length} />
@@ -202,13 +241,21 @@ function SentKokPanel({ cooks }: { cooks: CookItemResponse[] }) {
       {cooks.length === 0 ? (
         <EmptyState emoji="👆" message="아직 콕을 보내지 않았어요" />
       ) : (
-        cooks.map((cook) => <SentKokCard key={cook.cookId} cook={cook} />)
+        cooks.map((cook) => (
+          <SentKokCard key={cook.cookId} cook={cook} onCancel={onCancel} />
+        ))
       )}
     </section>
   );
 }
 
-function SentKokCard({ cook }: { cook: CookItemResponse }) {
+function SentKokCard({
+  cook,
+  onCancel,
+}: {
+  cook: CookItemResponse;
+  onCancel: (cook: CookItemResponse) => void;
+}) {
   const matched = cook.status === "matched" && cook.matchId !== null;
 
   return (
@@ -226,8 +273,64 @@ function SentKokCard({ cook }: { cook: CookItemResponse }) {
     >
       {matched && cook.matchId !== null ? (
         <ChatPill matchId={cook.matchId} />
+      ) : cook.status === "pending" ? (
+        <button
+          type="button"
+          onClick={() => onCancel(cook)}
+          className="shrink-0 rounded-full border border-(--color-border-strong) px-4 py-2 text-sm font-medium text-(--color-text-sub) active:bg-(--color-surface-alt)"
+        >
+          취소
+        </button>
       ) : null}
     </KokCard>
+  );
+}
+
+/**
+ * 되돌릴 수 없는 행동이라 한 번 확인받는다. 상대가 이미 콕을 봤을 수도 있고,
+ * 취소해도 오늘 횟수는 돌아오지 않는다.
+ */
+function CancelKokSheet({
+  cook,
+  isSubmitting,
+  onKeep,
+  onCancelCook,
+}: {
+  cook: CookItemResponse;
+  isSubmitting: boolean;
+  onKeep: () => void;
+  onCancelCook: () => void;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-4 px-6 pt-2">
+      <Avatar name={cook.profile.nickname} size="xl" userId={cook.userId} />
+
+      <div className="flex flex-col items-center gap-1 text-center">
+        <p className="text-xl font-bold text-(--color-text-strong)">
+          {cook.profile.nickname}님에게 보낸 콕을 취소할까요?
+        </p>
+        <p className="text-sm text-(--color-text-sub)">
+          취소해도 오늘 사용한 횟수는 돌아오지 않아요.
+        </p>
+      </div>
+
+      <button
+        type="button"
+        onClick={onCancelCook}
+        disabled={isSubmitting}
+        className="w-full rounded-(--radius-lg) bg-(--color-danger) py-4 text-base font-bold text-(--color-text-on-primary) disabled:bg-(--color-disabled-bg) disabled:text-(--color-disabled-text)"
+      >
+        {isSubmitting ? "취소하는 중..." : "콕 취소하기"}
+      </button>
+      <button
+        type="button"
+        onClick={onKeep}
+        disabled={isSubmitting}
+        className="text-sm text-(--color-text-sub) disabled:text-(--color-disabled-text)"
+      >
+        그대로 둘게요
+      </button>
+    </div>
   );
 }
 
