@@ -13,6 +13,11 @@ export interface MatchResponse {
   matchedAt: string;
   partner: ProfileResponse;
   recentMessage: RecentMessageResponse | null;
+  /**
+   * 안 읽은 메시지 수. 아직 서버가 주지 않아서, 없으면 브라우저에 남긴
+   * 마지막 열람 시각으로 대신 판단한다(readState.ts).
+   */
+  unreadCount?: number;
 }
 
 interface ApiErrorResponse {

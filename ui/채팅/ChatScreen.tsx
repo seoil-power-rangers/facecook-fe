@@ -8,6 +8,7 @@ import { ChevronLeft, Clock, Lock, Send, Ticket } from "lucide-react";
 import { Avatar } from "@ui/공통/Avatar";
 import { Button } from "@ui/공통/Button";
 import { PhoneFrame } from "@ui/공통/PhoneFrame";
+import { markRoomRead } from "@ui/매칭/readState";
 import { Toast } from "@ui/공통/Toast";
 import {
   ChatApiError,
@@ -89,6 +90,15 @@ export function ChatScreen({ matchId }: { matchId: string }) {
     } finally {
       setIsHistoryLoading(false);
     }
+  }, [numericMatchId]);
+
+  useEffect(() => {
+    if (Number.isNaN(numericMatchId)) return;
+
+    // 들어올 때와 나갈 때 모두 읽음으로 친다. 입장 시점에만 찍으면, 방에
+    // 머무는 동안 온 메시지가 목록에서 안 읽음으로 남는다.
+    markRoomRead(numericMatchId);
+    return () => markRoomRead(numericMatchId);
   }, [numericMatchId]);
 
   useEffect(() => {
