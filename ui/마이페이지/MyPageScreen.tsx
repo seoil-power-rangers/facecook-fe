@@ -2,14 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, ChevronRight, Lock, Shield, Sparkles } from "lucide-react";
+import { Bell, ChevronRight, Lock, Shield, Smartphone, Sparkles } from "lucide-react";
 import { Avatar } from "@ui/공통/Avatar";
+import { BottomSheet } from "@ui/공통/BottomSheet";
 import { Button } from "@ui/공통/Button";
+import { InstallGuideSheet } from "@ui/공통/InstallGuideSheet";
 import { PhoneFrame } from "@ui/공통/PhoneFrame";
 import { StatCard } from "@ui/공통/StatCard";
 import { Tag } from "@ui/공통/Tag";
 import { TabBarMain } from "@ui/공통/TabBar";
 import { Toast } from "@ui/공통/Toast";
+import { usePwaInstall } from "@ui/공통/pwaInstall";
 import { useSession } from "@ui/공통/session";
 import { authErrorMessage, logout } from "@ui/로그인/authApi";
 import { getCooks } from "@ui/받은콕/cookApi";
@@ -33,6 +36,8 @@ type PushStatus = "checking" | "disabled" | "enabled" | "denied" | "unsupported"
 export function MyPageScreen() {
   const router = useRouter();
   const { signOut } = useSession();
+  const { installState, promptInstall } = usePwaInstall();
+  const [isInstallGuideOpen, setIsInstallGuideOpen] = useState(false);
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
   const [bio, setBio] = useState("");
   const [department, setDepartment] = useState("");
@@ -141,6 +146,19 @@ export function MyPageScreen() {
       setProfileError(profileErrorMessage(error));
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleInstall = async () => {
+    // 사파리는 설치 프롬프트가 없어서 수동 안내로 보낸다.
+    if (installState === "manual") {
+      setIsInstallGuideOpen(true);
+      return;
+    }
+
+    const outcome = await promptInstall();
+    if (outcome === "dismissed") {
+      setToastMessage("홈 화면에 추가하면 알림을 놓치지 않아요.");
     }
   };
 
@@ -301,6 +319,28 @@ export function MyPageScreen() {
             </div>
 
             <div className="flex flex-col gap-2">
+              {installState === "available" || installState === "manual" ? (
+                <button
+                  type="button"
+                  onClick={() => void handleInstall()}
+                  className="flex items-center justify-between rounded-(--radius-lg) border border-(--color-primary) bg-(--color-primary-lighter) px-4 py-3 text-left"
+                >
+                  <span className="flex items-center gap-2">
+                    <Smartphone className="h-4 w-4 text-(--color-primary)" aria-hidden="true" />
+                    <span className="flex flex-col">
+                      <span className="text-sm font-medium text-(--color-text-strong)">홈 화면에 추가</span>
+                      <span className="text-xs text-(--color-text-sub)">
+                        {installState === "manual"
+                          ? "아이폰은 추가해야 알림을 받을 수 있어요"
+                          : "앱처럼 전체화면으로 쓸 수 있어요"}
+                      </span>
+                    </span>
+                  </span>
+                  <span className="text-xs font-semibold text-(--color-primary)">
+                    {installState === "manual" ? "방법 보기" : "추가"}
+                  </span>
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={() => void handlePushToggle()}
@@ -346,6 +386,13 @@ export function MyPageScreen() {
             ) : null}
           </div>
       </TabBarMain>
+
+      <BottomSheet
+        open={isInstallGuideOpen}
+        onClose={() => setIsInstallGuideOpen(false)}
+      >
+        <InstallGuideSheet onClose={() => setIsInstallGuideOpen(false)} />
+      </BottomSheet>
     </PhoneFrame>
   );
 }
