@@ -4,10 +4,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { FormEvent, UIEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, Clock, Lock, Send, Ticket } from "lucide-react";
+import { ArrowUp, ChevronDown, ChevronLeft, Clock, Lock, Ticket } from "lucide-react";
 import { Avatar } from "@ui/공통/Avatar";
 import { Button } from "@ui/공통/Button";
 import { PhoneFrame } from "@ui/공통/PhoneFrame";
+import { markRoomRead } from "@ui/매칭/readState";
+import { isActiveNow, type ProfileResponse } from "@ui/프로필작성/profileApi";
 import { Toast } from "@ui/공통/Toast";
 import {
   ChatApiError,
@@ -22,6 +24,7 @@ import {
 } from "./chatSocket";
 import {
   getMatch,
+  markMatchRead,
   matchErrorMessage,
   type MatchResponse,
 } from "@ui/매칭/matchApi";
@@ -52,6 +55,7 @@ export function ChatScreen({ matchId }: { matchId: string }) {
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [hasOlder, setHasOlder] = useState(false);
   const [isLoadingOlder, setIsLoadingOlder] = useState(false);
+  const [isAwayFromBottom, setIsAwayFromBottom] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<ChatConnectionStatus>("connecting");
   const [connectionAttempt, setConnectionAttempt] = useState(0);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -89,6 +93,24 @@ export function ChatScreen({ matchId }: { matchId: string }) {
     } finally {
       setIsHistoryLoading(false);
     }
+  }, [numericMatchId]);
+
+  useEffect(() => {
+    if (Number.isNaN(numericMatchId)) return;
+
+    // 들어올 때와 나갈 때 모두 읽음으로 친다. 입장 시점에만 찍으면, 방에
+    // 머무는 동안 온 메시지가 목록에서 안 읽음으로 남는다.
+    //
+    // 서버에도 같이 알린다(markMatchRead) — 로컬 저장(markRoomRead)만으로는
+    // 기기 시계에 의존하게 되고, 다른 기기에서는 반영되지 않는다. 실패해도
+    // 배지 하나 안 지워지는 정도라 화면을 막지 않고 조용히 무시한다.
+    const markRead = () => {
+      markRoomRead(numericMatchId);
+      void markMatchRead(numericMatchId).catch(() => {});
+    };
+
+    markRead();
+    return markRead;
   }, [numericMatchId]);
 
   useEffect(() => {
@@ -219,7 +241,21 @@ export function ChatScreen({ matchId }: { matchId: string }) {
   }, [hasOlder, isLoadingOlder, match, messages]);
 
   const handleScroll = (event: UIEvent<HTMLDivElement>) => {
-    if (event.currentTarget.scrollTop <= 80) void loadOlderMessages();
+    const list = event.currentTarget;
+    if (list.scrollTop <= 80) void loadOlderMessages();
+
+    // 한 화면 넘게 올라갔을 때만 내려가기 버튼을 띄운다. 조금만 움직여도
+    // 뜨면 읽는 내내 버튼이 깜빡인다.
+    setIsAwayFromBottom(list.scrollHeight - list.scrollTop - list.clientHeight > 240);
+  };
+
+  const scrollToBottom = () => {
+    const list = messageListRef.current;
+    if (!list) return;
+
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    list.scrollTo({ top: list.scrollHeight, behavior: reduceMotion ? "auto" : "smooth" });
+    setIsAwayFromBottom(false);
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -298,30 +334,46 @@ export function ChatScreen({ matchId }: { matchId: string }) {
         onDismiss={() => setToastMessage(null)}
       />
 
-      <header className="flex h-14 w-full shrink-0 items-center gap-3 border-b border-(--color-border) bg-(--color-surface) px-3">
-        <button type="button" aria-label="뒤로가기" className="p-1" onClick={() => router.back()}>
-          <ChevronLeft className="h-5 w-5 text-(--color-text-strong)" />
+      <header className="flex h-16 w-full shrink-0 items-center gap-2.5 border-b border-(--color-border) bg-(--color-surface) px-3">
+        <button
+          type="button"
+          aria-label="뒤로가기"
+          onClick={() => router.back()}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-(--color-surface-alt) text-(--color-text-strong)"
+        >
+          <ChevronLeft className="h-5 w-5" />
         </button>
-        <Link href={`/profile/${partner.userId}`} className="flex flex-1 items-center gap-3 overflow-hidden">
+
+        <Link
+          href={`/profile/${partner.userId}`}
+          className="flex flex-1 items-center gap-2.5 overflow-hidden"
+        >
           <Avatar
             name={partner.nickname}
             size="md"
             userId={partner.userId}
+            online={isActiveNow(partner)}
           />
           <div className="flex flex-1 flex-col overflow-hidden">
-            <div className="flex items-center gap-1.5">
-              <span className="truncate text-sm font-semibold text-(--color-text-strong)">{partner.nickname}</span>
-              <ConnectionBadge status={connectionStatus} />
-            </div>
-            <span className="truncate text-xs text-(--color-text-sub)">{profileSubInfo}</span>
+            <span className="truncate text-[15px] font-bold text-(--color-text-strong)">
+              {partner.nickname}
+            </span>
+            <span className="truncate text-xs text-(--color-text-sub)">
+              {isActiveNow(partner) ? (
+                <span className="font-medium text-(--color-online)">활동 중</span>
+              ) : (
+                profileSubInfo
+              )}
+            </span>
           </div>
         </Link>
+
         <Link
           href={`/match/${match.matchId}/mission`}
-          className="flex shrink-0 items-center gap-1 rounded-full border border-(--color-border) px-3 py-1.5 text-xs font-semibold text-(--color-text-strong)"
+          aria-label="미션 보기"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-(--color-primary-light) text-(--color-primary)"
         >
-          <Ticket className="h-3.5 w-3.5" />
-          미션 보기
+          <Ticket className="h-4.5 w-4.5" />
         </Link>
       </header>
 
@@ -338,6 +390,7 @@ export function ChatScreen({ matchId }: { matchId: string }) {
         </div>
       ) : null}
 
+      <div className="relative flex flex-1 flex-col overflow-hidden">
       <main
         ref={messageListRef}
         onScroll={handleScroll}
@@ -357,14 +410,34 @@ export function ChatScreen({ matchId }: { matchId: string }) {
             먼저 반갑게 인사해보세요.
           </p>
         ) : null}
-        {messages.map((message) => (
-          <MessageBubble
-            key={message.clientMessageId}
-            message={message}
-            isMine={message.senderId !== partner.userId}
-          />
-        ))}
+        {messages.map((message, index) => {
+          const isMine = message.senderId !== partner.userId;
+          const previous = messages[index - 1];
+
+          return (
+            <MessageBubble
+              key={message.clientMessageId}
+              message={message}
+              isMine={isMine}
+              partner={partner}
+              // 상대가 연달아 보내면 첫 줄에만 얼굴을 둔다.
+              showAvatar={!isMine && previous?.senderId !== message.senderId}
+            />
+          );
+        })}
       </main>
+
+        {isAwayFromBottom ? (
+          <button
+            type="button"
+            onClick={scrollToBottom}
+            aria-label="맨 아래로"
+            className="absolute bottom-4 right-4 flex h-11 w-11 items-center justify-center rounded-full border border-(--color-border) bg-(--color-surface) text-(--color-text-body) shadow-(--shadow-card)"
+          >
+            <ChevronDown className="h-5 w-5" />
+          </button>
+        ) : null}
+      </div>
 
       {isOpen ? (
         <ChatComposer
@@ -380,33 +453,45 @@ export function ChatScreen({ matchId }: { matchId: string }) {
   );
 }
 
-function ConnectionBadge({ status }: { status: ChatConnectionStatus }) {
-  const connected = status === "connected";
+function MessageBubble({
+  message,
+  isMine,
+  partner,
+  showAvatar,
+}: {
+  message: DisplayMessage;
+  isMine: boolean;
+  partner: ProfileResponse;
+  showAvatar: boolean;
+}) {
   return (
-    <span className={`flex shrink-0 items-center gap-1 text-xs ${connected ? "text-(--color-online)" : "text-(--color-text-muted)"}`}>
-      <span
-        className={`h-1.5 w-1.5 rounded-full ${connected ? "bg-(--color-online)" : "bg-(--color-text-muted)"}`}
-        aria-hidden="true"
-      />
-      {connected ? "실시간 연결됨" : status === "connecting" ? "연결 중" : "연결 끊김"}
-    </span>
-  );
-}
+    <div className={`flex items-end gap-2 ${isMine ? "justify-end" : "justify-start"}`}>
+      {/* 얼굴을 숨길 때도 자리는 남겨서 말풍선 왼쪽 선이 흐트러지지 않게 한다. */}
+      {!isMine ? (
+        <span className="w-8 shrink-0">
+          {showAvatar ? (
+            <Avatar name={partner.nickname} size="sm" userId={partner.userId} />
+          ) : null}
+        </span>
+      ) : null}
 
-function MessageBubble({ message, isMine }: { message: DisplayMessage; isMine: boolean }) {
-  return (
-    <div className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
-      <div className={`flex max-w-[75%] flex-col gap-1 ${isMine ? "items-end" : "items-start"}`}>
+      <div className={`flex max-w-[72%] flex-col gap-1 ${isMine ? "items-end" : "items-start"}`}>
         <div
           className={
             isMine
-              ? "rounded-(--radius-lg) bg-(--color-chat-mine) px-3 py-2 text-sm text-(--color-chat-mine-text)"
-              : "rounded-(--radius-lg) bg-(--color-chat-other) px-3 py-2 text-sm text-(--color-chat-other-text) shadow-(--shadow-card)"
+              ? "rounded-[1.25rem] rounded-br-md bg-(--color-chat-mine) px-4 py-2.5 text-[15px] leading-relaxed text-(--color-chat-mine-text)"
+              : "rounded-[1.25rem] rounded-bl-md bg-(--color-chat-other) px-4 py-2.5 text-[15px] leading-relaxed text-(--color-chat-other-text) shadow-(--shadow-card)"
           }
         >
           {message.content}
         </div>
-        <span className={`text-[11px] ${message.delivery === "failed" ? "text-(--color-danger)" : "text-(--color-text-muted)"}`}>
+        <span
+          className={`text-[11px] ${
+            message.delivery === "failed"
+              ? "text-(--color-danger)"
+              : "text-(--color-text-muted)"
+          }`}
+        >
           {message.delivery === "pending"
             ? "전송 중..."
             : message.delivery === "failed"
@@ -441,16 +526,16 @@ function ChatComposer({
         maxLength={1000}
         disabled={!connected}
         onChange={(event) => onChange(event.target.value)}
-        placeholder={connected ? "메시지 보내기" : "채팅 서버에 연결 중..."}
+        placeholder={connected ? "메시지를 입력하세요..." : "채팅 서버에 연결 중..."}
         className="h-11 flex-1 rounded-full border border-(--color-border) bg-(--color-surface-alt) px-4 text-base text-(--color-text-strong) outline-none placeholder:text-(--color-text-muted) disabled:text-(--color-disabled-text)"
       />
       <button
         type="submit"
         disabled={!connected || value.trim().length === 0}
         aria-label="메시지 전송"
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-(--color-primary) text-(--color-text-on-primary) disabled:bg-(--color-disabled-bg) disabled:text-(--color-disabled-text)"
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-(--color-accent) text-(--color-text-on-primary) disabled:bg-(--color-disabled-bg) disabled:text-(--color-disabled-text)"
       >
-        <Send className="h-4 w-4" />
+        <ArrowUp className="h-5 w-5" strokeWidth={2.5} />
       </button>
     </form>
   );

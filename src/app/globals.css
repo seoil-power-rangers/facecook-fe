@@ -41,6 +41,12 @@
   --color-waiting: #C4823A;
   --color-waiting-soft: #FBEEDD;
 
+  /* 매칭 축하 화면의 배경. 콕(산호)에서 시작해 따뜻한 주황으로 넘어간다 —
+     콕 → 맞콕 → 매칭으로 이어지는 흐름의 끝이라 같은 계열로 둔다.
+     온보딩·프로필 히어로는 보라(--color-hero-bg) 그대로다. */
+  --color-celebrate-from: #F0887B;
+  --color-celebrate-to: #F0A56E;
+
   /* ===== Status ===== */
   --color-online: #22C55E;
   --color-success: #22C55E;
@@ -54,11 +60,11 @@
   --color-disabled-border: #E5E7EB;
 
   /* ===== Chat ===== */
-  --color-chat-mine: #4F46E5;        /* 내 말풍선 */
+  --color-chat-mine: var(--color-accent); /* 내 말풍선 */
   --color-chat-mine-text: #FFFFFF;
   --color-chat-other: #FFFFFF;       /* 상대 말풍선 */
   --color-chat-other-text: #1A1A2E;
-  --color-chat-bg: #F5F6FA;
+  --color-chat-bg: #FDF9F7;          /* 흰 말풍선이 뜨도록 살짝 따뜻하게 */
   --color-chat-notice: #EEF0FE;      /* "오늘 채팅 종료" 안내 */
 
   /* ===== Overlay ===== */
@@ -153,6 +159,40 @@ body {
   }
 }
 
+/* 매칭 성사 — 두 얼굴이 모이고 하트가 터지는 한 번의 연출 */
+@keyframes match-in-left {
+  from {
+    transform: translateX(-28px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@keyframes match-in-right {
+  from {
+    transform: translateX(28px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@keyframes match-pop {
+  from {
+    transform: scale(0.2);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
 @keyframes toast-in {
   from {
     transform: translateY(-100%);
@@ -172,5 +212,16 @@ body {
   to {
     transform: translateY(-100%);
     opacity: 0;
+  }
+}
+
+/* 기기 설정에서 모션 줄이기를 켠 사용자에게는 연출을 걷어낸다. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

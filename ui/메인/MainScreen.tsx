@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Bell, ChevronRight, Heart, HeartHandshake, Search } from "lucide-react";
+import { Bell, ChevronRight, Heart, MessageCircle, Search } from "lucide-react";
 import { PhoneFrame } from "@ui/공통/PhoneFrame";
 import { TabBarMain } from "@ui/공통/TabBar";
 import { getCooks } from "@ui/받은콕/cookApi";
@@ -104,13 +104,17 @@ export function MainScreen() {
             />
             <TileLink
               href="/match"
-              label="매칭"
-              badge={matchCount > 0 ? `${matchCount}커플` : null}
+              label="채팅방"
+              badge={matchCount > 0 ? `${matchCount}개` : null}
               className="bg-(--color-home-match-bg)"
               labelClassName="text-(--color-home-match-text)"
               badgeClassName="bg-(--color-home-match-badge)"
               icon={
-                <HeartHandshake className="h-6 w-6 text-(--color-home-match-badge)" />
+                <MessageCircle
+                  className="h-6 w-6 text-(--color-home-match-badge)"
+                  fill="currentColor"
+                  strokeWidth={0}
+                />
               }
             />
           </div>

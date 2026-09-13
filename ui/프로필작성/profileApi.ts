@@ -43,6 +43,20 @@ export interface ProfileResponse {
   bio: string | null;
   idealType: string | null;
   photo: string | null;
+  /**
+   * 마지막 활동 시각. 기능명세 2절의 "현재 활동 중 표시"에 쓰는 값인데
+   * 아직 서버가 내려주지 않는다. 없으면 활동 중 표시를 띄우지 않는다.
+   */
+  lastActiveAt?: string | null;
+}
+
+/** 5분 안에 움직였으면 지금 보고 있는 것으로 친다. */
+const ACTIVE_WINDOW_MS = 5 * 60 * 1000;
+
+export function isActiveNow(profile: ProfileResponse) {
+  if (!profile.lastActiveAt) return false;
+  const at = Date.parse(profile.lastActiveAt);
+  return !Number.isNaN(at) && Date.now() - at < ACTIVE_WINDOW_MS;
 }
 
 export class ProfileApiError extends Error {
