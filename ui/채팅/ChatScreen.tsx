@@ -435,6 +435,7 @@ function ChatComposer({
       onSubmit={onSubmit}
       className="flex shrink-0 items-center gap-2 border-t border-(--color-border) bg-(--color-surface) p-3"
     >
+      {/* 16px 미만으로 줄이지 말 것 — iOS가 포커스 시 화면을 확대한다. */}
       <input
         type="text"
         value={value}
@@ -442,7 +443,7 @@ function ChatComposer({
         disabled={!connected}
         onChange={(event) => onChange(event.target.value)}
         placeholder={connected ? "메시지 보내기" : "채팅 서버에 연결 중..."}
-        className="h-11 flex-1 rounded-full border border-(--color-border) bg-(--color-surface-alt) px-4 text-sm text-(--color-text-strong) outline-none placeholder:text-(--color-text-muted) disabled:text-(--color-disabled-text)"
+        className="h-11 flex-1 rounded-full border border-(--color-border) bg-(--color-surface-alt) px-4 text-base text-(--color-text-strong) outline-none placeholder:text-(--color-text-muted) disabled:text-(--color-disabled-text)"
       />
       <button
         type="submit"

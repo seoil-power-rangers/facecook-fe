@@ -288,7 +288,7 @@ export function MyPageScreen() {
                 value={bio}
                 onChange={(event) => setBio(event.target.value)}
                 rows={2}
-                className="resize-none rounded-(--radius-lg) bg-(--color-surface-alt) px-3 py-2.5 text-sm text-(--color-text-strong) outline-none"
+                className="resize-none rounded-(--radius-lg) bg-(--color-surface-alt) px-3 py-2.5 text-base text-(--color-text-strong) outline-none"
               />
             </div>
 
@@ -300,12 +300,12 @@ export function MyPageScreen() {
                 <input
                   value={department}
                   onChange={(event) => setDepartment(event.target.value)}
-                  className="h-11 flex-1 rounded-(--radius-lg) border border-(--color-border) bg-(--color-surface) px-3 text-sm text-(--color-text-strong) outline-none"
+                  className="h-11 flex-1 rounded-(--radius-lg) border border-(--color-border) bg-(--color-surface) px-3 text-base text-(--color-text-strong) outline-none"
                 />
                 <input
                   value={grade}
                   onChange={(event) => setGrade(event.target.value)}
-                  className="h-11 w-24 shrink-0 rounded-(--radius-lg) border border-(--color-border) bg-(--color-surface) px-3 text-sm text-(--color-text-strong) outline-none"
+                  className="h-11 w-24 shrink-0 rounded-(--radius-lg) border border-(--color-border) bg-(--color-surface) px-3 text-base text-(--color-text-strong) outline-none"
                 />
               </div>
             </div>

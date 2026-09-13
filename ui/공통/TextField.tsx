@@ -24,8 +24,9 @@ export function TextField({
         </span>
       ) : null}
       <span className="flex h-[50px] items-center gap-2 rounded-(--radius-md) border border-(--color-border) bg-(--color-surface-alt) px-4">
+        {/* 16px 미만으로 줄이지 말 것 — iOS가 포커스 시 화면을 확대한다. */}
         <input
-          className={`min-w-0 flex-1 bg-transparent text-[15px] text-(--color-text-strong) outline-none placeholder:text-(--color-text-muted) ${className ?? ""}`}
+          className={`min-w-0 flex-1 bg-transparent text-[16px] text-(--color-text-strong) outline-none placeholder:text-(--color-text-muted) ${className ?? ""}`}
           {...props}
         />
         {suffix ? (
