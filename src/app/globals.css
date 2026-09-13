@@ -67,6 +67,13 @@
 
 body {
   font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+
+  /*
+   * 더블탭 확대를 막는다. viewport의 user-scalable=no는 사파리가 무시하지만
+   * 이건 지키므로, 아이폰 브라우저에서도 최소한 더블탭은 걸린다.
+   * 스크롤과 두 손가락 확대는 그대로 둔다.
+   */
+  touch-action: manipulation;
 }
 
 /* 폰 화면(PhoneFrame) 안의 모든 스크롤 영역은 스크롤바를 숨김 */

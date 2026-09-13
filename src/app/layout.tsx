@@ -33,6 +33,18 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   // manifest.ts의 theme_color와 같은 값을 쓴다.
   themeColor: "#FFFFFF",
+  width: "device-width",
+  initialScale: 1,
+  /**
+   * 확대/축소를 막는다. PhoneFrame이 430px 고정 폭을 잡고 있어서 확대하면
+   * 레이아웃이 그대로 어긋나고, 앱처럼 쓰라고 만든 화면에서 두 손가락으로
+   * 벌어지면 부스에서 되돌릴 방법을 안내하기 어렵다.
+   *
+   * 다만 사파리는 브라우저 탭에서 이 설정을 무시한다(홈 화면에 추가된
+   * PWA에서는 지킨다). 안드로이드·PC와 설치된 아이폰만 막힌다.
+   */
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
