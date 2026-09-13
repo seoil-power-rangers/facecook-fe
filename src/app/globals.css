@@ -41,6 +41,12 @@
   --color-waiting: #C4823A;
   --color-waiting-soft: #FBEEDD;
 
+  /* 매칭 축하 화면의 배경. 콕(산호)에서 시작해 따뜻한 주황으로 넘어간다 —
+     콕 → 맞콕 → 매칭으로 이어지는 흐름의 끝이라 같은 계열로 둔다.
+     온보딩·프로필 히어로는 보라(--color-hero-bg) 그대로다. */
+  --color-celebrate-from: #F0887B;
+  --color-celebrate-to: #F0A56E;
+
   /* ===== Status ===== */
   --color-online: #22C55E;
   --color-success: #22C55E;
@@ -150,6 +156,40 @@ body {
   }
   to {
     transform: translateY(100%);
+  }
+}
+
+/* 매칭 성사 — 두 얼굴이 모이고 하트가 터지는 한 번의 연출 */
+@keyframes match-in-left {
+  from {
+    transform: translateX(-28px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@keyframes match-in-right {
+  from {
+    transform: translateX(28px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@keyframes match-pop {
+  from {
+    transform: scale(0.2);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
   }
 }
 
