@@ -10,6 +10,7 @@ import { PhoneFrame } from "@ui/공통/PhoneFrame";
 import { Tag } from "@ui/공통/Tag";
 import { TabBarMain } from "@ui/공통/TabBar";
 import { Toast } from "@ui/공통/Toast";
+import { avatarColor } from "@ui/공통/avatarColor";
 import {
   cookErrorMessage,
   getCooks,
@@ -21,8 +22,6 @@ import {
 type KokTab = "sent" | "received";
 
 const KOK_TAB_STORAGE_KEY = "kok-tab";
-const AVATAR_COLORS = ["#4F46E5", "#22C55E", "#5B5FE9", "#F59E0B", "#EF4444"];
-
 export function KokScreen() {
   const router = useRouter();
   const [tab, setTab] = useState<KokTab>("received");
@@ -390,10 +389,6 @@ function ReceivedKokCard({
       </div>
     </div>
   );
-}
-
-function avatarColor(userId: number) {
-  return AVATAR_COLORS[userId % AVATAR_COLORS.length];
 }
 
 function profileSubInfo(cook: CookItemResponse) {

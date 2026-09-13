@@ -9,6 +9,7 @@ import { Avatar } from "@ui/공통/Avatar";
 import { Button } from "@ui/공통/Button";
 import { PhoneFrame } from "@ui/공통/PhoneFrame";
 import { Toast } from "@ui/공통/Toast";
+import { avatarColor } from "@ui/공통/avatarColor";
 import {
   ChatApiError,
   chatErrorMessage,
@@ -30,8 +31,6 @@ const CHAT_OPEN_HOUR = Number(process.env.NEXT_PUBLIC_CHAT_OPEN_HOUR ?? "9");
 const CHAT_CLOSE_HOUR = Number(process.env.NEXT_PUBLIC_CHAT_CLOSE_HOUR ?? "18");
 const PAGE_SIZE = 50;
 const ACK_TIMEOUT_MS = 10_000;
-const AVATAR_COLORS = ["#4F46E5", "#22C55E", "#5B5FE9", "#F59E0B", "#EF4444"];
-
 type DeliveryState = "pending" | "sent" | "failed";
 
 interface DisplayMessage {
@@ -308,7 +307,7 @@ export function ChatScreen({ matchId }: { matchId: string }) {
           <Avatar
             name={partner.nickname}
             size="md"
-            bgColor={AVATAR_COLORS[partner.userId % AVATAR_COLORS.length]}
+            bgColor={avatarColor(partner.userId)}
           />
           <div className="flex flex-1 flex-col overflow-hidden">
             <div className="flex items-center gap-1.5">

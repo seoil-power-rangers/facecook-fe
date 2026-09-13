@@ -7,9 +7,8 @@ import { ChevronLeft, Infinity as InfinityIcon, Send, Ticket } from "lucide-reac
 import { Button } from "@ui/공통/Button";
 import { PhoneFrame } from "@ui/공통/PhoneFrame";
 import { Tag } from "@ui/공통/Tag";
+import { avatarColor } from "@ui/공통/avatarColor";
 import { getMatch, matchErrorMessage, type MatchResponse } from "./matchApi";
-
-const AVATAR_COLORS = ["#4F46E5", "#22C55E", "#5B5FE9", "#F59E0B", "#EF4444"];
 
 export function MatchedCelebrationScreen({ matchId }: { matchId: string }) {
   const router = useRouter();
@@ -90,7 +89,7 @@ export function MatchedCelebrationScreen({ matchId }: { matchId: string }) {
             </div>
             <div
               className="z-0 -ml-6 flex h-24 w-24 items-center justify-center rounded-full text-2xl font-bold text-(--color-text-on-primary) ring-4 ring-(--color-hero-bg)"
-              style={{ backgroundColor: AVATAR_COLORS[match.partner.userId % AVATAR_COLORS.length] }}
+              style={{ backgroundColor: avatarColor(match.partner.userId) }}
             >
               {match.partner.nickname.charAt(0)}
             </div>
