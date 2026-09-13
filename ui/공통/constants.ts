@@ -81,3 +81,9 @@ export const EVENT = {
   period: "9/30 ~ 10/2",
   purgeAt: "10/3 00:00",
 } as const;
+
+/**
+ * 콕/알림 배지를 다시 조회하는 주기. 화면을 벗어나지 않고 가만히 있어도
+ * 이 주기로 갱신된다(탭이 보일 때만 — 백그라운드에서는 멈춘다).
+ */
+export const LIVE_BADGE_POLL_INTERVAL_MS = 5_000;

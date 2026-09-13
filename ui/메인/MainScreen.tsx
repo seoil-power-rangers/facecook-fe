@@ -13,6 +13,7 @@ import {
   countUnseen,
   readLastSeen,
 } from "@ui/알림/notificationFeed";
+import { LIVE_BADGE_POLL_INTERVAL_MS } from "@ui/공통/constants";
 import { CampusScene } from "./CampusScene";
 import { Mascot } from "./Mascot";
 
@@ -57,16 +58,29 @@ export function MainScreen() {
   useEffect(() => {
     let active = true;
 
-    buildFeed()
-      .then((feed) => {
-        if (active) setUnseenCount(countUnseen(feed, readLastSeen()));
-      })
-      .catch(() => {
-        // 배지는 부가 정보라 조회 실패 시 그냥 숨긴다.
-      });
+    // 종 배지도 화면에 머물러 있는 동안 주기적으로 갱신한다. 메시지는
+    // facecook-be #44로 서버가 채팅방별 안읽음을 정확히 계산해주게 됐고
+    // ChatScreen이 들어올 때/나갈 때 서버에도 읽음을 알리므로(markMatchRead),
+    // 콕·매칭과 똑같이 실시간 집계에 포함해도 된다.
+    const refresh = () => {
+      if (document.visibilityState !== "visible") return;
+      buildFeed()
+        .then((feed) => {
+          if (active) setUnseenCount(countUnseen(feed, readLastSeen()));
+        })
+        .catch(() => {
+          // 배지는 부가 정보라 조회 실패 시 그냥 숨긴다.
+        });
+    };
+
+    refresh();
+    const interval = setInterval(refresh, LIVE_BADGE_POLL_INTERVAL_MS);
+    document.addEventListener("visibilitychange", refresh);
 
     return () => {
       active = false;
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", refresh);
     };
   }, []);
 

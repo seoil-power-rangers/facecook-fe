@@ -7,6 +7,8 @@ import { usePathname } from "next/navigation";
 import { Compass, Heart, House, MessageCircle, User } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { getCooks } from "@ui/받은콕/cookApi";
+import { getMatches } from "@ui/매칭/matchApi";
+import { LIVE_BADGE_POLL_INTERVAL_MS } from "@ui/공통/constants";
 
 interface TabBarMainProps {
   children: ReactNode;
@@ -42,21 +44,39 @@ interface TabConfig {
 export function TabBar() {
   const pathname = usePathname();
   const [pendingReceivedCount, setPendingReceivedCount] = useState(0);
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
 
   useEffect(() => {
     let active = true;
-    getCooks()
-      .then((data) => {
-        if (!active) return;
-        setPendingReceivedCount(
-          data.received.filter((cook) => cook.status === "pending").length,
-        );
-      })
-      .catch(() => {
-        // 배지는 부가 정보라 조회 실패 시 그냥 숨긴다.
-      });
+
+    // 화면에 가만히 머물러 있어도 배지가 갱신되도록 주기적으로 다시
+    // 조회한다. 탭이 백그라운드일 때는 멈춘다 — 안 보이는 화면 갱신은
+    // 배터리·데이터 낭비다.
+    const refresh = () => {
+      if (document.visibilityState !== "visible") return;
+      Promise.all([getCooks(), getMatches()])
+        .then(([cooks, matches]) => {
+          if (!active) return;
+          setPendingReceivedCount(
+            cooks.received.filter((cook) => cook.status === "pending").length,
+          );
+          setUnreadMessageCount(
+            matches.reduce((sum, match) => sum + (match.unreadCount ?? 0), 0),
+          );
+        })
+        .catch(() => {
+          // 배지는 부가 정보라 조회 실패 시 그냥 숨긴다.
+        });
+    };
+
+    refresh();
+    const interval = setInterval(refresh, LIVE_BADGE_POLL_INTERVAL_MS);
+    document.addEventListener("visibilitychange", refresh);
+
     return () => {
       active = false;
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", refresh);
     };
   }, [pathname]);
 
@@ -64,7 +84,7 @@ export function TabBar() {
     { href: "/main", label: "홈", icon: House },
     { href: "/explore", label: "탐색", icon: Compass },
     { href: "/kok", label: "콕", icon: Heart, badgeCount: pendingReceivedCount },
-    { href: "/match", label: "채팅방", icon: MessageCircle },
+    { href: "/match", label: "채팅방", icon: MessageCircle, badgeCount: unreadMessageCount },
     { href: "/mypage", label: "마이", icon: User },
   ];
 
