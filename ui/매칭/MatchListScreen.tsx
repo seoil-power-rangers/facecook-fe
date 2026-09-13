@@ -50,13 +50,13 @@ export function MatchListScreen() {
         <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-(--color-accent-soft) text-(--color-accent)">
           <MessageCircle className="h-4 w-4" fill="currentColor" strokeWidth={0} />
         </span>
-        <h1 className="text-lg font-bold text-(--color-text-strong)">매칭</h1>
+        <h1 className="text-lg font-bold text-(--color-text-strong)">채팅방</h1>
       </header>
 
       <TabBarMain className="gap-4 px-4 pb-4">
         {isLoading ? (
           <p className="px-6 py-20 text-center text-sm text-(--color-text-sub)">
-            매칭 목록을 불러오는 중...
+            채팅방을 불러오는 중...
           </p>
         ) : null}
 
@@ -189,7 +189,7 @@ function EmptyMatches() {
       <span className="text-4xl" aria-hidden="true">
         💬
       </span>
-      <p className="text-sm font-bold text-(--color-text-strong)">아직 매칭이 없어요</p>
+      <p className="text-sm font-bold text-(--color-text-strong)">아직 채팅방이 없어요</p>
       <p className="text-xs text-(--color-text-sub)">
         서로 콕하면 매칭되고, 그때부터 대화할 수 있어요
       </p>

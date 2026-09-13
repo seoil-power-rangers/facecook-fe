@@ -39,7 +39,7 @@ http://localhost:3000
 | `/kok` | 받은 콕 |
 | `/profile/[userId]` | 프로필 상세 + 콕 보내기 |
 | `/profile/[userId]/report` | 신고 |
-| `/match` | 매칭 목록 |
+| `/match` | 채팅방 목록 |
 | `/match/[roomId]` | 채팅 |
 | `/match/[roomId]/matched` | 매칭 성사 |
 | `/match/[roomId]/mission` | 미션 |
