@@ -229,7 +229,7 @@ export function MyPageScreen() {
             </p>
           ) : profile ? (
             <div className="flex items-center gap-3 rounded-(--radius-lg) border border-(--color-border) bg-(--color-surface) p-4">
-              <Avatar name={profile.nickname} size="xl" online />
+              <Avatar name={profile.nickname} size="xl" userId={profile.userId} online />
               <div className="flex flex-1 flex-col gap-1 overflow-hidden">
                 <div className="flex items-center gap-1.5">
                   <span className="text-base font-bold text-(--color-text-strong)">

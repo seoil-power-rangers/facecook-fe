@@ -210,6 +210,7 @@ export function ProfileDetailScreen({ userId }: { userId: string }) {
       <BottomSheet open={kokSheetOpen} onClose={() => !isSending && setKokSheetOpen(false)}>
         <KokConfirmSheet
           name={profile.nickname}
+          userId={profile.userId}
           onCancel={() => setKokSheetOpen(false)}
           onConfirm={() => void handleSendCook()}
           isSubmitting={isSending}

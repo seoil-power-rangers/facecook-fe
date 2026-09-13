@@ -9,7 +9,6 @@ import { Avatar } from "@ui/공통/Avatar";
 import { Button } from "@ui/공통/Button";
 import { PhoneFrame } from "@ui/공통/PhoneFrame";
 import { Toast } from "@ui/공통/Toast";
-import { avatarColor } from "@ui/공통/avatarColor";
 import {
   ChatApiError,
   chatErrorMessage,
@@ -307,7 +306,7 @@ export function ChatScreen({ matchId }: { matchId: string }) {
           <Avatar
             name={partner.nickname}
             size="md"
-            bgColor={avatarColor(partner.userId)}
+            userId={partner.userId}
           />
           <div className="flex flex-1 flex-col overflow-hidden">
             <div className="flex items-center gap-1.5">

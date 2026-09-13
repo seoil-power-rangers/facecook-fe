@@ -7,7 +7,7 @@ import { ChevronLeft, Infinity as InfinityIcon, Send, Ticket } from "lucide-reac
 import { Button } from "@ui/공통/Button";
 import { PhoneFrame } from "@ui/공통/PhoneFrame";
 import { Tag } from "@ui/공통/Tag";
-import { avatarColor } from "@ui/공통/avatarColor";
+import { avatarColor, avatarEmoji } from "@ui/공통/avatarColor";
 import { getMatch, matchErrorMessage, type MatchResponse } from "./matchApi";
 
 export function MatchedCelebrationScreen({ matchId }: { matchId: string }) {
@@ -88,10 +88,12 @@ export function MatchedCelebrationScreen({ matchId }: { matchId: string }) {
               나
             </div>
             <div
-              className="z-0 -ml-6 flex h-24 w-24 items-center justify-center rounded-full text-2xl font-bold text-(--color-text-on-primary) ring-4 ring-(--color-hero-bg)"
+              className="z-0 -ml-6 flex h-24 w-24 items-center justify-center rounded-full text-5xl ring-4 ring-(--color-hero-bg)"
               style={{ backgroundColor: avatarColor(match.partner.userId) }}
+              aria-label={match.partner.nickname}
+              role="img"
             >
-              {match.partner.nickname.charAt(0)}
+              {avatarEmoji(match.partner.userId)}
             </div>
             <div className="absolute z-10 flex h-9 w-9 items-center justify-center rounded-full bg-(--color-surface) text-(--color-primary) shadow-(--shadow-card)">
               <InfinityIcon className="h-4 w-4" />

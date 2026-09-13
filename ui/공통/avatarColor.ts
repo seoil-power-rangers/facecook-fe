@@ -1,11 +1,22 @@
 /**
- * 프로필 사진이 없는 참가자의 아바타 배경색.
+ * 프로필 사진이 없는 참가자를 어떻게 그릴지.
  *
- * userId로 고르기 때문에 같은 사람은 어느 화면에서 봐도 같은 색이다 —
- * 목록에서 보던 색이 채팅에서 달라지면 다른 사람처럼 보인다.
+ * 둘 다 userId로 고르기 때문에 같은 사람은 어느 화면에서 봐도 같은 색·같은
+ * 얼굴이다 — 목록에서 보던 모습이 채팅에서 달라지면 다른 사람처럼 보인다.
  */
-const AVATAR_COLORS = ["#4F46E5", "#22C55E", "#5B5FE9", "#F59E0B", "#EF4444"];
+/** 이모지가 위에 올라가므로 배경은 옅게 둔다. 진한 색이면 얼굴이 묻힌다. */
+const AVATAR_COLORS = ["#F5C26B", "#A8CDE8", "#F0B48A", "#A8DCC0", "#C4B0E8"];
+
+/** 색 개수와 서로 나누어떨어지지 않아야 색·얼굴 조합이 골고루 섞인다. */
+const AVATAR_EMOJIS = [
+  "🐱", "🐻", "🦊", "🐼", "🐶", "🐰",
+  "🐯", "🐨", "🦁", "🐹", "🐸", "🐧",
+];
 
 export function avatarColor(userId: number) {
   return AVATAR_COLORS[userId % AVATAR_COLORS.length];
+}
+
+export function avatarEmoji(userId: number) {
+  return AVATAR_EMOJIS[userId % AVATAR_EMOJIS.length];
 }

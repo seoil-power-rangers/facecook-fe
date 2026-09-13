@@ -5,7 +5,7 @@ import { Button } from "./Button";
 
 interface KokConfirmSheetProps {
   name: string;
-  bgColor?: string;
+  userId: number;
   onCancel: () => void;
   onConfirm: () => void;
   isSubmitting?: boolean;
@@ -19,14 +19,14 @@ const rules = [
 
 export function KokConfirmSheet({
   name,
-  bgColor,
+  userId,
   onCancel,
   onConfirm,
   isSubmitting = false,
 }: KokConfirmSheetProps) {
   return (
     <div className="flex flex-col items-center gap-4 px-6 pt-2">
-      <Avatar name={name} size="xl" bgColor={bgColor} />
+      <Avatar name={name} size="xl" userId={userId} />
 
       <div className="flex flex-col items-center gap-1 text-center">
         <p className="text-sm text-(--color-text-sub)">{name}님에게</p>
