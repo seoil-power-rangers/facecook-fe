@@ -58,17 +58,15 @@ export function MainScreen() {
   useEffect(() => {
     let active = true;
 
-    // 종 배지도 화면에 머물러 있는 동안 주기적으로 갱신한다. 메시지 도착은
-    // 여기서 세지 않는다 — 채팅방별로 정확히 "읽었는지" 판단하는 건 별도
-    // 작업이라, 지금 이 뭉뚱그린 기준으로 세면 이미 채팅방에서 읽은 메시지도
-    // 계속 안 읽음으로 남는 경우가 생긴다. 콕·매칭은 이런 문제가 없다.
+    // 종 배지도 화면에 머물러 있는 동안 주기적으로 갱신한다. 메시지는
+    // facecook-be #44로 서버가 채팅방별 안읽음을 정확히 계산해주게 됐고
+    // ChatScreen이 들어올 때/나갈 때 서버에도 읽음을 알리므로(markMatchRead),
+    // 콕·매칭과 똑같이 실시간 집계에 포함해도 된다.
     const refresh = () => {
       if (document.visibilityState !== "visible") return;
       buildFeed()
         .then((feed) => {
-          if (!active) return;
-          const liveFeed = feed.filter((item) => item.kind !== "message");
-          setUnseenCount(countUnseen(liveFeed, readLastSeen()));
+          if (active) setUnseenCount(countUnseen(feed, readLastSeen()));
         })
         .catch(() => {
           // 배지는 부가 정보라 조회 실패 시 그냥 숨긴다.
