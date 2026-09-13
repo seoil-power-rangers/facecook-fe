@@ -3,15 +3,16 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Clock, Sparkles } from "lucide-react";
+import { Clock, Heart } from "lucide-react";
 import { Avatar } from "@ui/공통/Avatar";
 import { Button } from "@ui/공통/Button";
+import { BottomSheet } from "@ui/공통/BottomSheet";
 import { PhoneFrame } from "@ui/공통/PhoneFrame";
 import { Tag } from "@ui/공통/Tag";
 import { TabBarMain } from "@ui/공통/TabBar";
 import { Toast } from "@ui/공통/Toast";
-import { avatarColor } from "@ui/공통/avatarColor";
 import {
+  cancelCook,
   cookErrorMessage,
   getCooks,
   sendCook,
@@ -22,6 +23,7 @@ import {
 type KokTab = "sent" | "received";
 
 const KOK_TAB_STORAGE_KEY = "kok-tab";
+
 export function KokScreen() {
   const router = useRouter();
   const [tab, setTab] = useState<KokTab>("received");
@@ -30,6 +32,8 @@ export function KokScreen() {
   const [error, setError] = useState<string | null>(null);
   const [sendingUserId, setSendingUserId] = useState<number | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<CookItemResponse | null>(null);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   const loadCooks = useCallback(async () => {
     setIsLoading(true);
@@ -74,6 +78,22 @@ export function KokScreen() {
     }
   };
 
+  const handleCancelCook = async () => {
+    if (!cancelTarget) return;
+
+    setIsCancelling(true);
+    try {
+      await cancelCook(cancelTarget.cookId);
+      setCancelTarget(null);
+      setToastMessage("콕을 취소했어요.");
+      await loadCooks();
+    } catch (cancelError) {
+      setToastMessage(cookErrorMessage(cancelError));
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
   return (
     <PhoneFrame>
       <Toast
@@ -82,28 +102,26 @@ export function KokScreen() {
         onDismiss={() => setToastMessage(null)}
       />
 
-      <header className="flex h-14 w-full shrink-0 items-center gap-2 border-b border-(--color-border) bg-(--color-surface) px-4">
-        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-(--color-primary) text-(--color-text-on-primary)">
-          <Sparkles className="h-4 w-4" />
+      <header className="flex h-14 w-full shrink-0 items-center gap-2 bg-(--color-surface) px-4">
+        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-(--color-accent-soft) text-(--color-accent)">
+          <Heart className="h-4 w-4" fill="currentColor" />
         </span>
         <h1 className="text-lg font-bold text-(--color-text-strong)">
           {tab === "sent" ? "보낸 콕" : "받은 콕"}
         </h1>
       </header>
 
-      <div className="flex shrink-0 justify-center border-b border-(--color-border) bg-(--color-surface) py-3">
-        <div className="inline-flex rounded-full bg-(--color-disabled-bg) p-1">
-          <TabToggleButton active={tab === "sent"} onClick={() => handleTabChange("sent")}>
-            보낸 콕
-          </TabToggleButton>
-          <TabToggleButton active={tab === "received"} onClick={() => handleTabChange("received")}>
-            받은 콕
-          </TabToggleButton>
-        </div>
-      </div>
+      <TabBarMain className="gap-4 px-4 pb-4">
+        <TabToggle tab={tab} onChange={handleTabChange} />
 
-      <TabBarMain>
+        <Notice
+          headline={
+            tab === "sent" ? "상대방이 콕을 보내면 매칭돼요" : "맞콕하면 바로 매칭돼요"
+          }
+        />
+
         {isLoading ? <ScreenMessage>콕 목록을 불러오는 중...</ScreenMessage> : null}
+
         {!isLoading && error ? (
           <ScreenMessage error>
             <span>{error}</span>
@@ -112,7 +130,11 @@ export function KokScreen() {
             </Button>
           </ScreenMessage>
         ) : null}
-        {!isLoading && !error && data && tab === "sent" ? <SentKokPanel data={data} /> : null}
+
+        {!isLoading && !error && data && tab === "sent" ? (
+          <SentKokPanel cooks={data.sent} onCancel={setCancelTarget} />
+        ) : null}
+
         {!isLoading && !error && data && tab === "received" ? (
           <ReceivedKokPanel
             cooks={data.received}
@@ -121,7 +143,427 @@ export function KokScreen() {
           />
         ) : null}
       </TabBarMain>
+
+      <BottomSheet
+        open={cancelTarget !== null}
+        onClose={() => !isCancelling && setCancelTarget(null)}
+      >
+        {cancelTarget ? (
+          <CancelKokSheet
+            cook={cancelTarget}
+            isSubmitting={isCancelling}
+            onKeep={() => setCancelTarget(null)}
+            onCancelCook={() => void handleCancelCook()}
+          />
+        ) : null}
+      </BottomSheet>
     </PhoneFrame>
+  );
+}
+
+/**
+ * 이 화면에서 가장 큰 요소. 화면 전체가 "두 목록 중 어느 쪽을 보는가"라서
+ * 전환 자체를 제일 크게 둔다.
+ */
+function TabToggle({ tab, onChange }: { tab: KokTab; onChange: (next: KokTab) => void }) {
+  const tabs: { key: KokTab; label: string }[] = [
+    { key: "sent", label: "보낸 콕" },
+    { key: "received", label: "받은 콕" },
+  ];
+
+  return (
+    <div
+      role="tablist"
+      aria-label="콕 목록"
+      className="flex shrink-0 gap-1 rounded-full bg-(--color-surface-alt) p-1.5"
+    >
+      {tabs.map(({ key, label }) => {
+        const active = tab === key;
+
+        return (
+          <button
+            key={key}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            onClick={() => onChange(key)}
+            className={`flex-1 rounded-full border-2 py-2.5 text-sm font-bold transition-colors ${
+              active
+                ? "border-(--color-text-strong) bg-(--color-surface) text-(--color-text-strong)"
+                : "border-transparent text-(--color-text-muted)"
+            }`}
+          >
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** 두 탭 모두 "1시간 만료"가 핵심이라 안내 문구를 한 자리에 고정한다. */
+function Notice({ headline }: { headline: string }) {
+  return (
+    <div className="flex shrink-0 items-center gap-3 rounded-(--radius-lg) bg-(--color-primary-light) p-4">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-(--color-surface) text-(--color-primary)">
+        <Clock className="h-4 w-4" />
+      </span>
+      <div className="flex flex-col">
+        <span className="text-sm font-bold text-(--color-primary)">{headline}</span>
+        <span className="text-xs text-(--color-text-sub)">
+          1시간이 지나면 자동으로 만료됩니다
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function SectionHead({ label, count }: { label: string; count: number }) {
+  return (
+    <div className="flex items-baseline justify-between">
+      <h2 className="text-[15px] font-bold text-(--color-text-strong)">{label}</h2>
+      <span className="text-sm font-bold text-(--color-accent) tabular-nums">{count}명</span>
+    </div>
+  );
+}
+
+function SentKokPanel({
+  cooks,
+  onCancel,
+}: {
+  cooks: CookItemResponse[];
+  onCancel: (cook: CookItemResponse) => void;
+}) {
+  return (
+    <section className="flex flex-col gap-3">
+      <SectionHead label="내가 콕한 사람" count={cooks.length} />
+
+      {cooks.length === 0 ? (
+        <EmptyState emoji="👆" message="아직 콕을 보내지 않았어요" />
+      ) : (
+        cooks.map((cook) => (
+          <SentKokCard key={cook.cookId} cook={cook} onCancel={onCancel} />
+        ))
+      )}
+    </section>
+  );
+}
+
+function SentKokCard({
+  cook,
+  onCancel,
+}: {
+  cook: CookItemResponse;
+  onCancel: (cook: CookItemResponse) => void;
+}) {
+  const matched = cook.status === "matched" && cook.matchId !== null;
+
+  return (
+    <KokCard
+      cook={cook}
+      matched={matched}
+      dimmed={cook.status === "expired"}
+      status={
+        cook.status === "pending" ? (
+          <StatusChip tone="waiting">응답 대기 중</StatusChip>
+        ) : cook.status === "expired" ? (
+          <StatusChip tone="muted">만료됨</StatusChip>
+        ) : undefined
+      }
+    >
+      {matched && cook.matchId !== null ? (
+        <ChatPill matchId={cook.matchId} />
+      ) : cook.status === "pending" ? (
+        <button
+          type="button"
+          onClick={() => onCancel(cook)}
+          className="shrink-0 rounded-full border border-(--color-border-strong) px-4 py-2 text-sm font-medium text-(--color-text-sub) active:bg-(--color-surface-alt)"
+        >
+          취소
+        </button>
+      ) : null}
+    </KokCard>
+  );
+}
+
+/**
+ * 되돌릴 수 없는 행동이라 한 번 확인받는다. 상대가 이미 콕을 봤을 수도 있고,
+ * 취소해도 오늘 횟수는 돌아오지 않는다.
+ */
+function CancelKokSheet({
+  cook,
+  isSubmitting,
+  onKeep,
+  onCancelCook,
+}: {
+  cook: CookItemResponse;
+  isSubmitting: boolean;
+  onKeep: () => void;
+  onCancelCook: () => void;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-4 px-6 pt-2">
+      <Avatar name={cook.profile.nickname} size="xl" userId={cook.userId} />
+
+      <div className="flex flex-col items-center gap-1 text-center">
+        <p className="text-xl font-bold text-(--color-text-strong)">
+          {cook.profile.nickname}님에게 보낸 콕을 취소할까요?
+        </p>
+        <p className="text-sm text-(--color-text-sub)">
+          취소해도 오늘 사용한 횟수는 돌아오지 않아요.
+        </p>
+      </div>
+
+      <button
+        type="button"
+        onClick={onCancelCook}
+        disabled={isSubmitting}
+        className="w-full rounded-(--radius-lg) bg-(--color-danger) py-4 text-base font-bold text-(--color-text-on-primary) disabled:bg-(--color-disabled-bg) disabled:text-(--color-disabled-text)"
+      >
+        {isSubmitting ? "취소하는 중..." : "콕 취소하기"}
+      </button>
+      <button
+        type="button"
+        onClick={onKeep}
+        disabled={isSubmitting}
+        className="text-sm text-(--color-text-sub) disabled:text-(--color-disabled-text)"
+      >
+        그대로 둘게요
+      </button>
+    </div>
+  );
+}
+
+const CHIP_TONES = {
+  waiting: "bg-(--color-waiting-soft) text-(--color-waiting)",
+  done: "bg-(--color-primary-light) text-(--color-primary)",
+  muted: "bg-(--color-disabled-bg) text-(--color-text-muted)",
+};
+
+function StatusChip({
+  tone,
+  icon,
+  children,
+}: {
+  tone: keyof typeof CHIP_TONES;
+  /** 없으면 점을 찍는다. 시간처럼 뜻이 있는 건 아이콘을 넘긴다. */
+  icon?: React.ReactNode;
+  children: string;
+}) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${CHIP_TONES[tone]}`}
+    >
+      {icon ?? (
+        <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true" />
+      )}
+      {children}
+    </span>
+  );
+}
+
+/** "42분 뒤 만료" — 맞콕할 시간이 얼마 남았는지. */
+function formatExpiry(sentAt: string) {
+  const date = new Date(sentAt);
+  if (Number.isNaN(date.getTime())) return "곧 만료돼요";
+
+  const minutes = Math.ceil((date.getTime() + 60 * 60 * 1000 - Date.now()) / 60_000);
+  return minutes > 0 ? `${minutes}분 뒤 만료` : "곧 만료돼요";
+}
+
+function ReceivedKokPanel({
+  cooks,
+  sendingUserId,
+  onSend,
+}: {
+  cooks: CookItemResponse[];
+  sendingUserId: number | null;
+  onSend: (userId: number) => Promise<void>;
+}) {
+  const active = cooks.filter((cook) => cook.status !== "expired");
+  const expired = cooks.filter((cook) => cook.status === "expired");
+
+  return (
+    <>
+      <section className="flex flex-col gap-3">
+        <SectionHead label="나를 콕한 사람" count={active.length} />
+
+        {active.length === 0 ? (
+          <EmptyState
+            emoji="💌"
+            message="아직 받은 콕이 없어요"
+            hint="먼저 콕을 보내면 답이 올 확률이 높아요"
+          />
+        ) : (
+          active.map((cook) => {
+            const matched = cook.status === "matched" && cook.matchId !== null;
+
+            return (
+              <KokCard
+                key={cook.cookId}
+                cook={cook}
+                matched={matched}
+                status={
+                  matched ? undefined : (
+                    <StatusChip tone="waiting" icon={<Clock className="h-3 w-3" />}>
+                      {formatExpiry(cook.sentAt)}
+                    </StatusChip>
+                  )
+                }
+              >
+                {matched && cook.matchId !== null ? (
+                  <ChatPill matchId={cook.matchId} />
+                ) : (
+                  <KokBackButton
+                    sending={sendingUserId === cook.userId}
+                    onClick={() => void onSend(cook.userId)}
+                  />
+                )}
+              </KokCard>
+            );
+          })
+        )}
+      </section>
+
+      {expired.length > 0 ? (
+        <section className="flex flex-col gap-3">
+          <h2 className="text-[15px] font-bold text-(--color-text-muted)">놓친 콕</h2>
+          {expired.map((cook) => (
+            <KokCard
+              key={cook.cookId}
+              cook={cook}
+              dimmed
+              status={<StatusChip tone="muted">만료됨</StatusChip>}
+            >
+              {null}
+            </KokCard>
+          ))}
+        </section>
+      ) : null}
+    </>
+  );
+}
+
+/**
+ * 두 탭이 같은 카드를 쓴다 — 사람 정보는 같고 상태에 따라 껍데기와 오른쪽
+ * 버튼만 달라진다.
+ */
+function KokCard({
+  cook,
+  matched = false,
+  dimmed = false,
+  status,
+  children,
+}: {
+  cook: CookItemResponse;
+  /** 매칭된 상대는 카드 전체를 보라 계열로 물들여 목록에서 바로 눈에 띄게 한다. */
+  matched?: boolean;
+  dimmed?: boolean;
+  /** 부가 정보 아래에 붙는 상태 칩. */
+  status?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <article
+      className={`flex flex-col overflow-hidden rounded-[1.25rem] border ${
+        matched
+          ? "border-(--color-primary-light) bg-(--color-primary-lighter)"
+          : "border-(--color-border) bg-(--color-surface)"
+      } ${dimmed ? "opacity-60" : ""}`}
+    >
+      <div className="flex items-center gap-3 p-4">
+        <Avatar
+          name={cook.profile.nickname}
+          size="lg"
+          userId={cook.userId}
+          badge={matched ? "💕" : undefined}
+        />
+
+        <div className="flex flex-1 flex-col gap-0.5 overflow-hidden">
+          <div className="flex items-center gap-1.5">
+            <span className="truncate text-[15px] font-bold text-(--color-text-strong)">
+              {cook.profile.nickname}
+            </span>
+            <Tag variant="accent">{cook.profile.mbti}</Tag>
+          </div>
+          <span className="truncate text-[13px] text-(--color-text-sub)">
+            {[`${cook.profile.age}세`, cook.profile.department].filter(Boolean).join(" · ")}
+          </span>
+          {status ? <div className="mt-1.5">{status}</div> : null}
+        </div>
+
+        {children}
+      </div>
+
+      <Link
+        href={`/profile/${cook.userId}`}
+        className={`border-t px-4 py-2.5 text-[13px] text-(--color-text-sub) ${
+          matched ? "border-(--color-primary-light)" : "border-(--color-border)"
+        }`}
+      >
+        프로필 보기
+      </Link>
+    </article>
+  );
+}
+
+/** 매칭된 상대에게 가는 길. 이 화면에서 가장 중요한 행동이라 꽉 채운다. */
+function ChatPill({ matchId }: { matchId: number }) {
+  return (
+    <Link
+      href={`/match/${matchId}`}
+      className="shrink-0 rounded-full bg-(--color-primary) px-4 py-2.5 text-sm font-bold text-(--color-text-on-primary) transition-colors active:bg-(--color-primary-pressed)"
+    >
+      채팅 열기
+    </Link>
+  );
+}
+
+/** 맞콕은 매칭을 만드는 행동이라 콕 색(산호)으로 구분한다. */
+function KokBackButton({
+  sending,
+  onClick,
+}: {
+  sending: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={sending}
+      onClick={onClick}
+      className="flex shrink-0 items-center gap-1 rounded-full bg-(--color-accent) px-4 py-2.5 text-sm font-bold text-(--color-text-on-primary) disabled:bg-(--color-disabled-bg) disabled:text-(--color-disabled-text)"
+    >
+      {sending ? "보내는 중" : "맞콕하기"}
+      {sending ? null : <span aria-hidden="true">👆</span>}
+    </button>
+  );
+}
+
+/** 빈 화면은 다음에 할 일을 알려주는 자리다. */
+function EmptyState({
+  emoji,
+  message,
+  hint,
+}: {
+  emoji: string;
+  message: string;
+  hint?: string;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-2 py-14 text-center">
+      <span className="text-4xl" aria-hidden="true">
+        {emoji}
+      </span>
+      <p className="text-sm text-(--color-text-sub)">{message}</p>
+      {hint ? <p className="text-xs text-(--color-text-muted)">{hint}</p> : null}
+      <Link
+        href="/explore"
+        className="mt-2 rounded-full bg-(--color-primary) px-5 py-2.5 text-sm font-bold text-(--color-text-on-primary)"
+      >
+        참가자 둘러보기
+      </Link>
+    </div>
   );
 }
 
@@ -135,297 +577,5 @@ function ScreenMessage({ children, error = false }: { children: React.ReactNode;
     >
       {children}
     </div>
-  );
-}
-
-function TabToggleButton({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-full px-5 py-2 text-sm font-semibold transition-colors ${
-        active
-          ? "bg-(--color-surface) text-(--color-text-strong) shadow-(--shadow-card)"
-          : "text-(--color-text-sub)"
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
-
-function SentKokPanel({ data }: { data: CookListResponse }) {
-  const usageRatio = Math.min(
-    100,
-    (data.usage.todayUsed / Math.max(data.usage.dailyLimit, 1)) * 100,
-  );
-
-  return (
-    <div className="flex flex-col gap-4 p-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-(--color-text-strong)">오늘 보낸 콕</h2>
-        <span className="text-xs text-(--color-text-sub)">
-          {data.usage.dailyLimit}회 중 {data.usage.todayUsed}회 사용
-        </span>
-      </div>
-
-      <div className="h-1.5 w-full rounded-full bg-(--color-disabled-bg)">
-        <div
-          className="h-full rounded-full bg-(--color-primary)"
-          style={{ width: `${usageRatio}%` }}
-        />
-      </div>
-
-      {data.sent.length === 0 ? (
-        <p className="py-8 text-center text-sm text-(--color-text-sub)">아직 보낸 콕이 없어요.</p>
-      ) : (
-        <div className="flex flex-col gap-3">
-          {data.sent.map((cook) => (
-            <SentKokCard key={cook.cookId} cook={cook} />
-          ))}
-        </div>
-      )}
-
-    </div>
-  );
-}
-
-const sentStatusTag = {
-  pending: { label: "승인 대기", variant: "default" as const },
-  expired: { label: "만료됨", variant: "default" as const },
-  matched: { label: "매칭 완료", variant: "primary" as const },
-};
-
-function SentKokCard({ cook }: { cook: CookItemResponse }) {
-  const note =
-    cook.status === "pending"
-      ? `${formatRemaining(cook.sentAt)} · 상대가 콕하면 매칭돼요`
-      : cook.status === "expired"
-        ? "맞콕 없이 만료됐어요"
-        : "서로 콕해 매칭됐어요";
-
-  return (
-    <div
-      className={`flex flex-col gap-2 rounded-(--radius-lg) border bg-(--color-surface) p-3 ${
-        cook.status === "pending" ? "border-(--color-border-active)" : "border-(--color-border)"
-      } ${cook.status === "expired" ? "opacity-60" : ""}`}
-    >
-      <div className="flex items-center gap-3">
-        <Link href={`/profile/${cook.userId}`}>
-          <Avatar name={cook.profile.nickname} size="lg" bgColor={avatarColor(cook.userId)} />
-        </Link>
-        <div className="flex flex-1 flex-col gap-1 overflow-hidden">
-          <div className="flex items-center gap-1.5">
-            <span className="truncate text-sm font-semibold text-(--color-text-strong)">
-              {cook.profile.nickname}
-            </span>
-            <Tag variant={sentStatusTag[cook.status].variant}>{sentStatusTag[cook.status].label}</Tag>
-          </div>
-          <span className="truncate text-xs text-(--color-text-sub)">{formatDateTime(cook.sentAt)}에 보냄</span>
-        </div>
-        {cook.status === "matched" && cook.matchId !== null ? (
-          <Link href={`/match/${cook.matchId}`}>
-            <Button size="sm">채팅 열기</Button>
-          </Link>
-        ) : null}
-      </div>
-
-      {cook.status === "pending" ? (
-        <div className="h-1.5 w-full rounded-full bg-(--color-disabled-bg)">
-          <div
-            className="h-full rounded-full bg-(--color-primary)"
-            style={{ width: `${getRemainingRatio(cook.sentAt) * 100}%` }}
-          />
-        </div>
-      ) : null}
-
-      <div className="flex items-center gap-1 text-xs text-(--color-text-sub)">
-        {cook.status === "pending" ? <Clock className="h-3 w-3" /> : null}
-        {note}
-      </div>
-    </div>
-  );
-}
-
-function ReceivedKokPanel({
-  cooks,
-  sendingUserId,
-  onSend,
-}: {
-  cooks: CookItemResponse[];
-  sendingUserId: number | null;
-  onSend: (userId: number) => Promise<void>;
-}) {
-  const activeCooks = cooks.filter((cook) => cook.status !== "expired");
-  const expiredCooks = cooks.filter((cook) => cook.status === "expired");
-
-  return (
-    <div className="flex flex-col gap-5 p-4">
-      <div className="flex items-center gap-3 rounded-(--radius-lg) bg-(--color-primary-lighter) p-4">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-(--color-surface) text-(--color-primary)">
-          <Clock className="h-4 w-4" />
-        </span>
-        <div className="flex flex-col">
-          <span className="text-sm font-semibold text-(--color-text-strong)">맞콕하면 바로 매칭돼요</span>
-          <span className="text-xs text-(--color-text-sub)">1시간이 지나면 자동으로 만료됩니다</span>
-        </div>
-      </div>
-
-      <section>
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-(--color-text-strong)">나를 콕한 사람</h2>
-          <span className="text-xs text-(--color-text-sub)">{activeCooks.length}명</span>
-        </div>
-        {activeCooks.length === 0 ? (
-          <p className="py-8 text-center text-sm text-(--color-text-sub)">아직 받은 콕이 없어요.</p>
-        ) : (
-          <div className="flex flex-col gap-3">
-            {activeCooks.map((cook, index) => (
-              <ReceivedKokCard
-                key={cook.cookId}
-                cook={cook}
-                highlight={index === 0}
-                sending={sendingUserId === cook.userId}
-                onSend={onSend}
-              />
-            ))}
-          </div>
-        )}
-      </section>
-
-      {expiredCooks.length > 0 ? (
-        <section>
-          <h2 className="mb-3 text-sm font-semibold text-(--color-text-strong)">만료된 콕</h2>
-          <div className="flex flex-col gap-3">
-            {expiredCooks.map((cook) => (
-              <div
-                key={cook.cookId}
-                className="flex items-center gap-3 rounded-(--radius-lg) border border-(--color-border) bg-(--color-surface) p-3 opacity-60"
-              >
-                <Link href={`/profile/${cook.userId}`}>
-                  <Avatar name={cook.profile.nickname} size="lg" bgColor={avatarColor(cook.userId)} />
-                </Link>
-                <div className="flex flex-1 flex-col overflow-hidden">
-                  <span className="truncate text-sm font-semibold text-(--color-text-strong)">
-                    {cook.profile.nickname}
-                  </span>
-                  <span className="truncate text-xs text-(--color-text-sub)">{profileSubInfo(cook)}</span>
-                </div>
-                <span className="shrink-0 text-xs text-(--color-text-sub)">만료됨</span>
-              </div>
-            ))}
-          </div>
-        </section>
-      ) : null}
-    </div>
-  );
-}
-
-function ReceivedKokCard({
-  cook,
-  highlight,
-  sending,
-  onSend,
-}: {
-  cook: CookItemResponse;
-  highlight: boolean;
-  sending: boolean;
-  onSend: (userId: number) => Promise<void>;
-}) {
-  return (
-    <div
-      className={`flex flex-col gap-2 rounded-(--radius-lg) border bg-(--color-surface) p-3 ${
-        highlight ? "border-(--color-border-active)" : "border-(--color-border)"
-      }`}
-    >
-      <div className="flex items-center gap-3">
-        <Link href={`/profile/${cook.userId}`}>
-          <Avatar name={cook.profile.nickname} size="lg" bgColor={avatarColor(cook.userId)} />
-        </Link>
-        <div className="flex flex-1 flex-col gap-1 overflow-hidden">
-          <div className="flex items-center gap-1.5">
-            <span className="truncate text-sm font-semibold text-(--color-text-strong)">
-              {cook.profile.nickname}
-            </span>
-            <Tag variant="primary">{cook.profile.mbti}</Tag>
-          </div>
-          <div className="flex items-center gap-1.5 text-xs text-(--color-text-sub)">
-            <span className="truncate">{profileSubInfo(cook)}</span>
-            {cook.status === "pending" ? (
-              <span className="flex shrink-0 items-center gap-0.5">
-                <Clock className="h-3 w-3" />
-                {formatRemaining(cook.sentAt)}
-              </span>
-            ) : null}
-          </div>
-        </div>
-        {cook.status === "matched" && cook.matchId !== null ? (
-          <Link href={`/match/${cook.matchId}`}>
-            <Button size="sm" variant="outline">채팅 열기</Button>
-          </Link>
-        ) : (
-          <Button
-            size="sm"
-            variant={highlight ? "primary" : "outline"}
-            disabled={sending}
-            onClick={() => void onSend(cook.userId)}
-          >
-            {sending ? "보내는 중" : "나도 콕"}
-          </Button>
-        )}
-      </div>
-      <div className="border-t border-(--color-border) pt-2">
-        <Link href={`/profile/${cook.userId}`} className="text-xs text-(--color-text-sub)">
-          프로필 보기
-        </Link>
-      </div>
-    </div>
-  );
-}
-
-function profileSubInfo(cook: CookItemResponse) {
-  return [`${cook.profile.age}세`, cook.profile.department].filter(Boolean).join(" · ");
-}
-
-function parseDate(value: string) {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
-}
-
-function formatDateTime(value: string) {
-  const date = parseDate(value);
-  if (!date) return "시간 정보 없음";
-  return new Intl.DateTimeFormat("ko-KR", {
-    month: "numeric",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
-}
-
-function formatRemaining(sentAt: string) {
-  const date = parseDate(sentAt);
-  if (!date) return "만료 시간 확인 불가";
-  const minutes = Math.max(
-    0,
-    Math.ceil((date.getTime() + 60 * 60 * 1000 - Date.now()) / 60_000),
-  );
-  return minutes > 0 ? `${minutes}분 남음` : "곧 만료";
-}
-
-function getRemainingRatio(sentAt: string) {
-  const date = parseDate(sentAt);
-  if (!date) return 0;
-  return Math.max(
-    0,
-    Math.min(1, (date.getTime() + 60 * 60 * 1000 - Date.now()) / (60 * 60 * 1000)),
   );
 }

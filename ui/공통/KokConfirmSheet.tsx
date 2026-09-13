@@ -5,7 +5,7 @@ import { Button } from "./Button";
 
 interface KokConfirmSheetProps {
   name: string;
-  bgColor?: string;
+  userId: number;
   onCancel: () => void;
   onConfirm: () => void;
   isSubmitting?: boolean;
@@ -13,20 +13,20 @@ interface KokConfirmSheetProps {
 
 const rules = [
   "1시간 안에 답이 없으면 자동 만료돼요",
-  "보낸 콕은 취소할 수 없어요",
-  "만료돼도 오늘 횟수는 되돌아오지 않아요",
+  "상대가 맞콕하기 전까지는 취소할 수 있어요",
+  "취소하거나 만료돼도 오늘 횟수는 되돌아오지 않아요",
 ];
 
 export function KokConfirmSheet({
   name,
-  bgColor,
+  userId,
   onCancel,
   onConfirm,
   isSubmitting = false,
 }: KokConfirmSheetProps) {
   return (
     <div className="flex flex-col items-center gap-4 px-6 pt-2">
-      <Avatar name={name} size="xl" bgColor={bgColor} />
+      <Avatar name={name} size="xl" userId={userId} />
 
       <div className="flex flex-col items-center gap-1 text-center">
         <p className="text-sm text-(--color-text-sub)">{name}님에게</p>

@@ -56,6 +56,10 @@ const COOK_ERROR_MESSAGES: Record<string, string> = {
   DUPLICATE: "이미 콕을 보낸 상대예요.",
   DAILY_LIMIT: "오늘 콕을 다 썼어요.",
   EVENT_LIMIT: "지금은 콕 발송이 잠시 제한됐어요.",
+  // 취소
+  FORBIDDEN: "내가 보낸 콕만 취소할 수 있어요.",
+  ALREADY_EXPIRED: "이미 만료된 콕이에요.",
+  UNAUTHORIZED: "로그인이 만료됐어요. 다시 로그인해주세요.",
 };
 
 export function cookErrorMessage(error: unknown) {
@@ -74,6 +78,16 @@ export function sendCook(receiverId: number) {
     method: "POST",
     body: JSON.stringify({ receiverId }),
   });
+}
+
+/**
+ * 보낸 콕 취소. 아직 상대가 맞콕하지 않은(pending) 콕만 지울 수 있다.
+ *
+ * 취소해도 오늘 사용 횟수는 돌아오지 않는다 — 돌려주면 콕을 뿌렸다가
+ * 회수하는 식으로 하루 제한을 우회할 수 있다.
+ */
+export function cancelCook(cookId: number) {
+  return requestCook<void>(`/api/cooks/${cookId}`, { method: "DELETE" });
 }
 
 function requireApiBaseUrl() {
@@ -97,6 +111,10 @@ async function requestCook<T>(path: string, init: RequestInit = {}): Promise<T> 
   } catch (error) {
     if (error instanceof CookApiError) throw error;
     throw new CookApiError("NETWORK", "백엔드 서버에 연결할 수 없습니다.");
+  }
+
+  if (response.status === 204) {
+    return undefined as T;
   }
 
   const payload = (await response.json().catch(() => ({}))) as T &

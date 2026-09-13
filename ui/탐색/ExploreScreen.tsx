@@ -12,7 +12,6 @@ import { PhoneFrame } from "@ui/공통/PhoneFrame";
 import { Tag } from "@ui/공통/Tag";
 import { TabBarMain } from "@ui/공통/TabBar";
 import { Toast } from "@ui/공통/Toast";
-import { avatarColor } from "@ui/공통/avatarColor";
 import { cookErrorMessage, getCooks, sendCook } from "@ui/받은콕/cookApi";
 import {
   getMyProfile,
@@ -198,7 +197,7 @@ export function ExploreScreen() {
                   <Avatar
                     name={member.nickname}
                     size="lg"
-                    bgColor={avatarColor(member.userId)}
+                    userId={member.userId}
                   />
                   <div className="flex flex-1 flex-col gap-1 overflow-hidden">
                     <div className="flex items-center gap-1.5">
@@ -228,7 +227,7 @@ export function ExploreScreen() {
         {kokTarget ? (
           <KokConfirmSheet
             name={kokTarget.nickname}
-            bgColor={avatarColor(kokTarget.userId)}
+            userId={kokTarget.userId}
             onCancel={() => setKokTarget(null)}
             onConfirm={() => void handleKokConfirm()}
             isSubmitting={isSendingKok}

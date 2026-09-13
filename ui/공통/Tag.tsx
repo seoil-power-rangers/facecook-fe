@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-type TagVariant = "primary" | "default" | "warning" | "success";
+type TagVariant = "primary" | "accent" | "default" | "warning" | "success";
 
 interface TagProps {
   children: ReactNode;
@@ -9,6 +9,7 @@ interface TagProps {
 
 const variantClasses: Record<TagVariant, string> = {
   primary: "bg-(--color-primary-light) text-(--color-primary)",
+  accent: "bg-(--color-accent-soft) text-(--color-accent)",
   default: "bg-(--color-disabled-bg) text-(--color-text-sub)",
   warning: "bg-(--color-warning)/15 text-(--color-warning)",
   success: "bg-(--color-success)/15 text-(--color-success)",
