@@ -174,3 +174,14 @@ body {
     opacity: 0;
   }
 }
+
+/* 기기 설정에서 모션 줄이기를 켠 사용자에게는 연출을 걷어낸다. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
