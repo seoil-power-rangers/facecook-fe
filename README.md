@@ -60,7 +60,7 @@ src/app/   라우팅 (Next.js App Router)
 
 ui/        실제 화면 컴포넌트
   공통/    버튼, 입력창 등 공용 컴포넌트
-  각 화면 폴더 안에 그 화면이 쓰는 mock 데이터(*.mock.ts)가 같이 있다
+  각 화면 폴더 안에 그 화면이 쓰는 API 호출(*Api.ts)이 같이 있다
 
 public/    정적 파일
 ```
