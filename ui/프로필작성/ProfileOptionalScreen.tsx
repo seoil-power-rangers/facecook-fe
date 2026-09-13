@@ -2,11 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search } from "lucide-react";
 import { Button } from "@ui/공통/Button";
 import { ChipGroup } from "@ui/공통/ChipGroup";
+import { DepartmentPicker } from "@ui/공통/DepartmentPicker";
 import { StepHeader, Accent } from "@ui/공통/StepHeader";
-import { TextField } from "@ui/공통/TextField";
 import { Textarea } from "@ui/공통/Textarea";
 import { GRADES } from "@ui/공통/constants";
 import { useOnboarding } from "@ui/공통/onboarding";
@@ -62,14 +61,10 @@ export function ProfileOptionalScreen() {
       />
 
       <div className="space-y-5">
-        <TextField
+        <DepartmentPicker
           label="학과선택"
-          placeholder="컴퓨터공학과"
           value={draft.department}
-          onChange={(event) => set("department", event.target.value)}
-          trailing={
-            <Search className="h-5 w-5 shrink-0 text-(--color-text-muted)" />
-          }
+          onChange={(value) => set("department", value)}
         />
 
         <ChipGroup
