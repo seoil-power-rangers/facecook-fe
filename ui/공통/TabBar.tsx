@@ -63,7 +63,7 @@ export function TabBar() {
   const tabs: TabConfig[] = [
     { href: "/main", label: "홈", icon: House },
     { href: "/explore", label: "탐색", icon: Compass },
-    { href: "/kok", label: "받은 콕", icon: Inbox, badgeCount: pendingReceivedCount },
+    { href: "/kok", label: "콕", icon: Inbox, badgeCount: pendingReceivedCount },
     { href: "/match", label: "채팅방", icon: MessageCircle },
     { href: "/mypage", label: "마이", icon: User },
   ];
