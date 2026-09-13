@@ -6,6 +6,7 @@ import { Bell, ChevronRight, Lock, Shield, Smartphone, Sparkles } from "lucide-r
 import { Avatar } from "@ui/공통/Avatar";
 import { BottomSheet } from "@ui/공통/BottomSheet";
 import { Button } from "@ui/공통/Button";
+import { DepartmentPicker } from "@ui/공통/DepartmentPicker";
 import { InstallGuideSheet } from "@ui/공통/InstallGuideSheet";
 import { PhoneFrame } from "@ui/공통/PhoneFrame";
 import { StatCard } from "@ui/공통/StatCard";
@@ -294,20 +295,21 @@ export function MyPageScreen() {
 
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-(--color-text-sub)">
-                학과 · 학년
+                학과
               </label>
-              <div className="flex gap-2">
-                <input
-                  value={department}
-                  onChange={(event) => setDepartment(event.target.value)}
-                  className="h-11 flex-1 rounded-(--radius-lg) border border-(--color-border) bg-(--color-surface) px-3 text-base text-(--color-text-strong) outline-none"
-                />
-                <input
-                  value={grade}
-                  onChange={(event) => setGrade(event.target.value)}
-                  className="h-11 w-24 shrink-0 rounded-(--radius-lg) border border-(--color-border) bg-(--color-surface) px-3 text-base text-(--color-text-strong) outline-none"
-                />
-              </div>
+              <DepartmentPicker value={department} onChange={setDepartment} />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="grade" className="text-xs font-medium text-(--color-text-sub)">
+                학년
+              </label>
+              <input
+                id="grade"
+                value={grade}
+                onChange={(event) => setGrade(event.target.value)}
+                className="h-11 w-24 rounded-(--radius-lg) border border-(--color-border) bg-(--color-surface) px-3 text-base text-(--color-text-strong) outline-none"
+              />
             </div>
           </div>
 
