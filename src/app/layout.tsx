@@ -7,10 +7,9 @@ export const metadata: Metadata = {
   description: "제52회 용마대동제 소개팅 부스 연계 웹서비스",
   applicationName: "face 콕",
   icons: {
-    icon: [
-      { url: "/favicon.svg", type: "image/svg+xml" },
-      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
-    ],
+    // 마스코트가 래스터 원본이라 SVG 판본은 두지 않는다.
+    // 탭 아이콘은 src/app/favicon.ico(16/32/48)를 Next가 자동으로 붙인다.
+    icon: [{ url: "/icon-192.png", sizes: "192x192", type: "image/png" }],
     apple: "/apple-touch-icon.png",
   },
   /**
