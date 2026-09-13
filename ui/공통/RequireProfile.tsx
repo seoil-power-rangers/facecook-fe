@@ -2,9 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ProfileApiError, getMyProfile } from "@ui/프로필작성/profileApi";
+import {
+  ProfileApiError,
+  getMyProfile,
+  isSignedOut,
+} from "@ui/프로필작성/profileApi";
 
 const ONBOARDING_START_PATH = "/onboarding/basic";
+const LOGIN_PATH = "/login";
 
 type Status = "checking" | "ready" | "redirecting";
 
@@ -33,7 +38,18 @@ export function RequireProfile({ children }: { children: React.ReactNode }) {
           router.replace(ONBOARDING_START_PATH);
           return;
         }
-        // 로그인 만료 등 다른 오류는 각 화면이 기존 방식대로 처리하게 둔다.
+        /*
+         * 로그인이 풀렸으면 화면을 그리면 안 된다. 로그아웃한 뒤 뒤로가기로
+         * 돌아오면 세션이 없는 채로 껍데기만 그려져서, 남의 폰에 이전
+         * 사용자의 화면이 남는 것처럼 보인다.
+         */
+        if (isSignedOut(error)) {
+          setStatus("redirecting");
+          router.replace(LOGIN_PATH);
+          return;
+        }
+        // 네트워크가 잠깐 끊긴 경우까지 쫓아내지는 않는다. 각 화면이 알아서
+        // 오류를 보여준다.
         setStatus("ready");
       });
 

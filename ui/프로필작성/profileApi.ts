@@ -59,10 +59,22 @@ export function isActiveNow(profile: ProfileResponse) {
   return !Number.isNaN(at) && Date.now() - at < ACTIVE_WINDOW_MS;
 }
 
+/** 로그인이 풀렸거나 정지된 계정인지. 화면을 보여주면 안 되는 상태다. */
+export function isSignedOut(error: unknown) {
+  return (
+    error instanceof ProfileApiError &&
+    (error.status === 401 ||
+      error.code === "UNAUTHORIZED" ||
+      error.code === "SUSPENDED")
+  );
+}
+
 export class ProfileApiError extends Error {
   constructor(
     public readonly code: string,
     message: string,
+    /** HTTP 응답 코드. 401 본문이 비어 있을 수 있어 code만으로 판단하지 않는다. */
+    public readonly status?: number,
   ) {
     super(message);
     this.name = "ProfileApiError";
@@ -160,6 +172,7 @@ async function requestProfile<T>(
     throw new ProfileApiError(
       payload.code ?? "UNKNOWN",
       payload.message ?? "요청을 처리하지 못했습니다.",
+      response.status,
     );
   }
 
