@@ -59,6 +59,26 @@
   --radius-lg: 16px;
   --radius-full: 9999px;
 
+  /* ===== 홈 화면(허브) =====
+     마스코트가 서 있는 풍경 그라데이션과 이동 카드 색. 다른 화면의 보라
+     계열과 떨어져 있어서 홈 전용으로 따로 둔다. */
+  /* CampusScene(SVG)이 그려지기 전 한 프레임 동안 깔리는 색 */
+  --color-home-sky: #B5D8F2;
+
+  --color-home-explore: #E8817A;
+  --color-home-explore-pressed: #D96F68;
+  /* 콕 게이지 막대 끝 색 — explore에서 분홍 쪽으로 넘어간다 */
+  --color-home-gauge-end: #F0919C;
+
+  --color-home-kok-bg: #FCF1EC;
+  --color-home-kok-text: #C87F73;
+  --color-home-kok-badge: #E8736B;
+
+  --color-home-match-bg: #EEEBFA;
+  --color-home-match-text: #6B5CE7;
+  --color-home-match-badge: #6B5CE7;
+
+
   /* ===== Shadow ===== */
   --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.06);
   --shadow-sheet: 0 -4px 16px rgba(0, 0, 0, 0.08);

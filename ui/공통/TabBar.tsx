@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Compass, Inbox, User, Users } from "lucide-react";
+import { Compass, House, Inbox, User, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { getCooks } from "@ui/받은콕/cookApi";
 
@@ -61,7 +61,8 @@ export function TabBar() {
   }, [pathname]);
 
   const tabs: TabConfig[] = [
-    { href: "/main", label: "탐색", icon: Compass },
+    { href: "/main", label: "홈", icon: House },
+    { href: "/explore", label: "탐색", icon: Compass },
     { href: "/kok", label: "받은 콕", icon: Inbox, badgeCount: pendingReceivedCount },
     { href: "/match", label: "매칭", icon: Users },
     { href: "/mypage", label: "마이", icon: User },
@@ -88,7 +89,9 @@ export function TabBar() {
                 </span>
               ) : null}
             </span>
-            <span className={`text-xs font-medium ${colorClassName}`}>{tab.label}</span>
+            <span className={`whitespace-nowrap text-xs font-medium ${colorClassName}`}>
+              {tab.label}
+            </span>
           </Link>
         );
       })}
