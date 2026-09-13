@@ -13,6 +13,7 @@ import {
   countUnseen,
   readLastSeen,
 } from "@ui/알림/notificationFeed";
+import { LIVE_BADGE_POLL_INTERVAL_MS } from "@ui/공통/constants";
 import { CampusScene } from "./CampusScene";
 import { Mascot } from "./Mascot";
 
@@ -57,16 +58,31 @@ export function MainScreen() {
   useEffect(() => {
     let active = true;
 
-    buildFeed()
-      .then((feed) => {
-        if (active) setUnseenCount(countUnseen(feed, readLastSeen()));
-      })
-      .catch(() => {
-        // 배지는 부가 정보라 조회 실패 시 그냥 숨긴다.
-      });
+    // 종 배지도 화면에 머물러 있는 동안 주기적으로 갱신한다. 메시지 도착은
+    // 여기서 세지 않는다 — 채팅방별로 정확히 "읽었는지" 판단하는 건 별도
+    // 작업이라, 지금 이 뭉뚱그린 기준으로 세면 이미 채팅방에서 읽은 메시지도
+    // 계속 안 읽음으로 남는 경우가 생긴다. 콕·매칭은 이런 문제가 없다.
+    const refresh = () => {
+      if (document.visibilityState !== "visible") return;
+      buildFeed()
+        .then((feed) => {
+          if (!active) return;
+          const liveFeed = feed.filter((item) => item.kind !== "message");
+          setUnseenCount(countUnseen(liveFeed, readLastSeen()));
+        })
+        .catch(() => {
+          // 배지는 부가 정보라 조회 실패 시 그냥 숨긴다.
+        });
+    };
+
+    refresh();
+    const interval = setInterval(refresh, LIVE_BADGE_POLL_INTERVAL_MS);
+    document.addEventListener("visibilitychange", refresh);
 
     return () => {
       active = false;
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", refresh);
     };
   }, []);
 

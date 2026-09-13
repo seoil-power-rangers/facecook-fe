@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { Compass, Heart, House, MessageCircle, User } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { getCooks } from "@ui/받은콕/cookApi";
+import { LIVE_BADGE_POLL_INTERVAL_MS } from "@ui/공통/constants";
 
 interface TabBarMainProps {
   children: ReactNode;
@@ -45,18 +46,32 @@ export function TabBar() {
 
   useEffect(() => {
     let active = true;
-    getCooks()
-      .then((data) => {
-        if (!active) return;
-        setPendingReceivedCount(
-          data.received.filter((cook) => cook.status === "pending").length,
-        );
-      })
-      .catch(() => {
-        // 배지는 부가 정보라 조회 실패 시 그냥 숨긴다.
-      });
+
+    // 화면에 가만히 머물러 있어도 콕 배지가 갱신되도록 주기적으로 다시
+    // 조회한다. 탭이 백그라운드일 때는 멈춘다 — 안 보이는 화면 갱신은
+    // 배터리·데이터 낭비다.
+    const refresh = () => {
+      if (document.visibilityState !== "visible") return;
+      getCooks()
+        .then((data) => {
+          if (!active) return;
+          setPendingReceivedCount(
+            data.received.filter((cook) => cook.status === "pending").length,
+          );
+        })
+        .catch(() => {
+          // 배지는 부가 정보라 조회 실패 시 그냥 숨긴다.
+        });
+    };
+
+    refresh();
+    const interval = setInterval(refresh, LIVE_BADGE_POLL_INTERVAL_MS);
+    document.addEventListener("visibilitychange", refresh);
+
     return () => {
       active = false;
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", refresh);
     };
   }, [pathname]);
 
