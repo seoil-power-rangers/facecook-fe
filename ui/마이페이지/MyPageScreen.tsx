@@ -344,6 +344,7 @@ function Hero({
       <Avatar
         name={profile.nickname}
         userId={profile.userId}
+        photoUrl={profile.photo}
         size="2xl"
         className="mt-1 ring-4 ring-white/35"
       />

@@ -133,6 +133,61 @@ export function getProfile(userId: number) {
   return requestProfile<ProfileResponse>(`/api/profiles/${userId}`);
 }
 
+interface PhotoUploadUrlResponse {
+  uploadUrl: string;
+  photoUrl: string;
+}
+
+/** 백엔드가 실제로 허용하는 형식·용량과 맞춰둔다(불일치하면 업로드 URL만 받고 S3가 거절한다). */
+const ALLOWED_PHOTO_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
+
+/** 올리기 전에 먼저 걸러서, 어차피 실패할 파일 때문에 업로드 URL 발급까지 쓰지 않는다. */
+export function photoFileError(file: File): string | null {
+  if (!ALLOWED_PHOTO_TYPES.has(file.type)) {
+    return "jpg, png, webp 파일만 올릴 수 있어요.";
+  }
+  if (file.size > MAX_PHOTO_BYTES) {
+    return "사진 용량은 10MB를 넘을 수 없어요.";
+  }
+  return null;
+}
+
+/**
+ * 프로필 사진 한 장을 S3에 올리고, 프로필에 저장할 최종 URL을 돌려준다.
+ *
+ * presigned URL로 올리는 PUT은 우리 백엔드가 아니라 S3로 직접 나가는
+ * 요청이라 requestProfile(JSON 전용, credentials 포함)을 쓰지 않는다.
+ */
+export async function uploadProfilePhoto(file: File): Promise<string> {
+  const validationError = photoFileError(file);
+  if (validationError) {
+    throw new ProfileApiError("VALIDATION", validationError);
+  }
+
+  const { uploadUrl, photoUrl } = await requestProfile<PhotoUploadUrlResponse>(
+    "/api/profile/photo/upload-url",
+    { method: "POST", body: JSON.stringify({ contentType: file.type }) },
+  );
+
+  let response: Response;
+  try {
+    response = await fetch(uploadUrl, {
+      method: "PUT",
+      headers: { "Content-Type": file.type },
+      body: file,
+    });
+  } catch {
+    throw new ProfileApiError("NETWORK", "사진 업로드에 실패했어요. 다시 시도해주세요.");
+  }
+
+  if (!response.ok) {
+    throw new ProfileApiError("PHOTO_UPLOAD_FAILED", "사진 업로드에 실패했어요. 다시 시도해주세요.");
+  }
+
+  return photoUrl;
+}
+
 function optionalField<K extends string>(key: K, value: string) {
   const trimmed = value.trim();
   return trimmed ? ({ [key]: trimmed } as Record<K, string>) : {};
