@@ -19,6 +19,8 @@ interface AvatarProps {
   badge?: string;
   /** 화면마다 다른 링 색·여백처럼, 한 곳에 넣기 애매한 여분의 클래스. */
   className?: string;
+  /** 업로드한 사진. 있으면 이모지 대신 이 사진을 보여준다. */
+  photoUrl?: string | null;
 }
 
 const sizeClasses: Record<AvatarSize, string> = {
@@ -79,6 +81,7 @@ export function Avatar({
   userId,
   badge,
   className,
+  photoUrl,
 }: AvatarProps) {
   const face = emoji ?? (userId === undefined ? undefined : avatarEmoji(userId));
   const background =
@@ -89,10 +92,13 @@ export function Avatar({
       <span
         role="img"
         aria-label={name}
-        className={`flex items-center justify-center rounded-full font-semibold text-(--color-text-on-primary) ${sizeClasses[size]} ${suspended ? "opacity-50" : ""} ${className ?? ""}`}
-        style={{ backgroundColor: background }}
+        className={`flex items-center justify-center overflow-hidden rounded-full font-semibold text-(--color-text-on-primary) ${sizeClasses[size]} ${suspended ? "opacity-50" : ""} ${className ?? ""}`}
+        style={photoUrl ? undefined : { backgroundColor: background }}
       >
-        {face ? (
+        {photoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element -- S3 원본 URL이라 next/image 최적화 대상이 아니다.
+          <img src={photoUrl} alt="" className="h-full w-full object-cover" />
+        ) : face ? (
           <span className={emojiSizeClasses[size]}>{face}</span>
         ) : (
           <User className={personIconSizeClasses[size]} fill="currentColor" strokeWidth={0} />
