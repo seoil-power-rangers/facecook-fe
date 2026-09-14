@@ -1,3 +1,4 @@
+import { redirectToLoginOnSignOut } from "@ui/공통/authSession";
 import type { OnboardingDraft } from "@ui/공통/types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "");
@@ -169,11 +170,17 @@ async function requestProfile<T>(
     ApiErrorResponse;
 
   if (!response.ok) {
-    throw new ProfileApiError(
+    const apiError = new ProfileApiError(
       payload.code ?? "UNKNOWN",
       payload.message ?? "요청을 처리하지 못했습니다.",
       response.status,
     );
+    // 어느 화면의 요청이든 여기 한 곳을 거치므로, 로그인 화면이 아닌
+    // 최초 진입 시점에 세션이 끊긴 것도 여기서 바로 잡아낸다.
+    if (isSignedOut(apiError)) {
+      redirectToLoginOnSignOut(apiError.message);
+    }
+    throw apiError;
   }
 
   return payload;
