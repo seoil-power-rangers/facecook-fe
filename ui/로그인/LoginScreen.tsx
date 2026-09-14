@@ -2,82 +2,86 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft } from "lucide-react";
 import { Button } from "@ui/공통/Button";
 import { InfoBox } from "@ui/공통/InfoBox";
 import { PhoneFrame } from "@ui/공통/PhoneFrame";
 import { TextField } from "@ui/공통/TextField";
+import { EVENT } from "@ui/공통/constants";
 import { useSession } from "@ui/공통/session";
 import { authErrorMessage, login } from "./authApi";
 
 type LoginTab = "participant" | "admin";
-
-const TABS: { key: LoginTab; label: string }[] = [
-  { key: "participant", label: "참가자" },
-  { key: "admin", label: "관리자" },
-];
 
 /**
  * 이미 가입한 사람이 다시 들어오는 화면. 약관·온보딩을 건너뛰고 바로 /main으로 간다.
  *
  * 참가자·관리자 둘 다 이메일(또는 아이디)+비밀번호로 들어온다 — 인증코드는
  * 최초 가입(이메일 인증) 때만 쓰고, 그 이후 로그인은 이 화면으로 통일한다.
+ *
+ * 관리자를 탭이 아니라 맨 아래 링크로 내린 이유는 인원 차이다. 참가자는
+ * 300명이고 운영진은 몇 명뿐이라, 둘을 나란히 놓으면 300명이 매번 "나는
+ * 참가자" 를 고르고 들어가야 한다.
  */
 export function LoginScreen() {
-  const router = useRouter();
   const [tab, setTab] = useState<LoginTab>("participant");
+  const isAdmin = tab === "admin";
 
   return (
     <PhoneFrame>
-      <div className="flex flex-1 flex-col px-5 pb-8 pt-4">
-        <button
-          type="button"
-          onClick={() => router.back()}
-          aria-label="뒤로"
-          className="-ml-1 mb-6 text-(--color-text-strong)"
-        >
-          <ChevronLeft className="h-6 w-6" />
-        </button>
+      <div className="flex flex-1 flex-col bg-(--color-primary-lighter)">
+        {/*
+          앱의 첫 화면이라 뒤로가기를 두지 않는다. 설치된 PWA에는 브라우저
+          뒤로가기도 없어서, 버튼을 두면 돌아갈 곳 없이 눌리기만 한다.
+        */}
+        <div className="flex flex-1 flex-col overflow-y-auto px-6 pb-10 pt-10">
+          <div className="flex flex-1 flex-col justify-center py-2">
+            <AppMark />
 
-        <h1 className="text-[22px] font-bold leading-snug text-(--color-text-strong)">
-          다시 오셨네요
-        </h1>
-        <p className="mt-1.5 text-[13px] text-(--color-text-sub)">
-          가입할 때 쓴 계정으로 들어오세요.
-        </p>
+            <div className="mt-8">
+              {isAdmin ? <AdminForm /> : <ParticipantForm />}
+            </div>
+          </div>
 
-        <div
-          role="tablist"
-          aria-label="로그인 방식"
-          className="mt-6 flex gap-2 rounded-(--radius-md) bg-(--color-surface-alt) p-1"
-        >
-          {TABS.map((item) => {
-            const on = tab === item.key;
-
-            return (
-              <button
-                key={item.key}
-                type="button"
-                role="tab"
-                aria-selected={on}
-                onClick={() => setTab(item.key)}
-                className={`h-9 flex-1 rounded-(--radius-sm) text-[13px] font-bold transition-colors ${
-                  on
-                    ? "bg-(--color-surface) text-(--color-primary) shadow-(--shadow-card)"
-                    : "text-(--color-text-sub)"
-                }`}
-              >
-                {item.label}
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="mt-6 flex flex-1 flex-col">
-          {tab === "participant" ? <ParticipantForm /> : <AdminForm />}
+          <div className="mt-8 flex flex-col items-center">
+            <button
+              type="button"
+              onClick={() => setTab(isAdmin ? "participant" : "admin")}
+              className="text-[13px] font-semibold text-(--color-text-sub) underline underline-offset-4"
+            >
+              {isAdmin ? "참가자 로그인으로" : "운영진이신가요? 관리자 로그인"}
+            </button>
+          </div>
         </div>
       </div>
     </PhoneFrame>
+  );
+}
+
+/** 앱 아이콘 + 워드마크. 아이콘은 홈 화면에 설치됐을 때와 같은 그림을 쓴다. */
+function AppMark() {
+  return (
+    <div className="flex flex-col items-center">
+      <p className="mb-5 text-[13px] font-semibold text-(--color-text-sub)">
+        제52회 용마대동제 · {EVENT.period}
+      </p>
+
+      <div className="overflow-hidden rounded-[1.75rem] bg-(--color-surface) p-2 shadow-(--shadow-card)">
+        {/* 정적 파일이라 next/image의 최적화가 필요 없다. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/icon-192.png"
+          alt="페이스콕"
+          className="h-28 w-28 rounded-[1.25rem] object-contain"
+        />
+      </div>
+
+      <p className="mt-5 text-[30px] font-bold leading-none tracking-tight text-(--color-text-strong)">
+        페이스<span className="text-(--color-accent)">콕</span>
+      </p>
+      <p className="mt-2.5 text-[14px] text-(--color-text-sub)">
+        마음이 가면, 콕.
+      </p>
+    </div>
   );
 }
 
@@ -109,58 +113,74 @@ function ParticipantForm() {
   };
 
   return (
-    <form
-      className="flex flex-1 flex-col"
-      onSubmit={(event) => {
-        event.preventDefault();
-        if (canSubmit) {
-          void submit();
-        }
-      }}
-    >
-      <div className="space-y-4">
-        <TextField
-          label="이메일"
-          type="email"
-          inputMode="email"
-          autoComplete="email"
-          placeholder="star2026@gmail.com"
-          value={email}
-          onChange={(event) => {
-            setEmail(event.target.value);
-            setError(null);
-          }}
-        />
+    <>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (canSubmit) {
+            void submit();
+          }
+        }}
+      >
+        <div className="space-y-4">
+          <TextField
+            label="이메일"
+            tone="soft"
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            placeholder="이메일을 입력하세요"
+            value={email}
+            onChange={(event) => {
+              setEmail(event.target.value);
+              setError(null);
+            }}
+          />
 
-        <TextField
-          label="비밀번호"
-          type="password"
-          autoComplete="current-password"
-          placeholder="비밀번호"
-          value={password}
-          onChange={(event) => {
-            setPassword(event.target.value);
-            setError(null);
-          }}
-        />
+          <TextField
+            label="비밀번호"
+            tone="soft"
+            type="password"
+            autoComplete="current-password"
+            placeholder="비밀번호를 입력하세요"
+            value={password}
+            onChange={(event) => {
+              setPassword(event.target.value);
+              setError(null);
+            }}
+          />
 
-        {error ? (
-          <p role="alert" className="text-[12px] text-(--color-danger)">
-            {error}
-          </p>
-        ) : null}
-      </div>
+          {error ? (
+            <p role="alert" className="text-[12px] text-(--color-danger)">
+              {error}
+            </p>
+          ) : null}
+        </div>
 
-      <div className="mt-auto pt-8">
         <Button
           type="submit"
           fullWidth
+          className="mt-7 rounded-(--radius-full)"
           disabled={!canSubmit || isSubmitting}
         >
           {isSubmitting ? "로그인 중..." : "로그인"}
         </Button>
-      </div>
-    </form>
+      </form>
+
+      {/*
+        가입 경로. form 안에 두면 type을 지정해도 엔터 한 번에 눌릴 여지가
+        있어서 밖으로 뺀다.
+      */}
+      <Button
+        type="button"
+        variant="secondary"
+        fullWidth
+        className="mt-3 rounded-(--radius-full)"
+        onClick={() => router.push("/onboarding/email")}
+      >
+        이메일로 시작하기
+      </Button>
+    </>
   );
 }
 
@@ -181,7 +201,6 @@ function AdminForm() {
 
   return (
     <form
-      className="flex flex-1 flex-col"
       onSubmit={(event) => {
         event.preventDefault();
         if (canSubmit) {
@@ -192,6 +211,7 @@ function AdminForm() {
       <div className="space-y-4">
         <TextField
           label="아이디"
+          tone="soft"
           autoComplete="username"
           placeholder="admin"
           value={adminId}
@@ -200,9 +220,10 @@ function AdminForm() {
 
         <TextField
           label="비밀번호"
+          tone="soft"
           type="password"
           autoComplete="current-password"
-          placeholder="비밀번호"
+          placeholder="비밀번호를 입력하세요"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
         />
@@ -212,11 +233,14 @@ function AdminForm() {
         </InfoBox>
       </div>
 
-      <div className="mt-auto pt-8">
-        <Button type="submit" fullWidth disabled={!canSubmit}>
-          로그인
-        </Button>
-      </div>
+      <Button
+        type="submit"
+        fullWidth
+        className="mt-7 rounded-(--radius-full)"
+        disabled={!canSubmit}
+      >
+        로그인
+      </Button>
     </form>
   );
 }
