@@ -1,4 +1,4 @@
-# face 콕 — Frontend
+# 페이스콕 — Frontend
 
 제52회 용마대동제 소개팅 부스 웹서비스의 **프론트엔드 전용** 레포입니다.
 백엔드는 [`facecook-be`](https://github.com/seoil-power-rangers/facecook-be)

@@ -186,10 +186,8 @@ function Hero({
 
       <div className="flex-1" aria-hidden="true" />
 
-      {/* 서비스 이름이 README·manifest에는 "face 콕"으로 되어 있다. 시안을 따라
-          여기만 "STAR 콕"으로 두었으니, 팀에서 하나로 정해지면 같이 맞춘다. */}
       <p className="relative z-10 mt-3 text-lg font-bold text-(--color-text-sub)">
-        STAR 콕
+        페이스콕
       </p>
 
       <Mascot />

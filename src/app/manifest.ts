@@ -10,8 +10,8 @@ import type { MetadataRoute } from "next";
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: "/",
-    name: "face 콕",
-    short_name: "face 콕",
+    name: "페이스콕",
+    short_name: "페이스콕",
     description: "제52회 용마대동제 소개팅 부스 연계 웹서비스",
     lang: "ko",
     start_url: "/",
