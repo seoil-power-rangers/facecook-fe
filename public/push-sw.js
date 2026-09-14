@@ -1,5 +1,5 @@
 /**
- * face 콕 서비스워커.
+ * 페이스콕 서비스워커.
  *
  * 두 가지 일을 한다.
  *  1. 웹 푸시 수신/클릭 처리
@@ -54,7 +54,7 @@ self.addEventListener("push", (event) => {
     payload = { body: event.data ? event.data.text() : "" };
   }
 
-  const title = payload.title || "face 콕";
+  const title = payload.title || "페이스콕";
   const options = {
     body: payload.body || "새로운 알림이 도착했어요.",
     data: { url: safePath(payload.url) },

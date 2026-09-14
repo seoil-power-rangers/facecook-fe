@@ -3,9 +3,9 @@ import { PwaBootstrap } from "@ui/공통/PwaBootstrap";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "face 콕",
+  title: "페이스콕",
   description: "제52회 용마대동제 소개팅 부스 연계 웹서비스",
-  applicationName: "face 콕",
+  applicationName: "페이스콕",
   icons: {
     // 마스코트가 래스터 원본이라 SVG 판본은 두지 않는다.
     // 탭 아이콘은 src/app/favicon.ico(16/32/48)를 Next가 자동으로 붙인다.
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
    */
   appleWebApp: {
     capable: true,
-    title: "face 콕",
+    title: "페이스콕",
     statusBarStyle: "default",
   },
   other: {
