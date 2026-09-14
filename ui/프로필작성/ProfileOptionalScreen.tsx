@@ -7,15 +7,13 @@ import { ChipGroup } from "@ui/공통/ChipGroup";
 import { DepartmentPicker } from "@ui/공통/DepartmentPicker";
 import { StepHeader, Accent } from "@ui/공통/StepHeader";
 import { Textarea } from "@ui/공통/Textarea";
-import { GRADES } from "@ui/공통/constants";
+import { BIO_MAX, GRADES } from "@ui/공통/constants";
 import { useOnboarding } from "@ui/공통/onboarding";
 import {
   createProfile,
   createProfileRequestFromDraft,
   profileErrorMessage,
 } from "./profileApi";
-
-const BIO_MAX = 100;
 
 /**
  * 06 선택 (STEP 5)

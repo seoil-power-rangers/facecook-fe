@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { GRADES } from "@ui/공통/constants";
+import { ChipGroup } from "@ui/공통/ChipGroup";
+import { BIO_MAX, GRADES } from "@ui/공통/constants";
 import { DepartmentPicker } from "@ui/공통/DepartmentPicker";
 import type { ProfileResponse } from "@ui/프로필작성/profileApi";
 
@@ -51,30 +52,7 @@ export function ProfileEditSheet({
         */}
         <DepartmentPicker label="학과" value={department} onChange={setDepartment} />
 
-        <div className="flex flex-col gap-1.5">
-          <span className="text-xs font-bold text-(--color-text-sub)">학년</span>
-          <div className="flex gap-2">
-            {GRADES.map((option) => {
-              const active = grade === option;
-
-              return (
-                <button
-                  key={option}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => setGrade(active ? "" : option)}
-                  className={`flex-1 rounded-(--radius-lg) py-3 text-sm font-bold transition-colors ${
-                    active
-                      ? "bg-(--color-primary) text-(--color-text-on-primary)"
-                      : "bg-(--color-surface-alt) text-(--color-text-sub)"
-                  }`}
-                >
-                  {option}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        <ChipGroup label="학년" options={GRADES} value={grade} onChange={setGrade} />
 
         <label className="flex flex-col gap-1.5">
           <span className="text-xs font-bold text-(--color-text-sub)">한 마디</span>
@@ -83,12 +61,12 @@ export function ProfileEditSheet({
             value={bio}
             onChange={(event) => setBio(event.target.value)}
             rows={3}
-            maxLength={60}
+            maxLength={BIO_MAX}
             placeholder="부스에서 만나면 이렇게 인사해주세요"
             className="resize-none rounded-(--radius-lg) border border-(--color-border) bg-(--color-surface-alt) px-4 py-3 text-base leading-relaxed text-(--color-text-strong) outline-none placeholder:text-(--color-text-muted)"
           />
           <span className="self-end text-xs text-(--color-text-muted) tabular-nums">
-            {bio.length} / 60
+            {bio.length} / {BIO_MAX}
           </span>
         </label>
 
