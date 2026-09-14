@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import { Button } from "@ui/공통/Button";
 import { InfoBox } from "@ui/공통/InfoBox";
 import { PhoneFrame } from "@ui/공통/PhoneFrame";
 import { TextField } from "@ui/공통/TextField";
+import { takeAuthNotice } from "@ui/공통/authSession";
 import { useSession } from "@ui/공통/session";
 import { authErrorMessage, login } from "./authApi";
 
@@ -26,6 +27,20 @@ const TABS: { key: LoginTab; label: string }[] = [
 export function LoginScreen() {
   const router = useRouter();
   const [tab, setTab] = useState<LoginTab>("participant");
+  const [authNotice, setAuthNotice] = useState<string | null>(null);
+  const noticeConsumed = useRef(false);
+
+  useEffect(() => {
+    // 세션 만료·정지로 튕겨져 온 경우, 그 사유를 한 번만 보여준다.
+    // sessionStorage는 클라이언트에만 있어 서버 렌더와 값이 다를 수
+    // 있으므로(하이드레이션 불일치 방지), 초기 상태가 아니라 마운트 후
+    // 이펙트에서 읽는다. takeAuthNotice()는 읽자마자 지우는 1회성
+    // 함수라, 개발 모드의 StrictMode 이중 실행에서 두 번째 호출이
+    // null로 값을 덮어쓰지 않도록 ref로 한 번만 실행되게 막는다.
+    if (noticeConsumed.current) return;
+    noticeConsumed.current = true;
+    setAuthNotice(takeAuthNotice());
+  }, []);
 
   return (
     <PhoneFrame>
@@ -45,6 +60,14 @@ export function LoginScreen() {
         <p className="mt-1.5 text-[13px] text-(--color-text-sub)">
           가입할 때 쓴 계정으로 들어오세요.
         </p>
+
+        {authNotice ? (
+          <div className="mt-4">
+            <InfoBox tone="danger" icon={null}>
+              {authNotice}
+            </InfoBox>
+          </div>
+        ) : null}
 
         <div
           role="tablist"
