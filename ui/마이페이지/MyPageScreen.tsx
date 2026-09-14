@@ -186,7 +186,7 @@ export function MyPageScreen() {
       await logout();
       signOut();
       // push면 뒤로가기로 마이페이지에 돌아올 수 있다.
-      router.replace("/login");
+      router.replace("/");
     } catch (error) {
       setToastMessage(authErrorMessage(error));
     } finally {

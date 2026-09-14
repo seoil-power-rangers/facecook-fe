@@ -9,7 +9,7 @@ import {
 } from "@ui/프로필작성/profileApi";
 
 const ONBOARDING_START_PATH = "/onboarding/basic";
-const LOGIN_PATH = "/login";
+const SIGNED_OUT_PATH = "/";
 
 type Status = "checking" | "ready" | "redirecting";
 
@@ -45,7 +45,7 @@ export function RequireProfile({ children }: { children: React.ReactNode }) {
          */
         if (isSignedOut(error)) {
           setStatus("redirecting");
-          router.replace(LOGIN_PATH);
+          router.replace(SIGNED_OUT_PATH);
           return;
         }
         // 네트워크가 잠깐 끊긴 경우까지 쫓아내지는 않는다. 각 화면이 알아서
