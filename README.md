@@ -19,7 +19,7 @@ http://localhost:3000
 로컬 프론트엔드는 `.env.local`의 `NEXT_PUBLIC_API_BASE_URL`을 사용해
 `http://localhost:8080/api/...`의 백엔드 API를 호출합니다.
 
-시작 화면은 QR 진입입니다.
+시작 화면은 로그인입니다. `/`로 들어오면 `/login`으로 넘어갑니다.
 
 ---
 
@@ -27,8 +27,8 @@ http://localhost:3000
 
 | 주소 | 화면 |
 | --- | --- |
-| `/` | QR 진입 |
-| `/login` | 로그인 (관리자 로그인 포함) |
+| `/` | `/login`으로 리다이렉트 (PWA start_url) |
+| `/login` | 로그인 · 가입 진입 (관리자 로그인 포함) |
 | `/onboarding/email` | 이메일 인증 |
 | `/onboarding/basic` | 필수 프로필 |
 | `/onboarding/mbti` | MBTI |
