@@ -10,6 +10,7 @@ import { Button } from "@ui/공통/Button";
 import { KokConfirmSheet } from "@ui/공통/KokConfirmSheet";
 import { PhoneFrame } from "@ui/공통/PhoneFrame";
 import { Tag } from "@ui/공통/Tag";
+import { avatarColor, avatarEmoji } from "@ui/공통/avatarColor";
 import { Toast } from "@ui/공통/Toast";
 import {
   getMyProfile,
@@ -114,7 +115,8 @@ export function ProfileDetailScreen({ userId }: { userId: string }) {
     { label: "성별", value: genderLabel(profile.gender) },
     { label: "나이", value: `${profile.age}세` },
   ];
-  const subInfo = [profile.nickname, `${profile.age}세`, profile.department, profile.grade]
+  // 이름은 제목으로 올라갔으니 여기서 뺀다.
+  const subInfo = [`${profile.age}세`, profile.department, profile.grade]
     .filter(Boolean)
     .join(" · ");
 
@@ -127,7 +129,11 @@ export function ProfileDetailScreen({ userId }: { userId: string }) {
       />
 
       <div className="flex-1 overflow-y-auto">
-        <div className="bg-(--color-hero-bg) px-4 pb-10 pt-3 text-(--color-hero-text)">
+        {/*
+          아래 여백은 아바타가 올라오는 높이(-mt-12 = 48px)보다 커야 한다.
+          작으면 아바타가 부제 글씨를 덮는다.
+        */}
+        <div className="bg-(--color-accent-soft) px-4 pb-20 pt-3 text-(--color-text-strong)">
           <div className="flex items-center justify-between">
             <button type="button" aria-label="뒤로가기" className="p-1" onClick={() => router.back()}>
               <ChevronLeft className="h-5 w-5" />
@@ -137,15 +143,20 @@ export function ProfileDetailScreen({ userId }: { userId: string }) {
             </Link>
           </div>
 
-          <h1 className="mt-4 text-lg font-bold">{profile.bio || `${profile.nickname}님의 프로필`}</h1>
-          <p className="mt-1 text-sm text-(--color-hero-text-sub)">{subInfo}</p>
+          <h1 className="mt-4 text-2xl font-extrabold">{profile.nickname}</h1>
+          <p className="mt-1 text-sm text-(--color-text-sub)">{subInfo}</p>
         </div>
 
         <div className="-mt-12 flex flex-col items-center gap-2">
-          <div className="flex h-24 w-24 items-center justify-center rounded-full bg-(--color-primary-lighter) text-3xl font-bold text-(--color-primary) ring-4 ring-(--color-surface)">
-            {profile.nickname.charAt(0)}
-          </div>
-          {commonCount > 0 ? <Tag variant="primary">공통 관심사 {commonCount}개</Tag> : null}
+          <span
+            role="img"
+            aria-label={profile.nickname}
+            className="flex h-24 w-24 items-center justify-center rounded-full text-5xl ring-4 ring-(--color-surface)"
+            style={{ backgroundColor: avatarColor(profile.userId) }}
+          >
+            {avatarEmoji(profile.userId)}
+          </span>
+          {commonCount > 0 ? <Tag variant="accent">공통 관심사 {commonCount}개</Tag> : null}
         </div>
 
         <div className="flex flex-col gap-6 px-4 pb-6 pt-6">
@@ -176,7 +187,7 @@ export function ProfileDetailScreen({ userId }: { userId: string }) {
                   const HobbyIcon = HOBBY_ICONS[index % HOBBY_ICONS.length];
                   return (
                     <div key={hobby} className="flex min-w-20 flex-col items-center gap-2">
-                      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-(--color-primary-lighter) text-(--color-primary)">
+                      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-(--color-accent-soft) text-(--color-accent)">
                         <HobbyIcon className="h-6 w-6" />
                       </div>
                       <span className="text-xs text-(--color-text-sub)">{hobby}</span>
@@ -201,10 +212,14 @@ export function ProfileDetailScreen({ userId }: { userId: string }) {
       </div>
 
       <div className="shrink-0 border-t border-(--color-border) bg-(--color-surface) p-4">
-        <Button fullWidth className="gap-2" onClick={() => setKokSheetOpen(true)}>
+        <button
+          type="button"
+          onClick={() => setKokSheetOpen(true)}
+          className="flex h-[54px] w-full items-center justify-center gap-2 rounded-(--radius-lg) bg-(--color-accent) text-base font-bold text-(--color-text-on-primary) active:opacity-90"
+        >
           <MousePointerClick className="h-4 w-4" />
           콕 보내기
-        </Button>
+        </button>
       </div>
 
       <BottomSheet open={kokSheetOpen} onClose={() => !isSending && setKokSheetOpen(false)}>

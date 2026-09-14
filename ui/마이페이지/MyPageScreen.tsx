@@ -2,17 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, ChevronRight, Lock, Shield, Smartphone, Sparkles } from "lucide-react";
-import { Avatar } from "@ui/공통/Avatar";
+import { Bell, Pencil, Smartphone } from "lucide-react";
 import { BottomSheet } from "@ui/공통/BottomSheet";
-import { Button } from "@ui/공통/Button";
-import { DepartmentPicker } from "@ui/공통/DepartmentPicker";
 import { InstallGuideSheet } from "@ui/공통/InstallGuideSheet";
 import { PhoneFrame } from "@ui/공통/PhoneFrame";
-import { StatCard } from "@ui/공통/StatCard";
-import { Tag } from "@ui/공통/Tag";
 import { TabBarMain } from "@ui/공통/TabBar";
 import { Toast } from "@ui/공통/Toast";
+import { avatarColor, avatarEmoji } from "@ui/공통/avatarColor";
 import { usePwaInstall } from "@ui/공통/pwaInstall";
 import { useSession } from "@ui/공통/session";
 import { authErrorMessage, logout } from "@ui/로그인/authApi";
@@ -21,9 +17,10 @@ import { getMatches } from "@ui/매칭/matchApi";
 import {
   getMyProfile,
   profileErrorMessage,
-  type ProfileResponse,
   updateMyProfile,
+  type ProfileResponse,
 } from "@ui/프로필작성/profileApi";
+import { ProfileEditSheet, type ProfileEdit } from "./ProfileEditSheet";
 import {
   disablePushNotifications,
   enablePushNotifications,
@@ -38,46 +35,40 @@ export function MyPageScreen() {
   const router = useRouter();
   const { signOut } = useSession();
   const { installState, promptInstall } = usePwaInstall();
-  const [isInstallGuideOpen, setIsInstallGuideOpen] = useState(false);
+
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
-  const [bio, setBio] = useState("");
-  const [department, setDepartment] = useState("");
-  const [grade, setGrade] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [logoutError, setLogoutError] = useState<string | null>(null);
+
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const [isInstallGuideOpen, setIsInstallGuideOpen] = useState(false);
   const [pushStatus, setPushStatus] = useState<PushStatus>("checking");
   const [isUpdatingPush, setIsUpdatingPush] = useState(false);
+
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
   const [sentCookCount, setSentCookCount] = useState(0);
   const [receivedCookCount, setReceivedCookCount] = useState(0);
   const [matchCount, setMatchCount] = useState(0);
-  const [kokRemaining, setKokRemaining] = useState(0);
-  const [kokDailyLimit, setKokDailyLimit] = useState(0);
 
   useEffect(() => {
     let active = true;
 
-    const loadProfile = async () => {
-      setIsLoading(true);
-      setProfileError(null);
-      try {
-        const response = await getMyProfile();
-        if (!active) return;
-        setProfile(response);
-        setBio(response.bio ?? "");
-        setDepartment(response.department ?? "");
-        setGrade(response.grade ?? "");
-      } catch (error) {
+    getMyProfile()
+      .then((response) => {
+        if (active) setProfile(response);
+      })
+      .catch((error) => {
         if (active) setProfileError(profileErrorMessage(error));
-      } finally {
+      })
+      .finally(() => {
         if (active) setIsLoading(false);
-      }
-    };
+      });
 
-    void loadProfile();
     return () => {
       active = false;
     };
@@ -92,11 +83,9 @@ export function MyPageScreen() {
         setSentCookCount(cooks.usage.totalUsed);
         setReceivedCookCount(cooks.received.length);
         setMatchCount(matches.length);
-        setKokRemaining(Math.max(cooks.usage.dailyLimit - cooks.usage.todayUsed, 0));
-        setKokDailyLimit(cooks.usage.dailyLimit);
       })
       .catch(() => {
-        // 통계는 부가 정보라 조회 실패해도 화면 전체를 에러로 막지 않는다.
+        // 숫자는 부가 정보라 조회 실패해도 화면 전체를 막지 않는다.
       });
 
     return () => {
@@ -132,21 +121,17 @@ export function MyPageScreen() {
     };
   }, []);
 
-  const handleProfileUpdate = async () => {
-    if (!profile || isSubmitting) return;
-
-    setIsSubmitting(true);
-    setProfileError(null);
+  const handleSave = async (edit: ProfileEdit) => {
+    setIsSaving(true);
+    setSaveError(null);
     try {
-      const response = await updateMyProfile({ department, grade, bio });
-      setProfile(response);
-      setBio(response.bio ?? "");
-      setDepartment(response.department ?? "");
-      setGrade(response.grade ?? "");
+      setProfile(await updateMyProfile(edit));
+      setIsEditOpen(false);
+      setToastMessage("프로필을 저장했어요.");
     } catch (error) {
-      setProfileError(profileErrorMessage(error));
+      setSaveError(profileErrorMessage(error));
     } finally {
-      setIsSubmitting(false);
+      setIsSaving(false);
     }
   };
 
@@ -160,22 +145,6 @@ export function MyPageScreen() {
     const outcome = await promptInstall();
     if (outcome === "dismissed") {
       setToastMessage("홈 화면에 추가하면 알림을 놓치지 않아요.");
-    }
-  };
-
-  const handleLogout = async () => {
-    if (isLoggingOut) return;
-
-    setIsLoggingOut(true);
-    setLogoutError(null);
-    try {
-      await logout();
-      signOut();
-      router.push("/login");
-    } catch (error) {
-      setLogoutError(authErrorMessage(error));
-    } finally {
-      setIsLoggingOut(false);
     }
   };
 
@@ -209,6 +178,22 @@ export function MyPageScreen() {
     }
   };
 
+  const handleLogout = async () => {
+    if (isLoggingOut) return;
+
+    setIsLoggingOut(true);
+    try {
+      await logout();
+      signOut();
+      // push면 뒤로가기로 마이페이지에 돌아올 수 있다.
+      router.replace("/login");
+    } catch (error) {
+      setToastMessage(authErrorMessage(error));
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
+
   return (
     <PhoneFrame>
       <Toast
@@ -216,178 +201,101 @@ export function MyPageScreen() {
         message={toastMessage ?? ""}
         onDismiss={() => setToastMessage(null)}
       />
-      <header className="flex h-14 w-full shrink-0 items-center gap-2 border-b border-(--color-border) bg-(--color-surface) px-4">
-        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-(--color-primary) text-(--color-text-on-primary)">
-          <Sparkles className="h-4 w-4" />
-        </span>
-        <h1 className="text-lg font-bold text-(--color-text-strong)">마이</h1>
-      </header>
 
-      <TabBarMain className="gap-5 p-4">
+      <TabBarMain>
         {isLoading ? (
-            <p className="py-8 text-center text-sm text-(--color-text-sub)">
-              프로필을 불러오는 중...
-            </p>
-          ) : profile ? (
-            <div className="flex items-center gap-3 rounded-(--radius-lg) border border-(--color-border) bg-(--color-surface) p-4">
-              <Avatar name={profile.nickname} size="xl" userId={profile.userId} online />
-              <div className="flex flex-1 flex-col gap-1 overflow-hidden">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-base font-bold text-(--color-text-strong)">
-                    {profile.nickname}
-                  </span>
-                  <Tag variant="primary">{profile.mbti}</Tag>
-                </div>
-                <span className="truncate text-xs text-(--color-text-sub)">
-                  {[`${profile.age}세`, profile.bloodType, profile.department, profile.grade]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </span>
+          <p className="py-20 text-center text-sm text-(--color-text-sub)">
+            프로필을 불러오는 중...
+          </p>
+        ) : null}
+
+        {profileError ? (
+          <p role="alert" className="py-20 text-center text-sm text-(--color-danger)">
+            {profileError}
+          </p>
+        ) : null}
+
+        {profile ? (
+          <>
+            <Hero
+              profile={profile}
+              sent={sentCookCount}
+              received={receivedCookCount}
+              matched={matchCount}
+              onEdit={() => {
+                setSaveError(null);
+                setIsEditOpen(true);
+              }}
+            />
+
+            <div className="flex flex-col gap-3 px-4 pb-6 pt-5">
+              <InfoCard emoji="🏫" label="학과" value={departmentLine(profile)} />
+              <InfoCard emoji="🎂" label="나이" value={`${profile.age}세`} />
+              <InfoCard emoji="🧠" label="MBTI" value={profile.mbti} />
+              <InfoCard emoji="🎯" label="취미" value={hobbyLine(profile)} />
+              <InfoCard
+                emoji="💬"
+                label="한 마디"
+                value={profile.bio || "아직 없어요"}
+                muted={!profile.bio}
+              />
+
+              <div className="mt-3 flex flex-col gap-2">
+                {installState === "available" || installState === "manual" ? (
+                  <SettingRow
+                    icon={<Smartphone className="h-4 w-4 text-(--color-primary)" />}
+                    title="홈 화면에 추가"
+                    note={
+                      installState === "manual"
+                        ? "아이폰은 추가해야 알림을 받을 수 있어요"
+                        : "앱처럼 전체화면으로 쓸 수 있어요"
+                    }
+                    action={installState === "manual" ? "방법 보기" : "추가"}
+                    highlight
+                    onClick={() => void handleInstall()}
+                  />
+                ) : null}
+
+                <SettingRow
+                  icon={<Bell className="h-4 w-4 text-(--color-text-muted)" />}
+                  title="푸시 알림"
+                  note={pushStatusLabel(pushStatus)}
+                  action={
+                    isUpdatingPush
+                      ? "처리 중..."
+                      : pushStatus === "enabled"
+                        ? "끄기"
+                        : "켜기"
+                  }
+                  disabled={isUpdatingPush || pushStatus === "checking"}
+                  onClick={() => void handlePushToggle()}
+                />
               </div>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={isSubmitting}
-                onClick={handleProfileUpdate}
-              >
-                {isSubmitting ? "저장 중..." : "저장"}
-              </Button>
-            </div>
-          ) : null}
 
-          {profileError ? (
-            <p role="alert" className="text-[12px] text-(--color-danger)">
-              {profileError}
-            </p>
-          ) : null}
-
-          <div className="flex items-center justify-between rounded-(--radius-lg) bg-(--color-primary-lighter) px-4 py-3">
-            <span className="text-sm font-medium text-(--color-text-strong)">오늘 남은 콕</span>
-            <span className="text-sm font-semibold text-(--color-primary)">
-              {kokRemaining}/{kokDailyLimit}
-            </span>
-          </div>
-
-          <div className="flex gap-2">
-            <StatCard label="보낸 콕" value={`${sentCookCount}`} />
-            <StatCard label="받은 콕" value={`${receivedCookCount}`} />
-            <StatCard label="매칭" value={`${matchCount}`} />
-          </div>
-
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-(--color-text-strong)">프로필 수정</p>
-              <p className="text-xs text-(--color-text-sub)">선택 항목만 바꿀 수 있어요</p>
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="bio" className="text-xs font-medium text-(--color-text-sub)">
-                자기소개
-              </label>
-              <textarea
-                id="bio"
-                value={bio}
-                onChange={(event) => setBio(event.target.value)}
-                rows={2}
-                className="resize-none rounded-(--radius-lg) bg-(--color-surface-alt) px-3 py-2.5 text-base text-(--color-text-strong) outline-none"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-(--color-text-sub)">
-                학과
-              </label>
-              <DepartmentPicker value={department} onChange={setDepartment} />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="grade" className="text-xs font-medium text-(--color-text-sub)">
-                학년
-              </label>
-              <input
-                id="grade"
-                value={grade}
-                onChange={(event) => setGrade(event.target.value)}
-                className="h-11 w-24 rounded-(--radius-lg) border border-(--color-border) bg-(--color-surface) px-3 text-base text-(--color-text-strong) outline-none"
-              />
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center gap-1">
-              <p className="text-sm font-semibold text-(--color-text-strong)">필수 항목</p>
-              <Lock className="h-3 w-3 text-(--color-text-muted)" aria-hidden="true" />
-              <p className="text-xs text-(--color-text-muted)">수정 불가</p>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              {installState === "available" || installState === "manual" ? (
-                <button
-                  type="button"
-                  onClick={() => void handleInstall()}
-                  className="flex items-center justify-between rounded-(--radius-lg) border border-(--color-primary) bg-(--color-primary-lighter) px-4 py-3 text-left"
-                >
-                  <span className="flex items-center gap-2">
-                    <Smartphone className="h-4 w-4 text-(--color-primary)" aria-hidden="true" />
-                    <span className="flex flex-col">
-                      <span className="text-sm font-medium text-(--color-text-strong)">홈 화면에 추가</span>
-                      <span className="text-xs text-(--color-text-sub)">
-                        {installState === "manual"
-                          ? "아이폰은 추가해야 알림을 받을 수 있어요"
-                          : "앱처럼 전체화면으로 쓸 수 있어요"}
-                      </span>
-                    </span>
-                  </span>
-                  <span className="text-xs font-semibold text-(--color-primary)">
-                    {installState === "manual" ? "방법 보기" : "추가"}
-                  </span>
-                </button>
-              ) : null}
               <button
                 type="button"
-                onClick={() => void handlePushToggle()}
-                disabled={isUpdatingPush || pushStatus === "checking"}
-                className="flex items-center justify-between rounded-(--radius-lg) border border-(--color-border) bg-(--color-surface) px-4 py-3 text-left disabled:text-(--color-text-muted)"
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+                className="mt-2 rounded-(--radius-lg) bg-(--color-surface-alt) py-4 text-sm font-bold text-(--color-text-sub) disabled:text-(--color-text-muted)"
               >
-                <span className="flex items-center gap-2">
-                  <Bell className="h-4 w-4 text-(--color-text-muted)" aria-hidden="true" />
-                  <span className="flex flex-col">
-                    <span className="text-sm text-(--color-text-strong)">푸시 알림</span>
-                    <span className="text-xs text-(--color-text-muted)">{pushStatusLabel(pushStatus)}</span>
-                  </span>
-                </span>
-                <span className="text-xs font-semibold text-(--color-primary)">
-                  {isUpdatingPush ? "처리 중..." : pushStatus === "enabled" ? "끄기" : "켜기"}
-                </span>
-              </button>
-              <button
-                type="button"
-                className="flex items-center justify-between rounded-(--radius-lg) border border-(--color-border) bg-(--color-surface) px-4 py-3 text-left"
-              >
-                <span className="flex items-center gap-1.5 text-sm text-(--color-text-strong)">
-                  <Shield className="h-3.5 w-3.5 text-(--color-text-muted)" />
-                  약관 · 개인정보 처리방침
-                </span>
-                <ChevronRight className="h-4 w-4 text-(--color-text-muted)" />
+                {isLoggingOut ? "로그아웃 중..." : "로그아웃"}
               </button>
             </div>
-
-            <button
-              type="button"
-              onClick={handleLogout}
-              disabled={isLoggingOut}
-              className="py-1 text-left text-sm text-(--color-text-sub) disabled:text-(--color-text-muted)"
-            >
-              {isLoggingOut ? "로그아웃 중..." : "로그아웃"}
-            </button>
-
-            {logoutError ? (
-              <p role="alert" className="text-[12px] text-(--color-danger)">
-                {logoutError}
-              </p>
-            ) : null}
-          </div>
+          </>
+        ) : null}
       </TabBarMain>
+
+      <BottomSheet open={isEditOpen} onClose={() => !isSaving && setIsEditOpen(false)}>
+        {profile ? (
+          <ProfileEditSheet
+            profile={profile}
+            isSubmitting={isSaving}
+            error={saveError}
+            onSave={handleSave}
+            onCancel={() => setIsEditOpen(false)}
+          />
+        ) : null}
+      </BottomSheet>
 
       <BottomSheet
         open={isInstallGuideOpen}
@@ -396,6 +304,171 @@ export function MyPageScreen() {
         <InstallGuideSheet onClose={() => setIsInstallGuideOpen(false)} />
       </BottomSheet>
     </PhoneFrame>
+  );
+}
+
+function Hero({
+  profile,
+  sent,
+  received,
+  matched,
+  onEdit,
+}: {
+  profile: ProfileResponse;
+  sent: number;
+  received: number;
+  matched: number;
+  onEdit: () => void;
+}) {
+  return (
+    <section
+      className="flex shrink-0 flex-col items-center px-5 pb-6 pt-3 text-center text-(--color-hero-text)"
+      style={{
+        backgroundImage:
+          "linear-gradient(160deg, var(--color-me-from), var(--color-me-to))",
+      }}
+    >
+      <div className="flex w-full justify-end">
+        <button
+          type="button"
+          onClick={onEdit}
+          className="flex items-center gap-1.5 rounded-full bg-white/20 px-3.5 py-2 text-[13px] font-bold text-(--color-hero-text)"
+        >
+          <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+          수정하기
+        </button>
+      </div>
+
+      <span
+        role="img"
+        aria-label={profile.nickname}
+        className="mt-1 flex h-24 w-24 items-center justify-center rounded-full text-5xl ring-4 ring-white/35"
+        style={{ backgroundColor: avatarColor(profile.userId) }}
+      >
+        {avatarEmoji(profile.userId)}
+      </span>
+
+      <p className="mt-3 text-2xl font-extrabold">{profile.nickname}</p>
+
+      <p className="mt-1.5 flex items-center gap-2 text-sm text-white/75">
+        <span className="rounded-full bg-white/20 px-2.5 py-1 text-xs font-bold text-(--color-hero-text)">
+          {profile.mbti}
+        </span>
+        {profile.department ?? "학과 미등록"}
+      </p>
+
+      {/* 세 숫자가 "내가 이 부스에서 뭘 했나"를 한 줄로 답한다. */}
+      <dl className="mt-5 flex w-full rounded-(--radius-lg) bg-white/15">
+        <Stat label="보낸 콕" value={sent} />
+        <Stat label="받은 콕" value={received} divided />
+        <Stat label="매칭" value={matched} divided />
+      </dl>
+    </section>
+  );
+}
+
+function Stat({
+  label,
+  value,
+  divided = false,
+}: {
+  label: string;
+  value: number;
+  divided?: boolean;
+}) {
+  return (
+    <div
+      className={`flex flex-1 flex-col items-center gap-0.5 py-4 ${
+        divided ? "border-l border-white/20" : ""
+      }`}
+    >
+      <dd className="text-xl font-extrabold tabular-nums">{value}</dd>
+      <dt className="text-xs text-white/70">{label}</dt>
+    </div>
+  );
+}
+
+function InfoCard({
+  emoji,
+  label,
+  value,
+  muted = false,
+}: {
+  emoji: string;
+  label: string;
+  value: string;
+  muted?: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-[1.25rem] bg-(--color-surface) p-4 shadow-(--shadow-card)">
+      <span className="text-2xl" aria-hidden="true">
+        {emoji}
+      </span>
+      <div className="flex flex-col gap-0.5 overflow-hidden">
+        <span className="text-xs text-(--color-text-muted)">{label}</span>
+        <span
+          className={`truncate text-[15px] font-bold ${
+            muted ? "text-(--color-text-muted)" : "text-(--color-text-strong)"
+          }`}
+        >
+          {value}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function SettingRow({
+  icon,
+  title,
+  note,
+  action,
+  highlight = false,
+  disabled = false,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  note: string;
+  action: string;
+  highlight?: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`flex items-center justify-between rounded-(--radius-lg) px-4 py-3.5 text-left disabled:text-(--color-text-muted) ${
+        highlight
+          ? "border border-(--color-primary) bg-(--color-primary-lighter)"
+          : "border border-(--color-border) bg-(--color-surface)"
+      }`}
+    >
+      <span className="flex items-center gap-2.5 overflow-hidden">
+        <span className="shrink-0">{icon}</span>
+        <span className="flex flex-col overflow-hidden">
+          <span className="text-sm font-medium text-(--color-text-strong)">{title}</span>
+          <span className="truncate text-xs text-(--color-text-muted)">{note}</span>
+        </span>
+      </span>
+      <span className="shrink-0 text-xs font-bold text-(--color-primary)">{action}</span>
+    </button>
+  );
+}
+
+function departmentLine(profile: ProfileResponse) {
+  return [profile.department, profile.grade].filter(Boolean).join(" ") || "미등록";
+}
+
+function hobbyLine(profile: ProfileResponse) {
+  return (
+    profile.hobby
+      .split(",")
+      .map((hobby) => hobby.trim())
+      .filter(Boolean)
+      .join(" · ") || "미등록"
   );
 }
 

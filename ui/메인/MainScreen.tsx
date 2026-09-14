@@ -89,7 +89,7 @@ export function MainScreen() {
       <TabBarMain>
         <Hero totalUsers={totalUsers} unseenCount={unseenCount} />
 
-        <div className="flex flex-1 flex-col gap-4 bg-(--color-surface) px-4 pb-6 pt-5">
+        <div className="flex shrink-0 flex-col gap-4 bg-(--color-surface) px-4 pb-6 pt-5">
           <KokGauge used={todayUsed} limit={dailyLimit} />
 
           <Link
@@ -138,7 +138,13 @@ export function MainScreen() {
   );
 }
 
-/** 캠퍼스 풍경 위에 마스코트가 서 있는 영역. */
+/**
+ * 캠퍼스 풍경 위에 마스코트가 서 있는 영역.
+ *
+ * 남는 높이를 시트가 아니라 이쪽이 가져간다. 시트가 늘어나면 버튼 아래가 흰
+ * 여백으로 비는데, 히어로가 늘어나면 그만큼 하늘이 넓어지고 버튼은 엄지가
+ * 닿는 아래쪽으로 내려온다.
+ */
 function Hero({
   totalUsers,
   unseenCount,
@@ -147,7 +153,7 @@ function Hero({
   unseenCount: number;
 }) {
   return (
-    <section className="relative flex shrink-0 flex-col items-center bg-(--color-home-sky) px-5 pb-4 pt-6">
+    <section className="relative flex flex-1 flex-col items-center bg-(--color-home-sky) px-5 pb-4 pt-6">
       <CampusScene />
 
       <Link
@@ -177,6 +183,8 @@ function Hero({
           <span className="text-lg font-semibold text-(--color-text-body)">명</span>
         </p>
       </div>
+
+      <div className="flex-1" aria-hidden="true" />
 
       {/* 서비스 이름이 README·manifest에는 "face 콕"으로 되어 있다. 시안을 따라
           여기만 "STAR 콕"으로 두었으니, 팀에서 하나로 정해지면 같이 맞춘다. */}
