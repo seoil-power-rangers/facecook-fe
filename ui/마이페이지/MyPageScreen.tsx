@@ -3,12 +3,12 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bell, Pencil, Smartphone } from "lucide-react";
+import { Avatar } from "@ui/공통/Avatar";
 import { BottomSheet } from "@ui/공통/BottomSheet";
 import { InstallGuideSheet } from "@ui/공통/InstallGuideSheet";
 import { PhoneFrame } from "@ui/공통/PhoneFrame";
 import { TabBarMain } from "@ui/공통/TabBar";
 import { Toast } from "@ui/공통/Toast";
-import { avatarColor, avatarEmoji } from "@ui/공통/avatarColor";
 import { usePwaInstall } from "@ui/공통/pwaInstall";
 import { useSession } from "@ui/공통/session";
 import { authErrorMessage, logout } from "@ui/로그인/authApi";
@@ -122,6 +122,8 @@ export function MyPageScreen() {
   }, []);
 
   const handleSave = async (edit: ProfileEdit) => {
+    if (isSaving) return;
+
     setIsSaving(true);
     setSaveError(null);
     try {
@@ -339,14 +341,12 @@ function Hero({
         </button>
       </div>
 
-      <span
-        role="img"
-        aria-label={profile.nickname}
-        className="mt-1 flex h-24 w-24 items-center justify-center rounded-full text-5xl ring-4 ring-white/35"
-        style={{ backgroundColor: avatarColor(profile.userId) }}
-      >
-        {avatarEmoji(profile.userId)}
-      </span>
+      <Avatar
+        name={profile.nickname}
+        userId={profile.userId}
+        size="2xl"
+        className="mt-1 ring-4 ring-white/35"
+      />
 
       <p className="mt-3 text-2xl font-extrabold">{profile.nickname}</p>
 

@@ -1,7 +1,7 @@
 import { User, X } from "lucide-react";
 import { avatarColor, avatarEmoji } from "./avatarColor";
 
-type AvatarSize = "sm" | "md" | "lg" | "xl";
+type AvatarSize = "sm" | "md" | "lg" | "xl" | "2xl";
 
 interface AvatarProps {
   name: string;
@@ -17,6 +17,8 @@ interface AvatarProps {
   userId?: number;
   /** 오른쪽 아래에 붙는 작은 표시. 매칭된 상대에게 하트를 단다. */
   badge?: string;
+  /** 화면마다 다른 링 색·여백처럼, 한 곳에 넣기 애매한 여분의 클래스. */
+  className?: string;
 }
 
 const sizeClasses: Record<AvatarSize, string> = {
@@ -24,6 +26,7 @@ const sizeClasses: Record<AvatarSize, string> = {
   md: "h-10 w-10 text-sm",
   lg: "h-12 w-12 text-base",
   xl: "h-16 w-16 text-lg",
+  "2xl": "h-24 w-24 text-5xl",
 };
 
 const personIconSizeClasses: Record<AvatarSize, string> = {
@@ -31,6 +34,7 @@ const personIconSizeClasses: Record<AvatarSize, string> = {
   md: "h-5.5 w-5.5",
   lg: "h-6.5 w-6.5",
   xl: "h-9 w-9",
+  "2xl": "h-12 w-12",
 };
 
 const emojiSizeClasses: Record<AvatarSize, string> = {
@@ -38,6 +42,7 @@ const emojiSizeClasses: Record<AvatarSize, string> = {
   md: "text-xl",
   lg: "text-2xl",
   xl: "text-4xl",
+  "2xl": "text-5xl",
 };
 
 const dotSizeClasses: Record<AvatarSize, string> = {
@@ -45,6 +50,7 @@ const dotSizeClasses: Record<AvatarSize, string> = {
   md: "h-2.5 w-2.5",
   lg: "h-3 w-3",
   xl: "h-3.5 w-3.5",
+  "2xl": "h-4.5 w-4.5",
 };
 
 const badgeSizeClasses: Record<AvatarSize, string> = {
@@ -52,6 +58,7 @@ const badgeSizeClasses: Record<AvatarSize, string> = {
   md: "h-4 w-4",
   lg: "h-4.5 w-4.5",
   xl: "h-5 w-5",
+  "2xl": "h-6 w-6",
 };
 
 const badgeIconSizeClasses: Record<AvatarSize, string> = {
@@ -59,6 +66,7 @@ const badgeIconSizeClasses: Record<AvatarSize, string> = {
   md: "h-2.5 w-2.5",
   lg: "h-3 w-3",
   xl: "h-3.5 w-3.5",
+  "2xl": "h-4 w-4",
 };
 
 export function Avatar({
@@ -70,6 +78,7 @@ export function Avatar({
   emoji,
   userId,
   badge,
+  className,
 }: AvatarProps) {
   const face = emoji ?? (userId === undefined ? undefined : avatarEmoji(userId));
   const background =
@@ -80,7 +89,7 @@ export function Avatar({
       <span
         role="img"
         aria-label={name}
-        className={`flex items-center justify-center rounded-full font-semibold text-(--color-text-on-primary) ${sizeClasses[size]} ${suspended ? "opacity-50" : ""}`}
+        className={`flex items-center justify-center rounded-full font-semibold text-(--color-text-on-primary) ${sizeClasses[size]} ${suspended ? "opacity-50" : ""} ${className ?? ""}`}
         style={{ backgroundColor: background }}
       >
         {face ? (
