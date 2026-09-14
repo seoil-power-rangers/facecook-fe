@@ -9,7 +9,7 @@ import {
 } from "@ui/프로필작성/profileApi";
 
 const ONBOARDING_START_PATH = "/onboarding/basic";
-const SIGNED_OUT_PATH = "/";
+const LOGIN_PATH = "/login";
 
 type Status = "checking" | "ready" | "redirecting";
 
@@ -42,10 +42,15 @@ export function RequireProfile({ children }: { children: React.ReactNode }) {
          * 로그인이 풀렸으면 화면을 그리면 안 된다. 로그아웃한 뒤 뒤로가기로
          * 돌아오면 세션이 없는 채로 껍데기만 그려져서, 남의 폰에 이전
          * 사용자의 화면이 남는 것처럼 보인다.
+         *
+         * 실제 리다이렉트(+정지 사유 안내)는 profileApi의 fetch 래퍼가
+         * 이미 처리했다 — 화면에 머무는 중에 걸린 요청도 똑같이 잡아야
+         * 해서 여기(최초 마운트 시점)에서만 하지 않는다. 여기서는 그
+         * 리다이렉트가 나가는 동안 화면이 잠깐이라도 그려지지 않게만 한다.
          */
         if (isSignedOut(error)) {
           setStatus("redirecting");
-          router.replace(SIGNED_OUT_PATH);
+          router.replace(LOGIN_PATH);
           return;
         }
         // 네트워크가 잠깐 끊긴 경우까지 쫓아내지는 않는다. 각 화면이 알아서

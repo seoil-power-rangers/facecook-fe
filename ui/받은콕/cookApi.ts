@@ -1,3 +1,4 @@
+import { redirectToLoginOnSignOut } from "@ui/공통/authSession";
 import type { ProfileResponse } from "@ui/프로필작성/profileApi";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "");
@@ -121,10 +122,14 @@ async function requestCook<T>(path: string, init: RequestInit = {}): Promise<T> 
     ApiErrorResponse;
 
   if (!response.ok) {
-    throw new CookApiError(
-      payload.code ?? "UNKNOWN",
-      payload.message ?? "요청을 처리하지 못했습니다.",
-    );
+    const code = payload.code ?? "UNKNOWN";
+    const message = payload.message ?? "요청을 처리하지 못했습니다.";
+    // profileApi와 같은 원칙: 이 화면의 요청이 401로 끊긴 것도 여기서
+    // 바로 로그인 화면으로 보낸다(콕 조회·전송은 세션이 없으면 의미가 없다).
+    if (response.status === 401 || code === "UNAUTHORIZED") {
+      redirectToLoginOnSignOut(message);
+    }
+    throw new CookApiError(code, message);
   }
 
   return payload;

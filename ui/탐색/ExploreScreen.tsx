@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Check, ChevronLeft, SlidersHorizontal } from "lucide-react";
@@ -65,15 +65,10 @@ export function ExploreScreen() {
       setIsLoading(true);
       setError(null);
       try {
-        const [profiles, mine, cooks] = await Promise.all([
-          getProfiles(),
-          getMyProfile(),
-          getCooks(),
-        ]);
+        const [profiles, mine] = await Promise.all([getProfiles(), getMyProfile()]);
         if (!active) return;
         setMembers(profiles);
         setMyProfile(mine);
-        applyCookState(cooks);
       } catch (loadError) {
         if (active) setError(profileErrorMessage(loadError));
       } finally {
@@ -85,29 +80,54 @@ export function ExploreScreen() {
     return () => {
       active = false;
     };
+  }, []);
+
+  useEffect(() => {
+    // 콕 잔여횟수·이미 보낸 목록은 부가 정보라, 조회에 실패해도 참가자
+    // 목록까지 에러로 막지 않는다(MyPageScreen의 활동 통계와 같은 원칙).
+    let active = true;
+    getCooks()
+      .then((cooks) => {
+        if (active) applyCookState(cooks);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
   }, [applyCookState]);
 
-  const options = buildOptions(members);
-  const filtered = shuffleForSession(members).filter((member) =>
-    matches(member, filters),
+  const options = useMemo(() => buildOptions(members), [members]);
+  const filtered = useMemo(
+    () =>
+      shuffleForSession(members, myProfile?.userId ?? 0).filter((member) =>
+        matches(member, filters),
+      ),
+    [members, filters, myProfile?.userId],
   );
   const visibleMembers = filtered.slice(0, visibleCount);
   const hasMore = filtered.length > visibleMembers.length;
-  const activeCount = members.filter(isActiveNow).length;
-  const knowsActivity = members.some((member) => member.lastActiveAt);
+  const activeCount = useMemo(() => members.filter(isActiveNow).length, [members]);
+  const knowsActivity = useMemo(
+    () => members.some((member) => member.lastActiveAt),
+    [members],
+  );
 
   const handleKokConfirm = async () => {
     if (!kokTarget) return;
+    const target = kokTarget;
     setIsSendingKok(true);
     try {
-      const result = await sendCook(kokTarget.userId);
+      const result = await sendCook(target.userId);
       setKokTarget(null);
       if (result.matched && result.matchId !== null) {
         router.push(`/match/${result.matchId}/matched`);
         return;
       }
+      // 재조회 없이 즉시 반영한다 — 재조회가 실패하면 성공 토스트가 실패
+      // 메시지로 덮어써지고, 그 사이 같은 상대에게 중복 전송도 가능해진다.
+      setSentUserIds((prev) => new Set(prev).add(target.userId));
+      setKokRemaining((prev) => Math.max(prev - 1, 0));
       setToastMessage("콕을 보냈어요. 상대의 콕을 기다려주세요.");
-      applyCookState(await getCooks());
     } catch (sendError) {
       setToastMessage(cookErrorMessage(sendError));
     } finally {
@@ -322,12 +342,12 @@ const SEED_KEY = "facecook:explore:seed";
  * 다만 매번 새로 섞으면 아까 본 사람을 다시 못 찾는다. 그래서 앱을 열 때
  * 뽑은 씨앗을 세션에 저장해 두고, 그 세션 동안에는 순서가 고정되게 한다.
  */
-function shuffleForSession(members: ProfileResponse[]) {
-  const seed = sessionSeed();
+function shuffleForSession(members: ProfileResponse[], fallbackSeed: number) {
+  const seed = sessionSeed(fallbackSeed);
   return [...members].sort((a, b) => mix(a.userId, seed) - mix(b.userId, seed));
 }
 
-function sessionSeed() {
+function sessionSeed(fallbackSeed: number) {
   try {
     const saved = sessionStorage.getItem(SEED_KEY);
     if (saved) return Number(saved);
@@ -335,8 +355,11 @@ function sessionSeed() {
     sessionStorage.setItem(SEED_KEY, String(seed));
     return seed;
   } catch {
-    // 저장이 막히면 순서가 매번 달라진다. 목록이 보이는 게 우선이다.
-    return 1;
+    // 저장이 막히면(시크릿 모드, iOS 저장공간 정리 등) 세션 내내 순서를
+    // 고정할 수는 없다. 다만 모두에게 똑같은 값을 쓰면 그 사람들 사이에서
+    // 다시 "앞줄만 콕을 받는" 쏠림이 재발하므로, 최소한 사람마다는 다른
+    // 값이 되도록 보는 사람 자신의 userId를 대신 쓴다.
+    return fallbackSeed;
   }
 }
 

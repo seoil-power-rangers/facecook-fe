@@ -2,20 +2,19 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { AvatarPhotoPicker } from "@ui/공통/AvatarPhotoPicker";
 import { Button } from "@ui/공통/Button";
 import { ChipGroup } from "@ui/공통/ChipGroup";
 import { DepartmentPicker } from "@ui/공통/DepartmentPicker";
 import { StepHeader, Accent } from "@ui/공통/StepHeader";
 import { Textarea } from "@ui/공통/Textarea";
-import { GRADES } from "@ui/공통/constants";
+import { BIO_MAX, GRADES } from "@ui/공통/constants";
 import { useOnboarding } from "@ui/공통/onboarding";
 import {
   createProfile,
   createProfileRequestFromDraft,
   profileErrorMessage,
 } from "./profileApi";
-
-const BIO_MAX = 100;
 
 /**
  * 06 선택 (STEP 5)
@@ -27,6 +26,7 @@ export function ProfileOptionalScreen() {
   const { draft, set } = useOnboarding();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
 
   const submit = async () => {
     if (isSubmitting) return;
@@ -60,7 +60,24 @@ export function ProfileOptionalScreen() {
         }
       />
 
-      <div className="space-y-5">
+      <div className="flex flex-col items-center gap-2">
+        <AvatarPhotoPicker
+          name={draft.nickname}
+          photoUrl={draft.photoUrl || null}
+          onChange={(url) => {
+            setPhotoError(null);
+            set("photoUrl", url ?? "");
+          }}
+          onError={setPhotoError}
+        />
+        {photoError ? (
+          <p role="alert" className="text-[12px] text-(--color-danger)">
+            {photoError}
+          </p>
+        ) : null}
+      </div>
+
+      <div className="mt-5 space-y-5">
         <DepartmentPicker
           label="학과선택"
           value={draft.department}

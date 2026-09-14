@@ -5,12 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, Footprints, MousePointerClick, Send, Siren, Utensils } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { Avatar } from "@ui/공통/Avatar";
 import { BottomSheet } from "@ui/공통/BottomSheet";
 import { Button } from "@ui/공통/Button";
 import { KokConfirmSheet } from "@ui/공통/KokConfirmSheet";
 import { PhoneFrame } from "@ui/공통/PhoneFrame";
 import { Tag } from "@ui/공통/Tag";
-import { avatarColor, avatarEmoji } from "@ui/공통/avatarColor";
 import { Toast } from "@ui/공통/Toast";
 import {
   getMyProfile,
@@ -148,14 +148,12 @@ export function ProfileDetailScreen({ userId }: { userId: string }) {
         </div>
 
         <div className="-mt-12 flex flex-col items-center gap-2">
-          <span
-            role="img"
-            aria-label={profile.nickname}
-            className="flex h-24 w-24 items-center justify-center rounded-full text-5xl ring-4 ring-(--color-surface)"
-            style={{ backgroundColor: avatarColor(profile.userId) }}
-          >
-            {avatarEmoji(profile.userId)}
-          </span>
+          <Avatar
+            name={profile.nickname}
+            userId={profile.userId}
+            size="2xl"
+            className="ring-4 ring-(--color-surface)"
+          />
           {commonCount > 0 ? <Tag variant="accent">공통 관심사 {commonCount}개</Tag> : null}
         </div>
 

@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { GRADES } from "@ui/공통/constants";
+import { AvatarPhotoPicker } from "@ui/공통/AvatarPhotoPicker";
+import { ChipGroup } from "@ui/공통/ChipGroup";
+import { BIO_MAX, GRADES } from "@ui/공통/constants";
 import { DepartmentPicker } from "@ui/공통/DepartmentPicker";
 import type { ProfileResponse } from "@ui/프로필작성/profileApi";
 
@@ -9,6 +11,8 @@ export interface ProfileEdit {
   department: string;
   grade: string;
   bio: string;
+  /** 빈 문자열이면 기본 아바타로 되돌린다. */
+  photo: string;
 }
 
 /**
@@ -34,6 +38,8 @@ export function ProfileEditSheet({
   const [department, setDepartment] = useState(profile.department ?? "");
   const [grade, setGrade] = useState(profile.grade ?? "");
   const [bio, setBio] = useState(profile.bio ?? "");
+  const [photo, setPhoto] = useState(profile.photo ?? "");
+  const [photoError, setPhotoError] = useState<string | null>(null);
 
   return (
     <div className="flex max-h-[75vh] flex-col">
@@ -45,36 +51,31 @@ export function ProfileEditSheet({
       </div>
 
       <div className="flex flex-1 flex-col gap-5 overflow-y-auto px-5 pb-4">
+        <div className="flex flex-col items-center gap-2">
+          <AvatarPhotoPicker
+            name={profile.nickname}
+            userId={profile.userId}
+            photoUrl={photo || null}
+            onChange={(url) => {
+              setPhotoError(null);
+              setPhoto(url ?? "");
+            }}
+            onError={setPhotoError}
+          />
+          {photoError ? (
+            <p role="alert" className="text-[12px] text-(--color-danger)">
+              {photoError}
+            </p>
+          ) : null}
+        </div>
+
         {/*
           자유 입력이면 "컴공"·"컴퓨터 공학과"처럼 표기가 갈려서 탐색 화면의
           학과 필터가 문자열 비교에서 못 걸러낸다. 온보딩과 같은 선택기를 쓴다.
         */}
         <DepartmentPicker label="학과" value={department} onChange={setDepartment} />
 
-        <div className="flex flex-col gap-1.5">
-          <span className="text-xs font-bold text-(--color-text-sub)">학년</span>
-          <div className="flex gap-2">
-            {GRADES.map((option) => {
-              const active = grade === option;
-
-              return (
-                <button
-                  key={option}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => setGrade(active ? "" : option)}
-                  className={`flex-1 rounded-(--radius-lg) py-3 text-sm font-bold transition-colors ${
-                    active
-                      ? "bg-(--color-primary) text-(--color-text-on-primary)"
-                      : "bg-(--color-surface-alt) text-(--color-text-sub)"
-                  }`}
-                >
-                  {option}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        <ChipGroup label="학년" options={GRADES} value={grade} onChange={setGrade} />
 
         <label className="flex flex-col gap-1.5">
           <span className="text-xs font-bold text-(--color-text-sub)">한 마디</span>
@@ -83,12 +84,12 @@ export function ProfileEditSheet({
             value={bio}
             onChange={(event) => setBio(event.target.value)}
             rows={3}
-            maxLength={60}
+            maxLength={BIO_MAX}
             placeholder="부스에서 만나면 이렇게 인사해주세요"
             className="resize-none rounded-(--radius-lg) border border-(--color-border) bg-(--color-surface-alt) px-4 py-3 text-base leading-relaxed text-(--color-text-strong) outline-none placeholder:text-(--color-text-muted)"
           />
           <span className="self-end text-xs text-(--color-text-muted) tabular-nums">
-            {bio.length} / 60
+            {bio.length} / {BIO_MAX}
           </span>
         </label>
 
@@ -110,7 +111,7 @@ export function ProfileEditSheet({
         </button>
         <button
           type="button"
-          onClick={() => onSave({ department, grade, bio })}
+          onClick={() => onSave({ department, grade, bio, photo })}
           disabled={isSubmitting}
           className="flex-1 rounded-(--radius-lg) bg-(--color-primary) py-3.5 text-base font-bold text-(--color-text-on-primary) disabled:bg-(--color-disabled-bg) disabled:text-(--color-disabled-text)"
         >
