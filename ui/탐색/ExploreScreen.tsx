@@ -253,6 +253,7 @@ export function ExploreScreen() {
           <KokConfirmSheet
             name={kokTarget.nickname}
             userId={kokTarget.userId}
+            photoUrl={kokTarget.photo}
             onCancel={() => setKokTarget(null)}
             onConfirm={() => void handleKokConfirm()}
             isSubmitting={isSendingKok}
@@ -289,7 +290,12 @@ function MemberCard({
       />
 
       <div className="pointer-events-none relative z-10 flex flex-1 items-center gap-3 overflow-hidden">
-        <Avatar name={member.nickname} size="lg" userId={member.userId} />
+        <Avatar
+          name={member.nickname}
+          size="lg"
+          userId={member.userId}
+          photoUrl={member.photo}
+        />
 
         <div className="flex flex-1 flex-col items-start gap-1 overflow-hidden">
           <div className="flex items-center gap-1.5">

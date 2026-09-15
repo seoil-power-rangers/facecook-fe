@@ -142,7 +142,12 @@ function MatchRow({
         divided ? "border-t border-(--color-border)" : ""
       }`}
     >
-      <Avatar name={match.partner.nickname} size="lg" userId={match.partner.userId} />
+      <Avatar
+        name={match.partner.nickname}
+        size="lg"
+        userId={match.partner.userId}
+        photoUrl={match.partner.photo}
+      />
 
       <div className="flex flex-1 flex-col gap-0.5 overflow-hidden">
         <div className="flex items-center gap-1.5">
