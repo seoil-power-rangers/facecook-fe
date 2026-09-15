@@ -12,6 +12,7 @@ import { PhoneFrame } from "@ui/공통/PhoneFrame";
 import { Tag } from "@ui/공통/Tag";
 import { TabBarMain } from "@ui/공통/TabBar";
 import { Toast } from "@ui/공통/Toast";
+import { MBTI_AXES } from "@ui/공통/constants";
 import {
   cookErrorMessage,
   getCooks,
@@ -30,6 +31,7 @@ import {
   EMPTY_FILTERS,
   FilterSheet,
   type ExploreFilters,
+  type ExploreOptions,
 } from "./FilterSheet";
 
 /**
@@ -379,7 +381,7 @@ function mix(userId: number, seed: number) {
 }
 
 /** 참가자 목록에 실제로 있는 값만 선택지로 만든다. 아무도 없는 조건은 고를 수 없다. */
-function buildOptions(members: ProfileResponse[]): ExploreFilters {
+function buildOptions(members: ProfileResponse[]): ExploreOptions {
   const departments = new Set<string>();
   const mbtis = new Set<string>();
   const hobbies = new Set<string>();
@@ -405,8 +407,19 @@ function matches(member: ProfileResponse, filters: ExploreFilters) {
   ) {
     return false;
   }
-  if (filters.mbtis.length > 0 && !filters.mbtis.includes(member.mbti)) {
-    return false;
+  /*
+   * MBTI는 글자 단위로 고른다. 시트가 한 축에 하나만 고르게 막지만, 여기서는
+   * 축 안에서 여러 개가 와도 하나만 맞으면 통과하게 둔다 — 예전 조건이 남아
+   * 들어와도 결과가 0명으로 꺼지지 않는다. 축끼리는 모두 맞아야 한다.
+   */
+  if (filters.mbtiLetters.length > 0) {
+    const fits = MBTI_AXES.every((axis, index) => {
+      const wanted = filters.mbtiLetters.filter(
+        (letter) => letter === axis.top.code || letter === axis.bottom.code,
+      );
+      return wanted.length === 0 || wanted.includes(member.mbti?.[index] ?? "");
+    });
+    if (!fits) return false;
   }
   if (filters.hobbies.length > 0) {
     const own = splitHobby(member);
