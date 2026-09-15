@@ -1,3 +1,5 @@
+import { clearSession } from "./session";
+
 const NOTICE_KEY = "facecook:authNotice";
 
 /**
@@ -17,6 +19,8 @@ export function redirectToLoginOnSignOut(message?: string) {
   } catch {
     // 저장이 막혀도 리다이렉트 자체는 진행한다.
   }
+  // 로그인 화면이 남은 이름표를 보고 다시 안으로 들여보내지 않도록 같이 지운다.
+  clearSession();
   if (window.location.pathname !== "/login") {
     window.location.assign("/login");
   }

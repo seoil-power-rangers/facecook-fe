@@ -24,10 +24,35 @@ type LoginTab = "participant" | "admin";
  * 참가자" 를 고르고 들어가야 한다.
  */
 export function LoginScreen() {
+  const router = useRouter();
+  const { session } = useSession();
   const [tab, setTab] = useState<LoginTab>("participant");
   const isAdmin = tab === "admin";
   const [authNotice, setAuthNotice] = useState<string | null>(null);
   const noticeConsumed = useRef(false);
+
+  /*
+   * 이미 로그인한 사람은 로그인 화면을 볼 이유가 없다.
+   *
+   * 인증은 서버가 준 HttpOnly 쿠키가 하고 그 쿠키는 7일 살아 있는데, 앱을
+   * 껐다 켜면 여기서 무조건 로그인 화면을 띄우고 있었다. 쿠키를 JS로는 읽을
+   * 수 없으니, 로그인할 때 남겨둔 이름표를 보고 판단한다.
+   *
+   * 이름표가 낡아서(쿠키가 먼저 만료) 잘못 들여보내도 괜찮다 — 들어간
+   * 화면의 RequireProfile이 서버에 확인하고 다시 내보낸다. 그 드문 경우
+   * 때문에 매번 서버 응답을 기다리며 빈 화면을 띄우지는 않는다.
+   */
+  const isReturning = session.role !== "guest";
+
+  useEffect(() => {
+    if (session.role === "admin") {
+      router.replace("/admin/dashboard");
+      return;
+    }
+    if (session.role === "participant") {
+      router.replace("/main");
+    }
+  }, [session.role, router]);
 
   useEffect(() => {
     // 세션 만료·정지로 튕겨져 온 경우, 그 사유를 한 번만 보여준다.
@@ -40,6 +65,10 @@ export function LoginScreen() {
     noticeConsumed.current = true;
     setAuthNotice(takeAuthNotice());
   }, []);
+
+  if (isReturning) {
+    return null;
+  }
 
   return (
     <PhoneFrame>
