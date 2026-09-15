@@ -20,10 +20,15 @@
   --color-surface: #FFFFFF;
   --color-surface-alt: #F9FAFB;
 
-  /* 퍼플 헤더 (프로필 상세, 매칭됐어요, 온보딩 히어로) */
-  --color-hero-bg: #4F46E5;
+  /* 온보딩 히어로 헤더. 마이페이지 히어로와 같은 보라 그라데이션을 쓴다.
+     이 배경 위에서 본문 크기 AA(4.5:1)를 넘기는 건 사실상 흰색뿐이라
+     (연보라 #C7CBF7은 3.1:1), 강조와 본문은 색이 아니라 밝기로 가른다 —
+     강조가 순백, 제목 본문이 85%다. 흰 배경과 반대 방향인 셈이다. */
+  --color-hero-from: #6B5CE7;
+  --color-hero-to: #4F46E5;
   --color-hero-text: #FFFFFF;
-  --color-hero-text-sub: #C7CBF7;
+  /* 본문 경고색(#F59E0B)은 보라 위에서 2.9:1까지 떨어져 훨씬 옅게 쓴다. */
+  --color-hero-warning: #FEF9C3;
 
   /* ===== Border ===== */
   --color-border: #E5E7EB;
@@ -51,7 +56,7 @@
 
   /* 매칭 축하 화면의 배경. 콕(산호)에서 시작해 따뜻한 주황으로 넘어간다 —
      콕 → 맞콕 → 매칭으로 이어지는 흐름의 끝이라 같은 계열로 둔다.
-     온보딩·프로필 히어로는 보라(--color-hero-bg) 그대로다. */
+     온보딩 히어로는 보라(--color-hero-from/to) 그대로다. */
   --color-celebrate-from: #F0887B;
   --color-celebrate-to: #F0A56E;
 

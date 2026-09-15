@@ -1,6 +1,6 @@
 import { PROGRESS_SLOTS } from "./constants";
 
-/** 온보딩 상단 진행바. STEP 번호만큼 채워진다. */
+/** 온보딩 히어로 헤더 안의 진행바. STEP 번호만큼 흰색으로 채워진다. */
 export function ProgressBar({ step }: { step: number }) {
   return (
     <div
@@ -14,7 +14,7 @@ export function ProgressBar({ step }: { step: number }) {
         <span
           key={i}
           className={`h-1 flex-1 rounded-(--radius-full) ${
-            i < step ? "bg-(--color-primary)" : "bg-(--color-border)"
+            i < step ? "bg-(--color-hero-text)" : "bg-white/40"
           }`}
         />
       ))}

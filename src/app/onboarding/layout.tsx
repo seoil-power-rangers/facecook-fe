@@ -2,19 +2,17 @@
 
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { ChevronLeft } from "lucide-react";
 import { PhoneFrame } from "@ui/공통/PhoneFrame";
-import { ProgressBar } from "@ui/공통/ProgressBar";
 import { getMyProfile } from "@ui/프로필작성/profileApi";
 
-/** 주소 → 시안의 STEP 번호. 약관을 02 인증에 합쳐 5단계다. */
-const STEPS: Record<string, number> = {
-  "/onboarding/email": 1,
-  "/onboarding/basic": 2,
-  "/onboarding/mbti": 3,
-  "/onboarding/hobby": 4,
-  "/onboarding/optional": 5,
-};
+/** 진행바·뒤로가기가 붙는 입력 단계. 07 완료 화면은 여기 없다. */
+const STEP_ROUTES = new Set([
+  "/onboarding/email",
+  "/onboarding/basic",
+  "/onboarding/mbti",
+  "/onboarding/hobby",
+  "/onboarding/optional",
+]);
 
 /**
  * 02(이메일 인증) 이후 단계는 계정은 있고 프로필만 없는 상태를 전제로
@@ -35,7 +33,6 @@ export default function OnboardingLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const step = STEPS[pathname];
 
   useEffect(() => {
     if (!STEPS_AFTER_SIGNUP.has(pathname)) return;
@@ -55,26 +52,19 @@ export default function OnboardingLayout({
     };
   }, [pathname, router]);
 
-  // 07 완료 화면은 단계에 없다 — 진행바도 뒤로가기도 두지 않는다.
-  if (step === undefined) {
+  // 07 완료 화면은 단계에 없다 — 자기 레이아웃을 직접 잡으므로 여백도 주지 않는다.
+  if (!STEP_ROUTES.has(pathname)) {
     return <PhoneFrame>{children}</PhoneFrame>;
   }
 
+  /*
+   * 가로 여백은 여기서 한 번만 준다. 화면 끝까지 깔리는 히어로 헤더
+   * (StepHeader)만 이 여백을 -mx-5로 뚫고 나간다.
+   */
   return (
     <PhoneFrame>
-      <div className="flex flex-1 flex-col overflow-y-auto px-5 pb-8 pt-4">
-        <button
-          type="button"
-          onClick={() => router.back()}
-          aria-label="뒤로"
-          className="-ml-1 mb-4 text-(--color-text-strong)"
-        >
-          <ChevronLeft className="h-6 w-6" />
-        </button>
-
-        <ProgressBar step={step} />
-
-        <div className="mt-7 flex flex-1 flex-col">{children}</div>
+      <div className="flex flex-1 flex-col overflow-y-auto px-5 pb-8">
+        {children}
       </div>
     </PhoneFrame>
   );

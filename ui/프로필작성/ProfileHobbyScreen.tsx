@@ -35,7 +35,7 @@ export function ProfileHobbyScreen() {
         note={
           <>
             하고 싶은 활동(
-            <span className="text-(--color-warning)">
+            <span className="font-bold text-(--color-warning)">
               {ACTIVITY_MIN}개 이상
             </span>
             )과 만나고 싶은 사람을 알려주세요

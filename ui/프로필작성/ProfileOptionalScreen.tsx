@@ -54,7 +54,7 @@ export function ProfileOptionalScreen() {
         }
         note={
           <>
-            <span className="text-(--color-warning)">전부 선택</span>이에요.
+            <span className="font-bold text-(--color-warning)">전부 선택</span>이에요.
             나중에 마이페이지에서도 채울 수 있어요.
           </>
         }
