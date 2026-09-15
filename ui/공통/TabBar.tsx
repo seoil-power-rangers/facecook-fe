@@ -54,19 +54,24 @@ export function TabBar() {
     // 배터리·데이터 낭비다.
     const refresh = () => {
       if (document.visibilityState !== "visible") return;
-      Promise.all([getCooks(), getMatches()])
-        .then(([cooks, matches]) => {
+      // 둘을 따로 받는다. 묶으면 한쪽이 실패할 때 멀쩡한 다른 배지까지 사라진다.
+      getCooks()
+        .then((cooks) => {
           if (!active) return;
           setPendingReceivedCount(
             cooks.received.filter((cook) => cook.status === "pending").length,
           );
+        })
+        .catch(() => undefined);
+
+      getMatches()
+        .then((matches) => {
+          if (!active) return;
           setUnreadMessageCount(
             matches.reduce((sum, match) => sum + (match.unreadCount ?? 0), 0),
           );
         })
-        .catch(() => {
-          // 배지는 부가 정보라 조회 실패 시 그냥 숨긴다.
-        });
+        .catch(() => undefined);
     };
 
     refresh();

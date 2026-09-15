@@ -427,7 +427,14 @@ function ReceivedKokPanel({
 
       {expired.length > 0 ? (
         <section className="flex flex-col gap-3">
-          <h2 className="text-[15px] font-bold text-(--color-text-muted)">놓친 콕</h2>
+          {/* 홈·마이페이지의 "받은 콕"은 만료된 것까지 센다. 여기서 나뉜 두 숫자를
+              더하면 그 값이 되도록 이쪽에도 개수를 적는다. */}
+          <div className="flex items-baseline justify-between">
+            <h2 className="text-[15px] font-bold text-(--color-text-muted)">놓친 콕</h2>
+            <span className="text-sm font-bold text-(--color-text-muted) tabular-nums">
+              {expired.length}명
+            </span>
+          </div>
           {expired.map((cook) => (
             <KokCard
               key={cook.cookId}
