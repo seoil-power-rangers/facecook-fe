@@ -520,13 +520,20 @@ function ChatComposer({
   onChange: (value: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
   return (
     <form
-      onSubmit={onSubmit}
+      onSubmit={(event) => {
+        onSubmit(event);
+        // 보내고 나서도 계속 쓸 수 있게 입력칸에 포커스를 돌려놓는다.
+        inputRef.current?.focus();
+      }}
       className="flex shrink-0 items-center gap-2 border-t border-(--color-border) bg-(--color-surface) p-3"
     >
       {/* 16px 미만으로 줄이지 말 것 — iOS가 포커스 시 화면을 확대한다. */}
       <input
+        ref={inputRef}
         type="text"
         value={value}
         maxLength={1000}
@@ -538,6 +545,14 @@ function ChatComposer({
       <button
         type="submit"
         disabled={!connected || value.trim().length === 0}
+        /*
+         * 버튼을 누를 때 포커스가 입력칸에서 빠져나가지 않게 막는다. 빠져나가면
+         * 자판이 내려가서, 한 줄 보낼 때마다 입력칸을 다시 눌러야 한다.
+         *
+         * 게다가 전송 직후 입력칸이 비어 이 버튼이 곧바로 disabled가 되는데,
+         * 포커스를 가진 요소가 비활성화되면 포커스가 아예 사라진다.
+         */
+        onMouseDown={(event) => event.preventDefault()}
         aria-label="메시지 전송"
         className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-(--color-accent) text-(--color-text-on-primary) disabled:bg-(--color-disabled-bg) disabled:text-(--color-disabled-text)"
       >

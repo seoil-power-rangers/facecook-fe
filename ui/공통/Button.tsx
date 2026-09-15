@@ -1,7 +1,7 @@
 import type { ButtonHTMLAttributes } from "react";
 import { cn } from "./cn";
 
-type ButtonVariant = "primary" | "secondary" | "outline" | "ghost";
+type ButtonVariant = "primary" | "accent" | "secondary" | "outline" | "ghost";
 type ButtonSize = "lg" | "md" | "sm";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -13,6 +13,9 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
     "bg-(--color-primary) text-(--color-text-on-primary) hover:bg-(--color-primary-hover) active:bg-(--color-primary-pressed) disabled:bg-(--color-disabled-bg) disabled:text-(--color-disabled-text)",
+  // 콕을 실제로 보내는 버튼. 콕 관련 동작은 산호색으로 통일한다.
+  accent:
+    "bg-(--color-accent) text-(--color-text-on-primary) hover:bg-(--color-accent-hover) active:bg-(--color-accent-pressed) disabled:bg-(--color-disabled-bg) disabled:text-(--color-disabled-text)",
   secondary:
     "border border-(--color-border) bg-(--color-surface) text-(--color-text-strong) active:bg-(--color-surface-alt) disabled:border-(--color-disabled-border) disabled:text-(--color-disabled-text)",
   outline:

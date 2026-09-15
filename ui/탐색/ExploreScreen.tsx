@@ -12,6 +12,7 @@ import { PhoneFrame } from "@ui/공통/PhoneFrame";
 import { Tag } from "@ui/공통/Tag";
 import { TabBarMain } from "@ui/공통/TabBar";
 import { Toast } from "@ui/공통/Toast";
+import { MBTI_AXES } from "@ui/공통/constants";
 import {
   cookErrorMessage,
   getCooks,
@@ -19,10 +20,12 @@ import {
   type CookListResponse,
 } from "@ui/받은콕/cookApi";
 import {
+  getDepartments,
   getMyProfile,
   getProfiles,
   isActiveNow,
   profileErrorMessage,
+  type DepartmentGroup,
   type ProfileResponse,
 } from "@ui/프로필작성/profileApi";
 import {
@@ -30,6 +33,7 @@ import {
   EMPTY_FILTERS,
   FilterSheet,
   type ExploreFilters,
+  type ExploreOptions,
 } from "./FilterSheet";
 
 /**
@@ -50,11 +54,14 @@ export function ExploreScreen() {
   const [error, setError] = useState<string | null>(null);
   const [isSendingKok, setIsSendingKok] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [kokRemaining, setKokRemaining] = useState(0);
+  const [kokRemaining, setKokRemaining] = useState<number | null>(null);
+  const [kokLimit, setKokLimit] = useState<number | null>(null);
+  const [departmentGroups, setDepartmentGroups] = useState<DepartmentGroup[] | null>(null);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   const applyCookState = useCallback((cooks: CookListResponse) => {
     setKokRemaining(Math.max(cooks.usage.dailyLimit - cooks.usage.todayUsed, 0));
+    setKokLimit(cooks.usage.dailyLimit);
     setSentUserIds(new Set(cooks.sent.map((cook) => cook.userId)));
   }, []);
 
@@ -75,6 +82,14 @@ export function ExploreScreen() {
         if (active) setIsLoading(false);
       }
     };
+
+    // 학부 묶음은 필터 시트에서만 쓴다. 실패해도 목록은 그대로 보여준다 —
+    // 시트가 묶지 않고 한 덩어리로 떨어뜨린다.
+    getDepartments()
+      .then((groups) => {
+        if (active) setDepartmentGroups(groups);
+      })
+      .catch(() => undefined);
 
     void load();
     return () => {
@@ -126,7 +141,7 @@ export function ExploreScreen() {
       // 재조회 없이 즉시 반영한다 — 재조회가 실패하면 성공 토스트가 실패
       // 메시지로 덮어써지고, 그 사이 같은 상대에게 중복 전송도 가능해진다.
       setSentUserIds((prev) => new Set(prev).add(target.userId));
-      setKokRemaining((prev) => Math.max(prev - 1, 0));
+      setKokRemaining((prev) => (prev === null ? null : Math.max(prev - 1, 0)));
       setToastMessage("콕을 보냈어요. 상대의 콕을 기다려주세요.");
     } catch (sendError) {
       setToastMessage(cookErrorMessage(sendError));
@@ -146,9 +161,12 @@ export function ExploreScreen() {
           <ChevronLeft className="h-5 w-5" />
         </Link>
         <h1 className="flex-1 text-lg font-bold text-(--color-text-strong)">탐색</h1>
-        <span className="text-xs font-semibold text-(--color-accent)">
-          콕 {kokRemaining}개 남음
-        </span>
+        {/* 아직 못 불러왔으면 "콕 개 남음"이 되므로 자리만 비워둔다. */}
+        {kokRemaining === null ? null : (
+          <span className="text-xs font-semibold text-(--color-accent)">
+            콕 {kokRemaining}개 남음
+          </span>
+        )}
       </header>
 
       <TabBarMain className="gap-3 px-4 pb-4">
@@ -239,6 +257,7 @@ export function ExploreScreen() {
         <FilterSheet
           filters={filters}
           options={options}
+          departmentGroups={departmentGroups}
           onApply={(next) => {
             setFilters(next);
             setVisibleCount(PAGE_SIZE);
@@ -253,6 +272,8 @@ export function ExploreScreen() {
           <KokConfirmSheet
             name={kokTarget.nickname}
             userId={kokTarget.userId}
+            remaining={kokRemaining}
+            dailyLimit={kokLimit}
             photoUrl={kokTarget.photo}
             onCancel={() => setKokTarget(null)}
             onConfirm={() => void handleKokConfirm()}
@@ -378,7 +399,7 @@ function mix(userId: number, seed: number) {
 }
 
 /** 참가자 목록에 실제로 있는 값만 선택지로 만든다. 아무도 없는 조건은 고를 수 없다. */
-function buildOptions(members: ProfileResponse[]): ExploreFilters {
+function buildOptions(members: ProfileResponse[]): ExploreOptions {
   const departments = new Set<string>();
   const mbtis = new Set<string>();
   const hobbies = new Set<string>();
@@ -404,8 +425,19 @@ function matches(member: ProfileResponse, filters: ExploreFilters) {
   ) {
     return false;
   }
-  if (filters.mbtis.length > 0 && !filters.mbtis.includes(member.mbti)) {
-    return false;
+  /*
+   * MBTI는 글자 단위로 고른다. 시트가 한 축에 하나만 고르게 막지만, 여기서는
+   * 축 안에서 여러 개가 와도 하나만 맞으면 통과하게 둔다 — 예전 조건이 남아
+   * 들어와도 결과가 0명으로 꺼지지 않는다. 축끼리는 모두 맞아야 한다.
+   */
+  if (filters.mbtiLetters.length > 0) {
+    const fits = MBTI_AXES.every((axis, index) => {
+      const wanted = filters.mbtiLetters.filter(
+        (letter) => letter === axis.top.code || letter === axis.bottom.code,
+      );
+      return wanted.length === 0 || wanted.includes(member.mbti?.[index] ?? "");
+    });
+    if (!fits) return false;
   }
   if (filters.hobbies.length > 0) {
     const own = splitHobby(member);

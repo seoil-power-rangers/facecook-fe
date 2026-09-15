@@ -28,27 +28,39 @@ export function MainScreen() {
   const [totalUsers, setTotalUsers] = useState(0);
   const [todayUsed, setTodayUsed] = useState(0);
   const [dailyLimit, setDailyLimit] = useState(0);
-  const [pendingKokCount, setPendingKokCount] = useState(0);
+  const [receivedKokCount, setReceivedKokCount] = useState(0);
   const [matchCount, setMatchCount] = useState(0);
   const [unseenCount, setUnseenCount] = useState(0);
 
   useEffect(() => {
     let active = true;
 
-    Promise.all([getProfiles(), getCooks(), getMatches()])
-      .then(([profiles, cooks, matches]) => {
+    /*
+     * 셋을 따로 받는다. Promise.all로 묶으면 하나만 실패해도 나머지 둘까지
+     * 버려져서, 콕은 멀쩡히 왔는데 화면에는 "없음"이 뜬다 — 데이터가 없는
+     * 건지 조회가 실패한 건지 구분할 수 없게 된다.
+     */
+    getProfiles()
+      .then((profiles) => {
+        if (active) setTotalUsers(profiles.length);
+      })
+      .catch(() => undefined);
+
+    getCooks()
+      .then((cooks) => {
         if (!active) return;
-        setTotalUsers(profiles.length);
         setTodayUsed(cooks.usage.todayUsed);
         setDailyLimit(cooks.usage.dailyLimit);
-        setPendingKokCount(
-          cooks.received.filter((cook) => cook.status === "pending").length,
-        );
-        setMatchCount(matches.length);
+        // 만료된 것도 받은 건 받은 거라 같이 센다. 마이페이지 숫자와 같은 기준이다.
+        setReceivedKokCount(cooks.received.length);
       })
-      .catch(() => {
-        // 홈은 숫자를 보여주는 화면이라, 조회에 실패해도 이동 카드는 살려둔다.
-      });
+      .catch(() => undefined);
+
+    getMatches()
+      .then((matches) => {
+        if (active) setMatchCount(matches.length);
+      })
+      .catch(() => undefined);
 
     return () => {
       active = false;
@@ -110,7 +122,7 @@ export function MainScreen() {
             <TileLink
               href="/kok"
               label="받은 콕"
-              badge={pendingKokCount > 0 ? `${pendingKokCount}개` : null}
+              badge={receivedKokCount > 0 ? `${receivedKokCount}명` : null}
               className="bg-(--color-home-kok-bg)"
               labelClassName="text-(--color-home-kok-text)"
               badgeClassName="bg-(--color-home-kok-badge)"
