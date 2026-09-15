@@ -133,6 +133,16 @@ export function getProfile(userId: number) {
   return requestProfile<ProfileResponse>(`/api/profiles/${userId}`);
 }
 
+export interface DepartmentGroup {
+  college: string;
+  majors: string[];
+}
+
+/** 학과 목록의 정본은 백엔드다 — FE는 하드코딩하지 않고 매번 받아온다. */
+export function getDepartments() {
+  return requestProfile<DepartmentGroup[]>("/api/departments");
+}
+
 interface PhotoUploadUrlResponse {
   uploadUrl: string;
   photoUrl: string;
