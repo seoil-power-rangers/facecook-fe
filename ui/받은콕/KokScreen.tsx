@@ -303,7 +303,12 @@ function CancelKokSheet({
 }) {
   return (
     <div className="flex flex-col items-center gap-4 px-6 pt-2">
-      <Avatar name={cook.profile.nickname} size="xl" userId={cook.userId} />
+      <Avatar
+        name={cook.profile.nickname}
+        size="xl"
+        userId={cook.userId}
+        photoUrl={cook.profile.photo}
+      />
 
       <div className="flex flex-col items-center gap-1 text-center">
         <p className="text-xl font-bold text-(--color-text-strong)">
@@ -484,6 +489,7 @@ function KokCard({
           size="lg"
           userId={cook.userId}
           badge={matched ? "💕" : undefined}
+          photoUrl={cook.profile.photo}
         />
 
         <div className="flex flex-1 flex-col gap-0.5 overflow-hidden">

@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
-import { COLLEGES, MBTI_AXES } from "@ui/공통/constants";
+import { MBTI_AXES } from "@ui/공통/constants";
+import type { DepartmentGroup } from "@ui/프로필작성/profileApi";
 
 export interface ExploreFilters {
   departments: string[];
@@ -32,6 +33,8 @@ interface FilterSheetProps {
   filters: ExploreFilters;
   /** 아무도 없는 조건은 고를 수 없게 한다. */
   options: ExploreOptions;
+  /** 학부→학과 묶음(GET /api/departments). 아직 못 받았으면 null. */
+  departmentGroups: DepartmentGroup[] | null;
   onApply: (next: ExploreFilters) => void;
   onClose: () => void;
 }
@@ -53,7 +56,13 @@ const SECTIONS: { key: FlatKey; label: string }[] = [{ key: "hobbies", label: "�
  * 실시간으로 줄어들면 무엇 때문에 줄었는지 알기 어렵고, 조건 서너 개를
  * 고르는 동안 화면이 계속 흔들린다.
  */
-export function FilterSheet({ filters, options, onApply, onClose }: FilterSheetProps) {
+export function FilterSheet({
+  filters,
+  options,
+  departmentGroups,
+  onApply,
+  onClose,
+}: FilterSheetProps) {
   const [draft, setDraft] = useState(filters);
 
   useEffect(() => {
@@ -120,6 +129,7 @@ export function FilterSheet({ filters, options, onApply, onClose }: FilterSheetP
           <section className="flex flex-col gap-3">
             <h3 className="text-sm font-bold text-(--color-text-strong)">학과</h3>
             <DepartmentFilter
+              groups={departmentGroups}
               available={options.departments}
               picked={draft.departments}
               onToggle={(value) => toggle("departments", value)}
@@ -202,16 +212,18 @@ export function FilterSheet({ filters, options, onApply, onClose }: FilterSheetP
  * 있는 줄도 모르고 지나간다.
  */
 function DepartmentFilter({
+  groups: source,
   available,
   picked,
   onToggle,
 }: {
+  groups: DepartmentGroup[] | null;
   /** 실제로 참가자가 있는 학과만. 아무도 없는 학과를 골라 "0명"을 보는 일이 없게 한다. */
   available: string[];
   picked: string[];
   onToggle: (value: string) => void;
 }) {
-  const groups = buildGroups(available);
+  const groups = buildGroups(available, source);
   const [openCollege, setOpenCollege] = useState<string | null>(
     () => groups.find((group) => group.majors.some((major) => picked.includes(major)))?.name ?? null,
   );
@@ -279,15 +291,24 @@ function DepartmentFilter({
 /**
  * 참가자가 있는 학과만 학부별로 묶는다.
  *
- * 학과 정본(COLLEGES)에 없는 값도 들어올 수 있다 — 백엔드가 학과 검증을
- * 붙이기 전에 자유 입력으로 저장된 프로필이 남아 있다. 그런 값을 버리면
- * 그 사람들은 학과로 아예 찾을 수 없게 되므로 "기타"로 모아 둔다.
+ * 학부 정본은 백엔드(GET /api/departments)다. 아직 못 받았으면 묶지 않고 한
+ * 덩어리로 내놓는다 — 목록을 못 받았다고 학과 필터를 통째로 막을 이유는 없다.
+ *
+ * 정본에 없는 학과도 들어올 수 있다. 백엔드가 학과 검증을 붙이기 전에 자유
+ * 입력으로 저장된 프로필이 남아 있는데, 버리면 그 사람들은 학과로 아예 찾을
+ * 수 없게 되므로 "기타"로 모아 둔다.
  */
-function buildGroups(available: string[]) {
-  const groups = COLLEGES.map((college) => ({
-    name: college.name,
-    majors: college.majors.filter((major) => available.includes(major)),
-  })).filter((group) => group.majors.length > 0);
+function buildGroups(available: string[], source: DepartmentGroup[] | null) {
+  if (!source) {
+    return [{ name: "전체", majors: available }];
+  }
+
+  const groups = source
+    .map((college) => ({
+      name: college.college,
+      majors: college.majors.filter((major) => available.includes(major)),
+    }))
+    .filter((group) => group.majors.length > 0);
 
   const known = new Set<string>(groups.flatMap((group) => group.majors));
   const rest = available.filter((major) => !known.has(major));

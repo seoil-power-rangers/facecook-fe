@@ -20,10 +20,12 @@ import {
   type CookListResponse,
 } from "@ui/받은콕/cookApi";
 import {
+  getDepartments,
   getMyProfile,
   getProfiles,
   isActiveNow,
   profileErrorMessage,
+  type DepartmentGroup,
   type ProfileResponse,
 } from "@ui/프로필작성/profileApi";
 import {
@@ -54,6 +56,7 @@ export function ExploreScreen() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [kokRemaining, setKokRemaining] = useState<number | null>(null);
   const [kokLimit, setKokLimit] = useState<number | null>(null);
+  const [departmentGroups, setDepartmentGroups] = useState<DepartmentGroup[] | null>(null);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   const applyCookState = useCallback((cooks: CookListResponse) => {
@@ -79,6 +82,14 @@ export function ExploreScreen() {
         if (active) setIsLoading(false);
       }
     };
+
+    // 학부 묶음은 필터 시트에서만 쓴다. 실패해도 목록은 그대로 보여준다 —
+    // 시트가 묶지 않고 한 덩어리로 떨어뜨린다.
+    getDepartments()
+      .then((groups) => {
+        if (active) setDepartmentGroups(groups);
+      })
+      .catch(() => undefined);
 
     void load();
     return () => {
@@ -246,6 +257,7 @@ export function ExploreScreen() {
         <FilterSheet
           filters={filters}
           options={options}
+          departmentGroups={departmentGroups}
           onApply={(next) => {
             setFilters(next);
             setVisibleCount(PAGE_SIZE);
@@ -262,6 +274,7 @@ export function ExploreScreen() {
             userId={kokTarget.userId}
             remaining={kokRemaining}
             dailyLimit={kokLimit}
+            photoUrl={kokTarget.photo}
             onCancel={() => setKokTarget(null)}
             onConfirm={() => void handleKokConfirm()}
             isSubmitting={isSendingKok}
@@ -298,7 +311,12 @@ function MemberCard({
       />
 
       <div className="pointer-events-none relative z-10 flex flex-1 items-center gap-3 overflow-hidden">
-        <Avatar name={member.nickname} size="lg" userId={member.userId} />
+        <Avatar
+          name={member.nickname}
+          size="lg"
+          userId={member.userId}
+          photoUrl={member.photo}
+        />
 
         <div className="flex flex-1 flex-col items-start gap-1 overflow-hidden">
           <div className="flex items-center gap-1.5">

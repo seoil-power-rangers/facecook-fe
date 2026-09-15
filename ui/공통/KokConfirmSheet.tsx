@@ -10,6 +10,7 @@ interface KokConfirmSheetProps {
   remaining: number | null;
   /** 하루 한도. 서버가 정하므로 화면에 박아두지 않는다. 모르면 null. */
   dailyLimit: number | null;
+  photoUrl?: string | null;
   onCancel: () => void;
   onConfirm: () => void;
   isSubmitting?: boolean;
@@ -26,6 +27,7 @@ export function KokConfirmSheet({
   userId,
   remaining,
   dailyLimit,
+  photoUrl,
   onCancel,
   onConfirm,
   isSubmitting = false,
@@ -41,7 +43,7 @@ export function KokConfirmSheet({
 
   return (
     <div className="flex flex-col items-center gap-4 px-6 pt-2">
-      <Avatar name={name} size="xl" userId={userId} />
+      <Avatar name={name} size="xl" userId={userId} photoUrl={photoUrl} />
 
       <div className="flex flex-col items-center gap-1 text-center">
         <p className="text-sm text-(--color-text-sub)">{name}님에게</p>

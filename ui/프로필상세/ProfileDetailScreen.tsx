@@ -10,6 +10,7 @@ import { BottomSheet } from "@ui/공통/BottomSheet";
 import { Button } from "@ui/공통/Button";
 import { KokConfirmSheet } from "@ui/공통/KokConfirmSheet";
 import { PhoneFrame } from "@ui/공통/PhoneFrame";
+import { PhotoViewer } from "@ui/공통/PhotoViewer";
 import { Tag } from "@ui/공통/Tag";
 import { Toast } from "@ui/공통/Toast";
 import {
@@ -34,6 +35,7 @@ export function ProfileDetailScreen({ userId }: { userId: string }) {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [kokRemaining, setKokRemaining] = useState<number | null>(null);
   const [kokLimit, setKokLimit] = useState<number | null>(null);
+  const [photoViewerOpen, setPhotoViewerOpen] = useState(false);
 
   const loadProfile = useCallback(async () => {
     if (!Number.isInteger(numericUserId) || numericUserId <= 0) {
@@ -161,12 +163,28 @@ export function ProfileDetailScreen({ userId }: { userId: string }) {
         </div>
 
         <div className="-mt-12 flex flex-col items-center gap-2">
-          <Avatar
-            name={profile.nickname}
-            userId={profile.userId}
-            size="2xl"
-            className="ring-4 ring-(--color-surface)"
-          />
+          {profile.photo ? (
+            <button
+              type="button"
+              aria-label="프로필 사진 크게 보기"
+              onClick={() => setPhotoViewerOpen(true)}
+            >
+              <Avatar
+                name={profile.nickname}
+                userId={profile.userId}
+                photoUrl={profile.photo}
+                size="2xl"
+                className="ring-4 ring-(--color-surface)"
+              />
+            </button>
+          ) : (
+            <Avatar
+              name={profile.nickname}
+              userId={profile.userId}
+              size="2xl"
+              className="ring-4 ring-(--color-surface)"
+            />
+          )}
           {commonCount > 0 ? <Tag variant="accent">공통 관심사 {commonCount}개</Tag> : null}
         </div>
 
@@ -238,11 +256,20 @@ export function ProfileDetailScreen({ userId }: { userId: string }) {
           userId={profile.userId}
           remaining={kokRemaining}
           dailyLimit={kokLimit}
+          photoUrl={profile.photo}
           onCancel={() => setKokSheetOpen(false)}
           onConfirm={() => void handleSendCook()}
           isSubmitting={isSending}
         />
       </BottomSheet>
+
+      {photoViewerOpen && profile.photo ? (
+        <PhotoViewer
+          photoUrl={profile.photo}
+          alt={`${profile.nickname} 프로필 사진`}
+          onClose={() => setPhotoViewerOpen(false)}
+        />
+      ) : null}
     </PhoneFrame>
   );
 }
