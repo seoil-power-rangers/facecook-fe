@@ -44,6 +44,14 @@ export const viewport: Viewport = {
    */
   maximumScale: 1,
   userScalable: false,
+  /*
+   * 아이폰의 홈 인디케이터·노치 영역 크기를 env(safe-area-inset-*)로 받으려면
+   * 화면 전체를 쓰겠다고 먼저 선언해야 한다. 이 값이 없으면 env()가 항상 0이라
+   * 여백을 줘도 아무 효과가 없다.
+   *
+   * 대신 안전영역을 우리가 직접 비워야 하므로, PhoneFrame이 위아래 여백을 준다.
+   */
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
