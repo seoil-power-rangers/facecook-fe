@@ -31,9 +31,12 @@
   --color-border-active: #4F46E5;
 
   /* ===== Accent (콕) =====
-     콕 개수·MBTI 태그에 쓰는 산호색. 보라(primary)가 "누를 것"을 뜻하므로
-     눌리지 않는 숫자·라벨은 이 색으로 구분한다. */
+     콕과 관련된 것에 쓰는 산호색. 콕 개수·MBTI 태그 같은 라벨뿐 아니라
+     "콕 보내기"처럼 콕을 실행하는 버튼도 이 색이다 — 보라(primary)는 일반
+     동작, 산호는 콕이라는 뜻으로 가른다. */
   --color-accent: #E8736B;
+  --color-accent-hover: #DC6359;
+  --color-accent-pressed: #C75449;
   --color-accent-soft: #FDEEEC;
 
   /* 상대의 답을 기다리는 상태. 경고(warning)가 아니라 진행 중이라 따로 둔다.

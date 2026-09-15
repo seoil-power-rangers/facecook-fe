@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, Footprints, MousePointerClick, Send, Siren, Utensils } from "lucide-react";
+import { ChevronLeft, Footprints, Send, Siren, Utensils } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Avatar } from "@ui/공통/Avatar";
 import { BottomSheet } from "@ui/공통/BottomSheet";
@@ -18,7 +18,7 @@ import {
   profileErrorMessage,
   type ProfileResponse,
 } from "@ui/프로필작성/profileApi";
-import { cookErrorMessage, sendCook } from "@ui/받은콕/cookApi";
+import { cookErrorMessage, getCooks, sendCook } from "@ui/받은콕/cookApi";
 
 const HOBBY_ICONS: LucideIcon[] = [Utensils, Footprints, Send];
 
@@ -32,6 +32,8 @@ export function ProfileDetailScreen({ userId }: { userId: string }) {
   const [kokSheetOpen, setKokSheetOpen] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [kokRemaining, setKokRemaining] = useState<number | null>(null);
+  const [kokLimit, setKokLimit] = useState<number | null>(null);
 
   const loadProfile = useCallback(async () => {
     if (!Number.isInteger(numericUserId) || numericUserId <= 0) {
@@ -51,6 +53,17 @@ export function ProfileDetailScreen({ userId }: { userId: string }) {
         setCommonCount(commonHobbies(target.hobby, mine.hobby));
       } catch {
         setCommonCount(0);
+      }
+
+      // 콕 확인 시트가 "오늘 남은 콕"을 보여준다. 실패해도 프로필은 그대로
+      // 보여준다 — 부가 정보 하나 때문에 화면 전체를 못 보게 할 일은 아니다.
+      try {
+        const cooks = await getCooks();
+        setKokRemaining(Math.max(cooks.usage.dailyLimit - cooks.usage.todayUsed, 0));
+        setKokLimit(cooks.usage.dailyLimit);
+      } catch {
+        setKokRemaining(null);
+        setKokLimit(null);
       }
     } catch (loadError) {
       setError(profileErrorMessage(loadError));
@@ -213,9 +226,8 @@ export function ProfileDetailScreen({ userId }: { userId: string }) {
         <button
           type="button"
           onClick={() => setKokSheetOpen(true)}
-          className="flex h-[54px] w-full items-center justify-center gap-2 rounded-(--radius-lg) bg-(--color-accent) text-base font-bold text-(--color-text-on-primary) active:opacity-90"
+          className="flex h-[54px] w-full items-center justify-center rounded-(--radius-lg) bg-(--color-accent) text-base font-bold text-(--color-text-on-primary) transition-colors hover:bg-(--color-accent-hover) active:bg-(--color-accent-pressed)"
         >
-          <MousePointerClick className="h-4 w-4" />
           콕 보내기
         </button>
       </div>
@@ -224,6 +236,8 @@ export function ProfileDetailScreen({ userId }: { userId: string }) {
         <KokConfirmSheet
           name={profile.nickname}
           userId={profile.userId}
+          remaining={kokRemaining}
+          dailyLimit={kokLimit}
           onCancel={() => setKokSheetOpen(false)}
           onConfirm={() => void handleSendCook()}
           isSubmitting={isSending}

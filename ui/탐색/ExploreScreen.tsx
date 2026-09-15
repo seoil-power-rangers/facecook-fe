@@ -50,11 +50,13 @@ export function ExploreScreen() {
   const [error, setError] = useState<string | null>(null);
   const [isSendingKok, setIsSendingKok] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [kokRemaining, setKokRemaining] = useState(0);
+  const [kokRemaining, setKokRemaining] = useState<number | null>(null);
+  const [kokLimit, setKokLimit] = useState<number | null>(null);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   const applyCookState = useCallback((cooks: CookListResponse) => {
     setKokRemaining(Math.max(cooks.usage.dailyLimit - cooks.usage.todayUsed, 0));
+    setKokLimit(cooks.usage.dailyLimit);
     setSentUserIds(new Set(cooks.sent.map((cook) => cook.userId)));
   }, []);
 
@@ -126,7 +128,7 @@ export function ExploreScreen() {
       // 재조회 없이 즉시 반영한다 — 재조회가 실패하면 성공 토스트가 실패
       // 메시지로 덮어써지고, 그 사이 같은 상대에게 중복 전송도 가능해진다.
       setSentUserIds((prev) => new Set(prev).add(target.userId));
-      setKokRemaining((prev) => Math.max(prev - 1, 0));
+      setKokRemaining((prev) => (prev === null ? null : Math.max(prev - 1, 0)));
       setToastMessage("콕을 보냈어요. 상대의 콕을 기다려주세요.");
     } catch (sendError) {
       setToastMessage(cookErrorMessage(sendError));
@@ -146,9 +148,12 @@ export function ExploreScreen() {
           <ChevronLeft className="h-5 w-5" />
         </Link>
         <h1 className="flex-1 text-lg font-bold text-(--color-text-strong)">탐색</h1>
-        <span className="text-xs font-semibold text-(--color-accent)">
-          콕 {kokRemaining}개 남음
-        </span>
+        {/* 아직 못 불러왔으면 "콕 개 남음"이 되므로 자리만 비워둔다. */}
+        {kokRemaining === null ? null : (
+          <span className="text-xs font-semibold text-(--color-accent)">
+            콕 {kokRemaining}개 남음
+          </span>
+        )}
       </header>
 
       <TabBarMain className="gap-3 px-4 pb-4">
@@ -253,6 +258,8 @@ export function ExploreScreen() {
           <KokConfirmSheet
             name={kokTarget.nickname}
             userId={kokTarget.userId}
+            remaining={kokRemaining}
+            dailyLimit={kokLimit}
             onCancel={() => setKokTarget(null)}
             onConfirm={() => void handleKokConfirm()}
             isSubmitting={isSendingKok}
