@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { ChevronLeft, Heart, MessageCircle, Ticket } from "lucide-react";
 import { Button } from "@ui/공통/Button";
 import { PhoneFrame } from "@ui/공통/PhoneFrame";
-import { avatarColor, avatarEmoji, defaultPhotoForGender } from "@ui/공통/avatarColor";
+import { avatarColor, avatarEmoji, resolveAvatarPhoto } from "@ui/공통/avatarColor";
 import { getMyProfile, type ProfileResponse } from "@ui/프로필작성/profileApi";
 import { getMatch, matchErrorMessage, type MatchResponse } from "./matchApi";
 
@@ -256,8 +256,7 @@ function Face({
   gender?: string | null;
   className: string;
 }) {
-  const fallbackPhoto =
-    photoUrl || (gender ? defaultPhotoForGender(gender) : null);
+  const fallbackPhoto = resolveAvatarPhoto(photoUrl, gender);
   const isDefaultMalePhoto = fallbackPhoto === "/avatars/default-male.jpg";
 
   return (

@@ -1,5 +1,5 @@
 import { User, X } from "lucide-react";
-import { avatarColor, avatarEmoji, defaultPhotoForGender } from "./avatarColor";
+import { avatarColor, avatarEmoji, resolveAvatarPhoto } from "./avatarColor";
 
 type AvatarSize = "sm" | "md" | "lg" | "xl" | "2xl";
 
@@ -86,7 +86,7 @@ export function Avatar({
   photoUrl,
   gender,
 }: AvatarProps) {
-  const fallbackPhoto = photoUrl || (gender ? defaultPhotoForGender(gender) : null);
+  const fallbackPhoto = resolveAvatarPhoto(photoUrl, gender);
   const isDefaultMalePhoto = fallbackPhoto === "/avatars/default-male.jpg";
   const face = emoji ?? (userId === undefined ? undefined : avatarEmoji(userId));
   const background =
