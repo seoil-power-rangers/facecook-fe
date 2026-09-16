@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { ChevronLeft, Heart, MessageCircle, Ticket } from "lucide-react";
 import { Button } from "@ui/공통/Button";
 import { PhoneFrame } from "@ui/공통/PhoneFrame";
-import { avatarColor, avatarEmoji } from "@ui/공통/avatarColor";
+import { avatarColor, avatarEmoji, defaultPhotoForGender } from "@ui/공통/avatarColor";
 import { getMyProfile, type ProfileResponse } from "@ui/프로필작성/profileApi";
 import { getMatch, matchErrorMessage, type MatchResponse } from "./matchApi";
 
@@ -203,11 +203,15 @@ function FaceOff({
       <Face
         userId={me?.userId ?? null}
         label={me?.nickname ?? "나"}
+        photoUrl={me?.photo}
+        gender={me?.gender}
         className="-mr-1.5 animate-[match-in-left_0.5s_cubic-bezier(0.16,1,0.3,1)_both]"
       />
       <Face
         userId={partner.userId}
         label={partner.nickname}
+        photoUrl={partner.photo}
+        gender={partner.gender}
         className="-ml-1.5 animate-[match-in-right_0.5s_cubic-bezier(0.16,1,0.3,1)_both]"
       />
       <span
@@ -242,23 +246,37 @@ function Confetti() {
 function Face({
   userId,
   label,
+  photoUrl,
+  gender,
   className,
 }: {
   userId: number | null;
   label: string;
+  photoUrl?: string | null;
+  gender?: string | null;
   className: string;
 }) {
+  const fallbackPhoto =
+    photoUrl || (gender ? defaultPhotoForGender(gender) : null);
+
   return (
     <span
       role="img"
       aria-label={label}
-      className={`relative z-10 flex h-24 w-24 items-center justify-center rounded-full text-5xl ring-4 ring-white/35 ${className}`}
-      style={{
-        backgroundColor:
-          userId === null ? "var(--color-primary-light)" : avatarColor(userId),
-      }}
+      className={`relative z-10 flex h-24 w-24 items-center justify-center overflow-hidden rounded-full text-5xl ring-4 ring-white/35 ${className}`}
+      style={
+        fallbackPhoto
+          ? undefined
+          : {
+              backgroundColor:
+                userId === null ? "var(--color-primary-light)" : avatarColor(userId),
+            }
+      }
     >
-      {userId === null ? (
+      {fallbackPhoto ? (
+        // eslint-disable-next-line @next/next/no-img-element -- 프로필 URL·기본 실루엣이라 next/image 대상이 아니다.
+        <img src={fallbackPhoto} alt="" className="h-full w-full object-cover" />
+      ) : userId === null ? (
         <span className="text-2xl font-bold text-(--color-primary)">나</span>
       ) : (
         avatarEmoji(userId)

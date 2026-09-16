@@ -345,6 +345,7 @@ function Hero({
         name={profile.nickname}
         userId={profile.userId}
         photoUrl={profile.photo}
+        gender={profile.gender}
         size="2xl"
         className="mt-1 ring-4 ring-white/35"
       />

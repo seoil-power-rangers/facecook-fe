@@ -1,8 +1,8 @@
 /**
  * 프로필 사진이 없는 참가자를 어떻게 그릴지.
  *
- * 탐색은 사진이 없으면 성별 기본 실루엣을 쓴다. 다른 화면은 userId로
- * 색·얼굴을 고른다.
+ * 둘 다 userId로 고르기 때문에 같은 사람은 어느 화면에서 봐도 같은 색·같은
+ * 얼굴이다 — 목록에서 보던 모습이 채팅에서 달라지면 다른 사람처럼 보인다.
  */
 /** 이모지가 위에 올라가므로 배경은 옅게 둔다. 진한 색이면 얼굴이 묻힌다. */
 const AVATAR_COLORS = ["#F5C26B", "#A8CDE8", "#F0B48A", "#A8DCC0", "#C4B0E8"];
@@ -22,12 +22,11 @@ export function avatarEmoji(userId: number) {
 }
 
 const FEMALE_VALUES = new Set(["여성", "female", "woman", "f", "여"]);
-const MALE_VALUES = new Set(["남성", "male", "man", "m", "남"]);
 
 /** 사진을 안 올린 참가자에게 성별에 맞는 기본 실루엣을 준다. */
-export function defaultPhotoForGender(gender: string): string | null {
-  const normalized = gender.trim().toLowerCase();
-  if (FEMALE_VALUES.has(normalized)) return "/avatars/default-female.jpg";
-  if (MALE_VALUES.has(normalized)) return "/avatars/default-male.jpg";
-  return null;
+export function defaultPhotoForGender(gender: string) {
+  if (FEMALE_VALUES.has(gender.trim().toLowerCase())) {
+    return "/avatars/default-female.jpg";
+  }
+  return "/avatars/default-male.jpg";
 }

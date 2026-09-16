@@ -173,6 +173,7 @@ export function ProfileDetailScreen({ userId }: { userId: string }) {
                 name={profile.nickname}
                 userId={profile.userId}
                 photoUrl={profile.photo}
+                gender={profile.gender}
                 size="2xl"
                 className="ring-4 ring-(--color-surface)"
               />
@@ -181,6 +182,7 @@ export function ProfileDetailScreen({ userId }: { userId: string }) {
             <Avatar
               name={profile.nickname}
               userId={profile.userId}
+              gender={profile.gender}
               size="2xl"
               className="ring-4 ring-(--color-surface)"
             />
@@ -257,6 +259,7 @@ export function ProfileDetailScreen({ userId }: { userId: string }) {
           remaining={kokRemaining}
           dailyLimit={kokLimit}
           photoUrl={profile.photo}
+          gender={profile.gender}
           onCancel={() => setKokSheetOpen(false)}
           onConfirm={() => void handleSendCook()}
           isSubmitting={isSending}

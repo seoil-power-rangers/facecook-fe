@@ -378,6 +378,7 @@ export function ChatScreen({ matchId }: { matchId: string }) {
             userId={partner.userId}
             online={isActiveNow(partner)}
             photoUrl={partner.photo}
+            gender={partner.gender}
           />
           <div className="flex flex-1 flex-col overflow-hidden">
             <span className="truncate text-[15px] font-bold text-(--color-text-strong)">
@@ -510,6 +511,7 @@ function MessageBubble({
               size="sm"
               userId={partner.userId}
               photoUrl={partner.photo}
+              gender={partner.gender}
             />
           ) : null}
         </span>

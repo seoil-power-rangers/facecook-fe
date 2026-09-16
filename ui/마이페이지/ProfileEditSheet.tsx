@@ -56,6 +56,7 @@ export function ProfileEditSheet({
             name={profile.nickname}
             userId={profile.userId}
             photoUrl={photo || null}
+            gender={profile.gender}
             onChange={(url) => {
               setPhotoError(null);
               setPhoto(url ?? "");

@@ -1,5 +1,5 @@
 import { User, X } from "lucide-react";
-import { avatarColor, avatarEmoji } from "./avatarColor";
+import { avatarColor, avatarEmoji, defaultPhotoForGender } from "./avatarColor";
 
 type AvatarSize = "sm" | "md" | "lg" | "xl" | "2xl";
 
@@ -21,6 +21,8 @@ interface AvatarProps {
   className?: string;
   /** 업로드한 사진. 있으면 이모지 대신 이 사진을 보여준다. */
   photoUrl?: string | null;
+  /** 사진이 없을 때 성별 기본 실루엣을 고른다. */
+  gender?: string | null;
 }
 
 const sizeClasses: Record<AvatarSize, string> = {
@@ -82,7 +84,9 @@ export function Avatar({
   badge,
   className,
   photoUrl,
+  gender,
 }: AvatarProps) {
+  const fallbackPhoto = photoUrl || (gender ? defaultPhotoForGender(gender) : null);
   const face = emoji ?? (userId === undefined ? undefined : avatarEmoji(userId));
   const background =
     bgColor ?? (userId === undefined ? "var(--color-primary)" : avatarColor(userId));
@@ -93,11 +97,11 @@ export function Avatar({
         role="img"
         aria-label={name}
         className={`flex items-center justify-center overflow-hidden rounded-full font-semibold text-(--color-text-on-primary) ${sizeClasses[size]} ${suspended ? "opacity-50" : ""} ${className ?? ""}`}
-        style={photoUrl ? undefined : { backgroundColor: background }}
+        style={fallbackPhoto ? undefined : { backgroundColor: background }}
       >
-        {photoUrl ? (
+        {fallbackPhoto ? (
           // eslint-disable-next-line @next/next/no-img-element -- S3 원본 URL이라 next/image 최적화 대상이 아니다.
-          <img src={photoUrl} alt="" className="h-full w-full object-cover" />
+          <img src={fallbackPhoto} alt="" className="h-full w-full object-cover" />
         ) : face ? (
           <span className={emojiSizeClasses[size]}>{face}</span>
         ) : (
