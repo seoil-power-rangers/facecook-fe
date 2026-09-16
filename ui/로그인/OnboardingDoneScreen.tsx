@@ -110,7 +110,12 @@ export function OnboardingDoneScreen() {
 
             <div className="mt-16 w-full rounded-(--radius-lg) bg-(--color-surface) p-4 shadow-(--shadow-card)">
               <div className="flex items-center gap-3">
-                <Avatar name={nickname} size="xl" />
+                <Avatar
+                  name={nickname}
+                  size="xl"
+                  photoUrl={draft.photoUrl || null}
+                  gender={draft.gender}
+                />
                 <div className="min-w-0 flex-1 text-left">
                   <p className="truncate text-[17px] font-bold text-(--color-text-strong)">
                     {nickname}

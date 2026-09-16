@@ -20,3 +20,13 @@ export function avatarColor(userId: number) {
 export function avatarEmoji(userId: number) {
   return AVATAR_EMOJIS[userId % AVATAR_EMOJIS.length];
 }
+
+const FEMALE_VALUES = new Set(["여성", "female", "woman", "f", "여"]);
+
+/** 사진을 안 올린 참가자에게 성별에 맞는 기본 실루엣을 준다. */
+export function defaultPhotoForGender(gender: string) {
+  if (FEMALE_VALUES.has(gender.trim().toLowerCase())) {
+    return "/avatars/default-female.jpg";
+  }
+  return "/avatars/default-male.jpg";
+}

@@ -201,7 +201,7 @@ function TabToggle({ tab, onChange }: { tab: KokTab; onChange: (next: KokTab) =>
   );
 }
 
-/** 두 탭 모두 "1시간 만료"가 핵심이라 안내 문구를 한 자리에 고정한다. */
+/** 두 탭 모두 맞콕하면 바로 매칭된다는 안내를 한 자리에 고정한다. */
 function Notice({ headline }: { headline: string }) {
   return (
     <div className="flex shrink-0 items-center gap-3 rounded-(--radius-lg) bg-(--color-primary-light) p-4">
@@ -211,7 +211,7 @@ function Notice({ headline }: { headline: string }) {
       <div className="flex flex-col">
         <span className="text-sm font-bold text-(--color-primary)">{headline}</span>
         <span className="text-xs text-(--color-text-sub)">
-          1시간이 지나면 자동으로 만료됩니다
+          상대가 맞콕하거나 취소할 때까지 유지돼요
         </span>
       </div>
     </div>
@@ -308,6 +308,7 @@ function CancelKokSheet({
         size="xl"
         userId={cook.userId}
         photoUrl={cook.profile.photo}
+        gender={cook.profile.gender}
       />
 
       <div className="flex flex-col items-center gap-1 text-center">
@@ -367,14 +368,6 @@ function StatusChip({
   );
 }
 
-/** "42분 뒤 만료" — 맞콕할 시간이 얼마 남았는지. */
-function formatExpiry(sentAt: string) {
-  const date = new Date(sentAt);
-  if (Number.isNaN(date.getTime())) return "곧 만료돼요";
-
-  const minutes = Math.ceil((date.getTime() + 60 * 60 * 1000 - Date.now()) / 60_000);
-  return minutes > 0 ? `${minutes}분 뒤 만료` : "곧 만료돼요";
-}
 
 function ReceivedKokPanel({
   cooks,
@@ -411,7 +404,7 @@ function ReceivedKokPanel({
                 status={
                   matched ? undefined : (
                     <StatusChip tone="waiting" icon={<Clock className="h-3 w-3" />}>
-                      {formatExpiry(cook.sentAt)}
+                      맞콕 기다리는 중
                     </StatusChip>
                   )
                 }
@@ -490,6 +483,7 @@ function KokCard({
           userId={cook.userId}
           badge={matched ? "💕" : undefined}
           photoUrl={cook.profile.photo}
+          gender={cook.profile.gender}
         />
 
         <div className="flex flex-1 flex-col gap-0.5 overflow-hidden">

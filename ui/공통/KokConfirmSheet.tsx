@@ -11,15 +11,16 @@ interface KokConfirmSheetProps {
   /** 하루 한도. 서버가 정하므로 화면에 박아두지 않는다. 모르면 null. */
   dailyLimit: number | null;
   photoUrl?: string | null;
+  gender?: string | null;
   onCancel: () => void;
   onConfirm: () => void;
   isSubmitting?: boolean;
 }
 
 const rules = [
-  "1시간 안에 답이 없으면 자동 만료돼요",
+  "상대가 맞콕하면 바로 매칭돼요",
   "상대가 맞콕하기 전까지는 취소할 수 있어요",
-  "취소하거나 만료돼도 오늘 횟수는 되돌아오지 않아요",
+  "취소해도 오늘 횟수는 되돌아오지 않아요",
 ];
 
 export function KokConfirmSheet({
@@ -28,6 +29,7 @@ export function KokConfirmSheet({
   remaining,
   dailyLimit,
   photoUrl,
+  gender,
   onCancel,
   onConfirm,
   isSubmitting = false,
@@ -43,12 +45,12 @@ export function KokConfirmSheet({
 
   return (
     <div className="flex flex-col items-center gap-4 px-6 pt-2">
-      <Avatar name={name} size="xl" userId={userId} photoUrl={photoUrl} />
+      <Avatar name={name} size="xl" userId={userId} photoUrl={photoUrl} gender={gender} />
 
       <div className="flex flex-col items-center gap-1 text-center">
         <p className="text-sm text-(--color-text-sub)">{name}님에게</p>
         <p className="text-xl font-bold text-(--color-text-strong)">콕 보낼까요?</p>
-        <p className="text-sm text-(--color-text-sub)">1시간 안에 상대도 콕하면 매칭돼요.</p>
+        <p className="text-sm text-(--color-text-sub)">상대도 콕하면 매칭돼요.</p>
       </div>
 
       <ul className="flex w-full flex-col gap-2 rounded-(--radius-lg) bg-(--color-surface-alt) p-4">

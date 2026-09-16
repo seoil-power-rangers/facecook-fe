@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "tsc ui/공통/avatarColor.ts ui/공통/avatarColor.test.ts --module commonjs --moduleResolution node --target ES2022 --outDir .next/test --esModuleInterop --skipLibCheck && node --test .next/test/avatarColor.test.js"
   },
   "dependencies": {
     "@stomp/stompjs": "^7.3.0",

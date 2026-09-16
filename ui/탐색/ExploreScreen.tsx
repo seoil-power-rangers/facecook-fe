@@ -275,6 +275,7 @@ export function ExploreScreen() {
             remaining={kokRemaining}
             dailyLimit={kokLimit}
             photoUrl={kokTarget.photo}
+            gender={kokTarget.gender}
             onCancel={() => setKokTarget(null)}
             onConfirm={() => void handleKokConfirm()}
             isSubmitting={isSendingKok}
@@ -316,6 +317,7 @@ function MemberCard({
           size="lg"
           userId={member.userId}
           photoUrl={member.photo}
+          gender={member.gender}
         />
 
         <div className="flex flex-1 flex-col items-start gap-1 overflow-hidden">

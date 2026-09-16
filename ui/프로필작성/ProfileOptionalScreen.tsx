@@ -64,6 +64,7 @@ export function ProfileOptionalScreen() {
         <AvatarPhotoPicker
           name={draft.nickname}
           photoUrl={draft.photoUrl || null}
+          gender={draft.gender}
           onChange={(url) => {
             setPhotoError(null);
             set("photoUrl", url ?? "");
