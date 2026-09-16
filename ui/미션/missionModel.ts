@@ -14,6 +14,16 @@ export interface MissionProgressResponse {
   currentMission: CurrentMission | null;
 }
 
+export function selectLatestMissionProgress(
+  current: MissionProgressResponse | null,
+  next: MissionProgressResponse,
+): MissionProgressResponse {
+  if (!current) return next;
+  if (current.matchId !== next.matchId) return next;
+  if (next.currentStep < current.currentStep) return current;
+  return next;
+}
+
 /**
  * 백엔드 currentMission DTO의 필드명이 확정되기 전까지 흔히 쓰는 이름을
  * 허용하되, 화면 내부에서는 하나의 안정된 형태만 사용한다.

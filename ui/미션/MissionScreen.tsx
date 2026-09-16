@@ -7,6 +7,7 @@ import { Button } from "@ui/공통/Button";
 import { PhoneFrame } from "@ui/공통/PhoneFrame";
 import { Tag } from "@ui/공통/Tag";
 import { MissionStatusCard } from "./MissionStatusCard";
+import { selectLatestMissionProgress } from "./missionModel";
 import { connectMissionSocket } from "./missionSocket";
 import {
   getMatch,
@@ -37,6 +38,7 @@ export function MissionScreen({ matchId }: { matchId: string }) {
   const [match, setMatch] = useState<MatchResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [realtimeNotice, setRealtimeNotice] = useState<string | null>(null);
 
   const loadMission = useCallback(async () => {
     if (!Number.isInteger(numericMatchId) || numericMatchId <= 0) {
@@ -52,7 +54,9 @@ export function MissionScreen({ matchId }: { matchId: string }) {
         getMissionProgress(numericMatchId),
         getMatch(numericMatchId),
       ]);
-      setProgress(missionProgress);
+      setProgress((current) =>
+        selectLatestMissionProgress(current, missionProgress),
+      );
       setMatch(matchDetail);
     } catch (loadError) {
       setError(
@@ -81,12 +85,25 @@ export function MissionScreen({ matchId }: { matchId: string }) {
         matchId: numericMatchId,
         onMission: (nextProgress) => {
           if (active && nextProgress.matchId === numericMatchId) {
-            setProgress(nextProgress);
+            setProgress((current) =>
+              selectLatestMissionProgress(current, nextProgress),
+            );
+          }
+        },
+        onError: () => {
+          if (active) {
+            setRealtimeNotice(
+              "실시간 갱신이 원활하지 않아요. 화면을 다시 열면 최신 상태를 볼 수 있어요.",
+            );
           }
         },
       });
     } catch {
       // REST로 불러온 상태는 그대로 보여주고 다음 진입 때 다시 연결한다.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setRealtimeNotice(
+        "실시간 갱신이 원활하지 않아요. 화면을 다시 열면 최신 상태를 볼 수 있어요.",
+      );
     }
 
     return () => {
@@ -126,6 +143,15 @@ export function MissionScreen({ matchId }: { matchId: string }) {
 
       <main className="flex-1 overflow-y-auto p-4">
         <div className="flex flex-col gap-5">
+          {realtimeNotice ? (
+            <p
+              role="status"
+              className="rounded-(--radius-lg) bg-(--color-warning)/10 px-3 py-2 text-xs text-(--color-text-sub)"
+            >
+              {realtimeNotice}
+            </p>
+          ) : null}
+
           <div>
             <p className="text-xs text-(--color-text-sub)">{match.partner.nickname}님과 함께</p>
             {allCompleted ? (

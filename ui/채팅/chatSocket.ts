@@ -21,6 +21,7 @@ interface ConnectChatSocketOptions {
   onMessage: (message: ChatMessageResponse) => void;
   onAck: (message: ChatMessageResponse) => void;
   onMission: (progress: MissionProgressResponse) => void;
+  onMissionError?: (error: Error) => void;
   onError: (error: ChatSocketError) => void;
   onStatusChange: (status: ChatConnectionStatus) => void;
 }
@@ -44,6 +45,7 @@ export function connectChatSocket({
   onMessage,
   onAck,
   onMission,
+  onMissionError,
   onError,
   onStatusChange,
 }: ConnectChatSocketOptions): ChatSocketConnection {
@@ -67,9 +69,7 @@ export function connectChatSocket({
         parseMessage(frame, onAck, onError);
       });
       missionSubscription = client.subscribe(`/topic/mission/${matchId}`, (frame) => {
-        parseMissionFrame(frame, onMission, (error) =>
-          onError({ code: "INVALID_MISSION", message: error.message }),
-        );
+        parseMissionFrame(frame, onMission, onMissionError);
       });
     },
     onStompError: (frame) => {

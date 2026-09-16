@@ -12,6 +12,7 @@ import { markRoomRead } from "@ui/매칭/readState";
 import { isActiveNow, type ProfileResponse } from "@ui/프로필작성/profileApi";
 import { Toast } from "@ui/공통/Toast";
 import { MissionStatusCard } from "@ui/미션/MissionStatusCard";
+import { selectLatestMissionProgress } from "@ui/미션/missionModel";
 import {
   getMissionProgress,
   type MissionProgressResponse,
@@ -89,7 +90,11 @@ export function ChatScreen({ matchId }: { matchId: string }) {
         getMissionProgress(numericMatchId).catch(() => null),
       ]);
       setMatch(matchResponse);
-      setMissionProgress(mission);
+      if (mission) {
+        setMissionProgress((current) =>
+          selectLatestMissionProgress(current, mission),
+        );
+      }
       setMessages(sortMessages(history.map(serverMessage)));
       setHasOlder(history.length === PAGE_SIZE);
       shouldAutoScrollRef.current = true;
@@ -172,8 +177,13 @@ export function ChatScreen({ matchId }: { matchId: string }) {
         },
         onMission: (mission) => {
           if (active && mission.matchId === match.matchId) {
-            setMissionProgress(mission);
+            setMissionProgress((current) =>
+              selectLatestMissionProgress(current, mission),
+            );
           }
+        },
+        onMissionError: (error) => {
+          if (active) setToastMessage(error.message);
         },
         onError: (socketError) => {
           if (!active) return;
