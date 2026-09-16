@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Check, ChevronLeft, SlidersHorizontal } from "lucide-react";
 import { Avatar } from "@ui/공통/Avatar";
+import { defaultPhotoForGender } from "@ui/공통/avatarColor";
 import { BottomSheet } from "@ui/공통/BottomSheet";
 import { Button } from "@ui/공통/Button";
 import { KokConfirmSheet } from "@ui/공통/KokConfirmSheet";
@@ -274,7 +275,11 @@ export function ExploreScreen() {
             userId={kokTarget.userId}
             remaining={kokRemaining}
             dailyLimit={kokLimit}
-            photoUrl={kokTarget.photo}
+            photoUrl={
+              kokTarget.photo?.trim() ||
+              defaultPhotoForGender(kokTarget.gender) ||
+              undefined
+            }
             onCancel={() => setKokTarget(null)}
             onConfirm={() => void handleKokConfirm()}
             isSubmitting={isSendingKok}
@@ -315,7 +320,11 @@ function MemberCard({
           name={member.nickname}
           size="lg"
           userId={member.userId}
-          photoUrl={member.photo}
+          photoUrl={
+            member.photo?.trim() ||
+            defaultPhotoForGender(member.gender) ||
+            undefined
+          }
         />
 
         <div className="flex flex-1 flex-col items-start gap-1 overflow-hidden">
