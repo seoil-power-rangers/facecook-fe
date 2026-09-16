@@ -302,7 +302,7 @@ function SuperLoginForm() {
             총학생회 전용
           </p>
           <h1 className="mb-8 text-center text-2xl font-extrabold text-(--color-text-strong)">
-            페이스콕
+            콕찔러보기
           </h1>
           <form
             onSubmit={(event) => {

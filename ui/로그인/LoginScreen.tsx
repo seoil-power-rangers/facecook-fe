@@ -126,13 +126,13 @@ function AppMark() {
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/icon-192.png"
-          alt="페이스콕"
+          alt="콕찔러보기"
           className="h-28 w-28 rounded-[1.25rem] object-contain"
         />
       </div>
 
       <p className="mt-5 text-[30px] font-bold leading-none tracking-tight text-(--color-text-strong)">
-        페이스<span className="text-(--color-accent)">콕</span>
+        <span className="text-(--color-accent)">콕</span>찔러보기
       </p>
       <p className="mt-2.5 text-[14px] text-(--color-text-sub)">
         마음이 가면, 콕.
