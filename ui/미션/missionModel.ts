@@ -29,9 +29,6 @@ export function parseMissionProgress(value: unknown): MissionProgressResponse {
 
   const currentMission =
     currentStep > 3 ? null : parseCurrentMission(value.currentMission, currentStep);
-  if (currentStep <= 3 && !currentMission) {
-    throw new Error("현재 랜덤 미션이 응답에 없습니다.");
-  }
 
   return {
     matchId,
