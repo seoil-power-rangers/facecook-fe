@@ -281,7 +281,7 @@ function AdminForm() {
           label="아이디"
           tone="soft"
           autoComplete="username"
-          placeholder="admin"
+          placeholder="seoiladmin@facecook.ac.kr"
           value={adminId}
           onChange={(event) => {
             setAdminId(event.target.value);
