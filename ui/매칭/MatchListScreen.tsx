@@ -147,6 +147,7 @@ function MatchRow({
         size="lg"
         userId={match.partner.userId}
         photoUrl={match.partner.photo}
+        gender={match.partner.gender}
       />
 
       <div className="flex flex-1 flex-col gap-0.5 overflow-hidden">

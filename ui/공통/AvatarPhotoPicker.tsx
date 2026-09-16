@@ -13,6 +13,7 @@ interface AvatarPhotoPickerProps {
   name: string;
   userId?: number;
   photoUrl: string | null;
+  gender?: string | null;
   onChange: (photoUrl: string | null) => void;
   onError?: (message: string) => void;
   size?: "xl" | "2xl";
@@ -31,6 +32,7 @@ export function AvatarPhotoPicker({
   name,
   userId,
   photoUrl,
+  gender,
   onChange,
   onError,
   size = "2xl",
@@ -58,7 +60,7 @@ export function AvatarPhotoPicker({
 
   return (
     <div className="relative inline-flex">
-      <Avatar name={name} userId={userId} photoUrl={photoUrl} size={size} />
+      <Avatar name={name} userId={userId} photoUrl={photoUrl} gender={gender} size={size} />
 
       <button
         type="button"
