@@ -9,7 +9,7 @@ import { TextField } from "@ui/공통/TextField";
 import { takeAuthNotice } from "@ui/공통/authSession";
 import { EVENT } from "@ui/공통/constants";
 import { useSession } from "@ui/공통/session";
-import { authErrorMessage, login } from "./authApi";
+import { authErrorMessage, login, logout } from "./authApi";
 
 type LoginTab = "participant" | "admin";
 
@@ -236,19 +236,36 @@ function ParticipantForm() {
   );
 }
 
-/** AUTH-04 관리자 — 참가자와 다른 계정 체계로 들어온다. */
+/** AUTH-04 관리자 — 서버에 아이디·비밀번호를 확인하고 세션 쿠키를 받는다. */
 function AdminForm() {
   const router = useRouter();
   const { signIn } = useSession();
   const [adminId, setAdminId] = useState("");
   const [password, setPassword] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const canSubmit = adminId.trim().length > 0 && password.length > 0;
 
-  const submit = () => {
-    // 서버가 붙으면 여기서 user.role을 실제로 조회해야 한다.
-    signIn({ role: "admin", name: adminId.trim() });
-    router.push("/admin/dashboard");
+  const submit = async () => {
+    if (!canSubmit || isSubmitting) return;
+
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      const user = await login(adminId, password);
+      if (user.role !== "admin") {
+        await logout().catch(() => {});
+        setError("관리자 권한이 없는 계정입니다.");
+        return;
+      }
+      signIn({ role: "admin", name: user.email });
+      router.replace("/admin/dashboard");
+    } catch (submitError) {
+      setError(authErrorMessage(submitError));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -256,7 +273,7 @@ function AdminForm() {
       onSubmit={(event) => {
         event.preventDefault();
         if (canSubmit) {
-          submit();
+          void submit();
         }
       }}
     >
@@ -265,9 +282,12 @@ function AdminForm() {
           label="아이디"
           tone="soft"
           autoComplete="username"
-          placeholder="admin"
+          placeholder="seoiladmin@facecook.ac.kr"
           value={adminId}
-          onChange={(event) => setAdminId(event.target.value)}
+          onChange={(event) => {
+            setAdminId(event.target.value);
+            setError(null);
+          }}
         />
 
         <TextField
@@ -277,21 +297,30 @@ function AdminForm() {
           autoComplete="current-password"
           placeholder="비밀번호를 입력하세요"
           value={password}
-          onChange={(event) => setPassword(event.target.value)}
+          onChange={(event) => {
+            setPassword(event.target.value);
+            setError(null);
+          }}
         />
 
         <InfoBox>
           부스 운영진 전용입니다. 계정은 총학생회에서 행사 전에 발급해요.
         </InfoBox>
+
+        {error ? (
+          <p role="alert" className="text-[12px] text-(--color-danger)">
+            {error}
+          </p>
+        ) : null}
       </div>
 
       <Button
         type="submit"
         fullWidth
         className="mt-7 rounded-(--radius-full)"
-        disabled={!canSubmit}
+        disabled={!canSubmit || isSubmitting}
       >
-        로그인
+        {isSubmitting ? "로그인 중..." : "로그인"}
       </Button>
     </form>
   );
