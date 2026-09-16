@@ -29,7 +29,7 @@ export interface RequestCodeResponse {
 export interface AuthVerificationResponse {
   userId: number;
   email: string;
-  role: "participant" | "admin";
+  role: "participant" | "admin" | "super";
 }
 
 export class AuthApiError extends Error {

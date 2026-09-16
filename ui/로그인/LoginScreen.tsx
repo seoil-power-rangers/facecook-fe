@@ -49,6 +49,10 @@ export function LoginScreen() {
       router.replace("/admin/dashboard");
       return;
     }
+    if (session.role === "super") {
+      router.replace("/super");
+      return;
+    }
     if (session.role === "participant") {
       router.replace("/main");
     }
@@ -254,6 +258,11 @@ function AdminForm() {
     setError(null);
     try {
       const user = await login(adminId, password);
+      if (user.role === "super") {
+        signIn({ role: "super", name: user.email });
+        router.replace("/super");
+        return;
+      }
       if (user.role !== "admin") {
         await logout().catch(() => {});
         setError("관리자 권한이 없는 계정입니다.");

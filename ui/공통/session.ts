@@ -4,7 +4,7 @@ import { useCallback, useSyncExternalStore } from "react";
 
 const STORAGE_KEY = "facecook:session";
 
-export type SessionRole = "guest" | "participant" | "admin";
+export type SessionRole = "guest" | "participant" | "admin" | "super";
 
 export interface Session {
   role: SessionRole;
