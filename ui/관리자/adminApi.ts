@@ -25,6 +25,9 @@ export interface AdminMissionResponse {
   userBId: number;
   matchedAt: string;
   currentStep: number;
+  step1Mission: string;
+  step2Mission: string;
+  step3Mission: string;
   step1CompletedAt: string | null;
   step1CompletedBy: number | null;
   step2CompletedAt: string | null;
