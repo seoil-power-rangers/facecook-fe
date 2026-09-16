@@ -9,7 +9,7 @@ import { TextField } from "@ui/공통/TextField";
 import { takeAuthNotice } from "@ui/공통/authSession";
 import { EVENT } from "@ui/공통/constants";
 import { useSession } from "@ui/공통/session";
-import { authErrorMessage, login } from "./authApi";
+import { authErrorMessage, login, logout } from "./authApi";
 
 type LoginTab = "participant" | "admin";
 
@@ -255,11 +255,12 @@ function AdminForm() {
     try {
       const user = await login(adminId, password);
       if (user.role !== "admin") {
+        await logout().catch(() => {});
         setError("관리자 권한이 없는 계정입니다.");
         return;
       }
       signIn({ role: "admin", name: user.email });
-      router.push("/admin/dashboard");
+      router.replace("/admin/dashboard");
     } catch (submitError) {
       setError(authErrorMessage(submitError));
     } finally {
