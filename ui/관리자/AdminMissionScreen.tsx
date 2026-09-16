@@ -16,11 +16,6 @@ import {
 import { AdminLoadState } from "./AdminLoadState";
 import { AdminShell } from "./AdminShell";
 
-const MISSION_STEP_TITLES: Record<number, string> = {
-  1: "둘이 함께 인증사진 찍기",
-  2: "부스 미션 카드 뽑고 수행하기",
-  3: "마지막 미션 수행하기",
-};
 const MISSION_LAST_STEP = 3;
 
 /** 09 admin-mission — 부스에서 커플이 찾아오면 단계를 올려주는 화면. */
@@ -139,7 +134,7 @@ export function AdminMissionScreen() {
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-(--color-text-body)">
               {displayName(userNames, target.userAId)} · {displayName(userNames, target.userBId)}
-              커플의 「{MISSION_STEP_TITLES[target.currentStep]}」를 완료 처리합니다.
+              커플의 「{currentMissionTitle(target)}」를 완료 처리합니다.
             </p>
             <p className="mt-2 text-xs text-(--color-danger)">완료 처리는 되돌릴 수 없어요.</p>
             {actionError ? (
@@ -206,7 +201,9 @@ function MissionRow({
       </div>
 
       <p className="mt-1 truncate text-xs text-(--color-text-sub)">
-        {cleared ? `${formatDateTime(mission.matchedAt)} 매칭 · 전체 미션 완료` : MISSION_STEP_TITLES[mission.currentStep]}
+        {cleared
+          ? `${formatDateTime(mission.matchedAt)} 매칭 · 전체 미션 완료`
+          : currentMissionTitle(mission)}
       </p>
 
       <div className="mt-1 flex items-center gap-2">
@@ -227,6 +224,15 @@ function MissionRow({
 
 function displayName(names: Record<number, string>, userId: number) {
   return names[userId] ?? `참가자 #${userId}`;
+}
+
+function currentMissionTitle(mission: AdminMissionResponse) {
+  const missions = [
+    mission.step1Mission,
+    mission.step2Mission,
+    mission.step3Mission,
+  ];
+  return missions[mission.currentStep - 1] ?? `STEP ${mission.currentStep} 랜덤 미션`;
 }
 
 function formatDateTime(value: string) {

@@ -11,6 +11,12 @@ import { PhoneFrame } from "@ui/공통/PhoneFrame";
 import { markRoomRead } from "@ui/매칭/readState";
 import { isActiveNow, type ProfileResponse } from "@ui/프로필작성/profileApi";
 import { Toast } from "@ui/공통/Toast";
+import { MissionStatusCard } from "@ui/미션/MissionStatusCard";
+import { selectLatestMissionProgress } from "@ui/미션/missionModel";
+import {
+  getMissionProgress,
+  type MissionProgressResponse,
+} from "@ui/미션/missionApi";
 import {
   ChatApiError,
   chatErrorMessage,
@@ -49,6 +55,8 @@ export function ChatScreen({ matchId }: { matchId: string }) {
   const router = useRouter();
   const numericMatchId = Number(matchId);
   const [match, setMatch] = useState<MatchResponse | null>(null);
+  const [missionProgress, setMissionProgress] =
+    useState<MissionProgressResponse | null>(null);
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [input, setInput] = useState("");
   const [isHistoryLoading, setIsHistoryLoading] = useState(true);
@@ -76,11 +84,17 @@ export function ChatScreen({ matchId }: { matchId: string }) {
     setIsHistoryLoading(true);
     setHistoryError(null);
     try {
-      const [matchResponse, history] = await Promise.all([
+      const [matchResponse, history, mission] = await Promise.all([
         getMatch(numericMatchId),
         getChatMessages(numericMatchId, { limit: PAGE_SIZE }),
+        getMissionProgress(numericMatchId).catch(() => null),
       ]);
       setMatch(matchResponse);
+      if (mission) {
+        setMissionProgress((current) =>
+          selectLatestMissionProgress(current, mission),
+        );
+      }
       setMessages(sortMessages(history.map(serverMessage)));
       setHasOlder(history.length === PAGE_SIZE);
       shouldAutoScrollRef.current = true;
@@ -160,6 +174,16 @@ export function ChatScreen({ matchId }: { matchId: string }) {
         },
         onAck: (message) => {
           if (active) mergeIncomingMessage(message);
+        },
+        onMission: (mission) => {
+          if (active && mission.matchId === match.matchId) {
+            setMissionProgress((current) =>
+              selectLatestMissionProgress(current, mission),
+            );
+          }
+        },
+        onMissionError: (error) => {
+          if (active) setToastMessage(error.message);
         },
         onError: (socketError) => {
           if (!active) return;
@@ -388,6 +412,16 @@ export function ChatScreen({ matchId }: { matchId: string }) {
           >
             다시 연결
           </button>
+        </div>
+      ) : null}
+
+      {missionProgress ? (
+        <div className="shrink-0 bg-(--color-surface) px-3 py-2">
+          <MissionStatusCard
+            progress={missionProgress}
+            href={`/match/${match.matchId}/mission`}
+            compact
+          />
         </div>
       ) : null}
 

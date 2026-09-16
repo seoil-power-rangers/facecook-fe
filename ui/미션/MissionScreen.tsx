@@ -6,6 +6,9 @@ import { Check, ChevronLeft, Gift, Lock } from "lucide-react";
 import { Button } from "@ui/공통/Button";
 import { PhoneFrame } from "@ui/공통/PhoneFrame";
 import { Tag } from "@ui/공통/Tag";
+import { MissionStatusCard } from "./MissionStatusCard";
+import { selectLatestMissionProgress } from "./missionModel";
+import { connectMissionSocket } from "./missionSocket";
 import {
   getMatch,
   matchErrorMessage,
@@ -28,24 +31,6 @@ interface MissionStep {
   meta?: string;
 }
 
-const MISSION_CONTENT = [
-  {
-    title: "둘이 함께 인증사진 찍기",
-    description: "함께 인증사진을 찍고 부스에서 인증받으세요.",
-    completedLabel: "인증사진 미션 완료",
-  },
-  {
-    title: "부스 미션 카드 뽑고 수행하기",
-    description: "카드에 적힌 미션을 함께 하고 부스에서 인증받으세요.",
-    completedLabel: "미션 카드 완료",
-  },
-  {
-    title: "최종 미션 수행하기",
-    description: "부스에서 안내받은 마지막 미션을 함께 수행하고 인증받으세요.",
-    completedLabel: "최종 미션 완료",
-  },
-] as const;
-
 export function MissionScreen({ matchId }: { matchId: string }) {
   const router = useRouter();
   const numericMatchId = Number(matchId);
@@ -53,6 +38,7 @@ export function MissionScreen({ matchId }: { matchId: string }) {
   const [match, setMatch] = useState<MatchResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [realtimeNotice, setRealtimeNotice] = useState<string | null>(null);
 
   const loadMission = useCallback(async () => {
     if (!Number.isInteger(numericMatchId) || numericMatchId <= 0) {
@@ -68,7 +54,9 @@ export function MissionScreen({ matchId }: { matchId: string }) {
         getMissionProgress(numericMatchId),
         getMatch(numericMatchId),
       ]);
-      setProgress(missionProgress);
+      setProgress((current) =>
+        selectLatestMissionProgress(current, missionProgress),
+      );
       setMatch(matchDetail);
     } catch (loadError) {
       setError(
@@ -86,6 +74,43 @@ export function MissionScreen({ matchId }: { matchId: string }) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadMission();
   }, [loadMission]);
+
+  useEffect(() => {
+    if (!Number.isInteger(numericMatchId) || numericMatchId <= 0) return;
+
+    let active = true;
+    let connection: ReturnType<typeof connectMissionSocket> | null = null;
+    try {
+      connection = connectMissionSocket({
+        matchId: numericMatchId,
+        onMission: (nextProgress) => {
+          if (active && nextProgress.matchId === numericMatchId) {
+            setProgress((current) =>
+              selectLatestMissionProgress(current, nextProgress),
+            );
+          }
+        },
+        onError: () => {
+          if (active) {
+            setRealtimeNotice(
+              "실시간 갱신이 원활하지 않아요. 화면을 다시 열면 최신 상태를 볼 수 있어요.",
+            );
+          }
+        },
+      });
+    } catch {
+      // REST로 불러온 상태는 그대로 보여주고 다음 진입 때 다시 연결한다.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setRealtimeNotice(
+        "실시간 갱신이 원활하지 않아요. 화면을 다시 열면 최신 상태를 볼 수 있어요.",
+      );
+    }
+
+    return () => {
+      active = false;
+      if (connection) void connection.disconnect();
+    };
+  }, [numericMatchId]);
 
   if (isLoading || error || !progress || !match) {
     return (
@@ -118,6 +143,15 @@ export function MissionScreen({ matchId }: { matchId: string }) {
 
       <main className="flex-1 overflow-y-auto p-4">
         <div className="flex flex-col gap-5">
+          {realtimeNotice ? (
+            <p
+              role="status"
+              className="rounded-(--radius-lg) bg-(--color-warning)/10 px-3 py-2 text-xs text-(--color-text-sub)"
+            >
+              {realtimeNotice}
+            </p>
+          ) : null}
+
           <div>
             <p className="text-xs text-(--color-text-sub)">{match.partner.nickname}님과 함께</p>
             {allCompleted ? (
@@ -141,6 +175,8 @@ export function MissionScreen({ matchId }: { matchId: string }) {
               </>
             )}
           </div>
+
+          <MissionStatusCard progress={progress} />
 
           <StepIndicator currentStep={progress.currentStep} />
 
@@ -267,8 +303,7 @@ function createMissionSteps(progress: MissionProgressResponse): MissionStep[] {
     progress.step3CompletedAt,
   ];
 
-  return MISSION_CONTENT.map((content, index) => {
-    const step = index + 1;
+  return [1, 2, 3].map((step, index) => {
     const completed = completedAt[index];
     const status: StepStatus =
       completed || step < progress.currentStep
@@ -280,15 +315,21 @@ function createMissionSteps(progress: MissionProgressResponse): MissionStep[] {
     return {
       step,
       status,
-      title: content.title,
+      title:
+        status === "progress" && progress.currentMission?.step === step
+          ? progress.currentMission.title
+          : `STEP ${step} 미션`,
       description:
         status === "locked"
           ? `STEP ${step - 1}를 완료하면 열려요`
           : status === "done"
             ? "부스에서 인증을 완료했어요."
-            : content.description,
+            : progress.currentMission?.step === step &&
+                progress.currentMission.description
+              ? progress.currentMission.description
+              : "현재 랜덤 미션을 함께 수행하고 부스에서 인증받으세요.",
       meta: completed
-        ? `${content.completedLabel} · ${formatCompletedAt(completed)}`
+        ? `STEP ${step} 미션 완료 · ${formatCompletedAt(completed)}`
         : undefined,
     };
   });

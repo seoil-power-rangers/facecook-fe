@@ -1,5 +1,7 @@
 import { Client, type IMessage, type StompSubscription } from "@stomp/stompjs";
 import type { ChatMessageResponse } from "./chatApi";
+import { parseMissionFrame } from "@ui/미션/missionSocket";
+import type { MissionProgressResponse } from "@ui/미션/missionModel";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "");
 
@@ -18,6 +20,8 @@ interface ConnectChatSocketOptions {
   matchId: number;
   onMessage: (message: ChatMessageResponse) => void;
   onAck: (message: ChatMessageResponse) => void;
+  onMission: (progress: MissionProgressResponse) => void;
+  onMissionError?: (error: Error) => void;
   onError: (error: ChatSocketError) => void;
   onStatusChange: (status: ChatConnectionStatus) => void;
 }
@@ -40,12 +44,15 @@ export function connectChatSocket({
   matchId,
   onMessage,
   onAck,
+  onMission,
+  onMissionError,
   onError,
   onStatusChange,
 }: ConnectChatSocketOptions): ChatSocketConnection {
   let intentionalDisconnect = false;
   let topicSubscription: StompSubscription | undefined;
   let ackSubscription: StompSubscription | undefined;
+  let missionSubscription: StompSubscription | undefined;
 
   const client = new Client({
     brokerURL: requireWebSocketUrl(),
@@ -60,6 +67,9 @@ export function connectChatSocket({
       });
       ackSubscription = client.subscribe("/user/queue/chat-acks", (frame) => {
         parseMessage(frame, onAck, onError);
+      });
+      missionSubscription = client.subscribe(`/topic/mission/${matchId}`, (frame) => {
+        parseMissionFrame(frame, onMission, onMissionError);
       });
     },
     onStompError: (frame) => {
@@ -98,6 +108,7 @@ export function connectChatSocket({
       if (client.connected) {
         topicSubscription?.unsubscribe();
         ackSubscription?.unsubscribe();
+        missionSubscription?.unsubscribe();
       }
       await client.deactivate();
       onStatusChange("disconnected");

@@ -1,13 +1,8 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "");
+import { parseMissionProgress } from "./missionModel";
 
-export interface MissionProgressResponse {
-  matchId: number;
-  /** 1~3은 현재 진행 단계, 4는 모든 미션 완료를 뜻한다. */
-  currentStep: number;
-  step1CompletedAt: string | null;
-  step2CompletedAt: string | null;
-  step3CompletedAt: string | null;
-}
+export type { MissionProgressResponse } from "./missionModel";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "");
 
 interface ApiErrorResponse {
   code?: string;
@@ -37,10 +32,16 @@ export function missionErrorMessage(error: unknown) {
   return "백엔드 서버에 연결할 수 없습니다. 실행 상태를 확인해주세요.";
 }
 
-export function getMissionProgress(matchId: number) {
-  return requestMission<MissionProgressResponse>(
-    `/api/matches/${matchId}/mission`,
-  );
+export async function getMissionProgress(matchId: number) {
+  const payload = await requestMission<unknown>(`/api/matches/${matchId}/mission`);
+  try {
+    return parseMissionProgress(payload);
+  } catch (error) {
+    throw new MissionApiError(
+      "INVALID_RESPONSE",
+      error instanceof Error ? error.message : "미션 응답을 읽지 못했습니다.",
+    );
+  }
 }
 
 function requireApiBaseUrl() {
