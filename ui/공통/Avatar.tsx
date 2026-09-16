@@ -87,6 +87,12 @@ export function Avatar({
   gender,
 }: AvatarProps) {
   const fallbackPhoto = resolveAvatarPhoto(photoUrl, gender);
+  /*
+   * 남성 기본 이미지는 원본(736×736) 안에 실루엣이 498×443으로만 그려져 있고
+   * 위아래에 여백이 박혀 있다. 여성 쪽은 646×681로 아래 끝까지 닿아서, 그대로
+   * 두면 같은 크기의 원 안에서 남자만 작아 보인다. 박힌 여백만큼 확대해
+   * 어깨가 원 바닥에 닿게 맞춘다 — 1.6배가 그 선이다.
+   */
   const isDefaultMalePhoto = fallbackPhoto === "/avatars/default-male.jpg";
   const face = emoji ?? (userId === undefined ? undefined : avatarEmoji(userId));
   const background =
@@ -105,10 +111,8 @@ export function Avatar({
           <img
             src={fallbackPhoto}
             alt=""
-            className={`h-full w-full ${
-              isDefaultMalePhoto
-                ? "bg-[#c3cbe0] object-contain p-[12%]"
-                : "object-cover"
+            className={`h-full w-full object-cover ${
+              isDefaultMalePhoto ? "scale-[1.6]" : ""
             }`}
           />
         ) : face ? (

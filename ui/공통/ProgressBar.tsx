@@ -4,7 +4,7 @@ import { PROGRESS_SLOTS } from "./constants";
 export function ProgressBar({ step }: { step: number }) {
   return (
     <div
-      className="flex gap-1"
+      className="flex flex-1 gap-1"
       role="progressbar"
       aria-valuenow={step}
       aria-valuemin={0}

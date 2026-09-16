@@ -32,10 +32,15 @@ export function TileGrid({ label, options, value, onToggle }: TileGridProps) {
               aria-pressed={selected}
               aria-label={option}
               onClick={() => onToggle(option)}
+              /*
+               * 안 고른 타일도 흰 바탕에 테두리를 준다. 회색 바탕에 회색 글씨면
+               * 12칸이 통째로 흐릿한 덩어리가 돼서 "누를 수 있는 것"으로 안
+               * 읽힌다 — 고르기 전에는 전부 비활성처럼 보이는 셈이다.
+               */
               className={`relative flex flex-col items-center gap-2 rounded-(--radius-md) border py-4 transition-colors ${
                 selected
                   ? "border-(--color-primary) bg-(--color-surface)"
-                  : "border-transparent bg-(--color-surface-alt)"
+                  : "border-(--color-border) bg-(--color-surface)"
               }`}
             >
               <span
@@ -52,7 +57,7 @@ export function TileGrid({ label, options, value, onToggle }: TileGridProps) {
                   className={`h-6 w-6 ${
                     selected
                       ? "text-(--color-primary)"
-                      : "text-(--color-text-muted)"
+                      : "text-(--color-text-sub)"
                   }`}
                 />
               ) : null}

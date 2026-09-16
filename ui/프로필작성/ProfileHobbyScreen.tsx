@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { Button } from "@ui/공통/Button";
+import { StepFooter } from "@ui/공통/StepFooter";
 import { StepHeader, Accent } from "@ui/공통/StepHeader";
 import { Textarea } from "@ui/공통/Textarea";
 import { TileGrid } from "@ui/공통/TileGrid";
@@ -68,12 +69,15 @@ export function ProfileHobbyScreen() {
         />
       </div>
 
-      <div className="mt-auto pt-8">
-        {picked > 0 && picked < ACTIVITY_MIN ? (
-          <p className="mb-2 text-center text-[12px] text-(--color-text-sub)">
-            {ACTIVITY_MIN - picked}개만 더 골라주세요
-          </p>
-        ) : null}
+      <StepFooter
+        hint={
+          picked < ACTIVITY_MIN
+            ? `활동을 ${ACTIVITY_MIN - picked}개만 더 골라주세요`
+            : !draft.idealType.trim()
+              ? "만나고 싶은 사람을 적어주세요"
+              : undefined
+        }
+      >
         <Button
           fullWidth
           disabled={!canSubmit}
@@ -81,7 +85,7 @@ export function ProfileHobbyScreen() {
         >
           다음으로
         </Button>
-      </div>
+      </StepFooter>
     </div>
   );
 }

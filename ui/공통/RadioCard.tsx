@@ -29,10 +29,11 @@ export function RadioCard({ label, options, value, onChange }: RadioCardProps) {
               aria-pressed={selected}
               aria-label={option}
               onClick={() => onChange(option)}
+              /* 안 고른 쪽도 흰 바탕이다 — TileGrid와 같은 이유. */
               className={`relative flex flex-1 flex-col items-center gap-1.5 rounded-(--radius-md) border py-4 transition-colors ${
                 selected
                   ? "border-(--color-primary) bg-(--color-surface)"
-                  : "border-(--color-border) bg-(--color-surface-alt)"
+                  : "border-(--color-border) bg-(--color-surface)"
               }`}
             >
               <span
@@ -48,7 +49,7 @@ export function RadioCard({ label, options, value, onChange }: RadioCardProps) {
                 className={`h-7 w-7 ${
                   selected
                     ? "text-(--color-primary)"
-                    : "text-(--color-text-muted)"
+                    : "text-(--color-text-sub)"
                 }`}
               />
               <span

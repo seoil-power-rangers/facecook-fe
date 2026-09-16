@@ -6,12 +6,19 @@ import { ChevronRight } from "lucide-react";
 import { Button } from "@ui/공통/Button";
 import { BottomSheet } from "@ui/공통/BottomSheet";
 import { CheckRow } from "@ui/공통/CheckRow";
+import { CodeInput } from "@ui/공통/CodeInput";
 import { InfoBox } from "@ui/공통/InfoBox";
+import { StepFooter } from "@ui/공통/StepFooter";
 import { StepHeader, Accent } from "@ui/공통/StepHeader";
 import { TextField } from "@ui/공통/TextField";
 import { CODE_LENGTH, EVENT, MIN_PASSWORD_LENGTH, TERMS } from "@ui/공통/constants";
 import { useOnboarding } from "@ui/공통/onboarding";
-import { authErrorMessage, requestCode, verifySignup } from "./authApi";
+import {
+  AuthApiError,
+  authErrorMessage,
+  requestCode,
+  verifySignup,
+} from "./authApi";
 import { useVerificationCode } from "./verificationCode";
 
 const REQUIRED_TERM_IDS: string[] = TERMS.filter((term) => term.required).map(
@@ -31,6 +38,15 @@ export function EmailVerifyScreen() {
   const [isRequesting, setIsRequesting] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /*
+   * 서버가 인증번호를 거절했는지. 화면에서는 6자리를 다 채운 정상 입력처럼
+   * 보이므로, 틀렸다는 걸 칸 자체에도 표시해야 어디를 고쳐야 할지 보인다.
+   *
+   * 오류 코드 이름에 CODE가 들어가는 경우만 인증번호 문제로 본다 — 명세에
+   * 정확한 코드가 적혀 있지 않아서, 다르면 칸이 빨개지지 않을 뿐 동작은 그대로다.
+   * facecook-be에 코드 이름을 확인해서 이 조건을 좁히는 게 좋다.
+   */
+  const [codeRejected, setCodeRejected] = useState(false);
 
   const agreed = draft.agreedTerms;
   const requiredAgreed = REQUIRED_TERM_IDS.every((id) => agreed.includes(id));
@@ -65,18 +81,37 @@ export function EmailVerifyScreen() {
       };
     });
 
+  const emailFilled = draft.email.includes("@");
   const passwordFilled = draft.password.length >= MIN_PASSWORD_LENGTH;
   const canSubmit =
-    draft.email.includes("@") &&
-    filled &&
-    !expired &&
-    passwordFilled &&
-    requiredAgreed;
+    emailFilled && filled && !expired && passwordFilled && requiredAgreed;
+
+  /** 아직 안 끝난 것 중 맨 위 것 하나만 말한다 — 전부 나열하면 읽지 않는다. */
+  const missing = !emailFilled
+    ? "이메일 주소를 입력해주세요"
+    : !sent
+      ? "인증요청을 눌러 인증번호를 받아주세요"
+      : expired
+        ? "인증번호가 만료됐어요. 다시 받아주세요"
+        : !filled
+          ? `인증번호 ${CODE_LENGTH}자리를 입력해주세요`
+          : !passwordFilled
+            ? `비밀번호를 ${MIN_PASSWORD_LENGTH}자 이상 입력해주세요`
+            : !requiredAgreed
+              ? "약관에 동의해야 시작할 수 있어요"
+              : undefined;
 
   const changeEmail = (value: string) => {
     set("email", value);
     reset();
+    setCodeRejected(false);
     setError(null);
+  };
+
+  /** 고치기 시작하면 거절 표시를 지운다 — 계속 빨간 채로 두면 뭘 고쳤는지 안 보인다. */
+  const changeCode = (value: string) => {
+    change(value);
+    setCodeRejected(false);
   };
 
   const requestVerificationCode = async () => {
@@ -109,6 +144,9 @@ export function EmailVerifyScreen() {
       router.push("/onboarding/basic");
     } catch (submitError) {
       setError(authErrorMessage(submitError));
+      setCodeRejected(
+        submitError instanceof AuthApiError && submitError.code.includes("CODE"),
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -126,7 +164,7 @@ export function EmailVerifyScreen() {
         note="학교 이메일이 아니어도 돼요. 학번·학생증 없이 가입해요."
       />
 
-      <div className="space-y-4">
+      <div className="space-y-5">
         <TextField
           label="이메일"
           type="email"
@@ -135,11 +173,20 @@ export function EmailVerifyScreen() {
           value={draft.email}
           onChange={(event) => changeEmail(event.target.value)}
           trailing={
+            /*
+             * 이 화면에서 제일 먼저 눌러야 하는 곳이다. 칸 안의 작은 글씨로
+             * 두면 버튼인지 안내인지 구분이 안 돼서 알약으로 올린다.
+             * 한 번 보낸 뒤에는 테두리만 남겨 주인공 자리를 인증번호에 넘긴다.
+             */
             <button
               type="button"
               onClick={requestVerificationCode}
-              disabled={!draft.email.includes("@") || isRequesting}
-              className="shrink-0 text-[13px] font-bold text-(--color-primary) disabled:text-(--color-text-muted)"
+              disabled={!emailFilled || isRequesting}
+              className={`flex h-8 shrink-0 items-center rounded-(--radius-full) border px-3 text-[12.5px] font-bold transition-colors disabled:border-(--color-disabled-border) disabled:bg-transparent disabled:text-(--color-disabled-text) ${
+                sent
+                  ? "border-(--color-primary) text-(--color-primary)"
+                  : "border-(--color-primary) bg-(--color-primary) text-(--color-text-on-primary)"
+              }`}
             >
               {isRequesting ? "전송 중" : sent ? "재발송" : "인증요청"}
             </button>
@@ -147,35 +194,40 @@ export function EmailVerifyScreen() {
         />
 
         <div>
-          <TextField
+          <div className="mb-1.5 flex items-baseline justify-between gap-2">
+            <p className="text-[11px] font-bold text-(--color-text-sub)">
+              인증번호
+            </p>
+            {sent ? (
+              <span
+                className={`text-[11.5px] font-bold tabular-nums ${
+                  expired ? "text-(--color-danger)" : "text-(--color-primary)"
+                }`}
+              >
+                {remaining}
+              </span>
+            ) : null}
+          </div>
+
+          <CodeInput
             label="인증번호"
-            inputMode="numeric"
-            maxLength={CODE_LENGTH}
-            placeholder="000000"
-            disabled={!sent}
+            length={CODE_LENGTH}
             value={code}
-            onChange={(event) => change(event.target.value)}
-            className="tracking-[0.3em]"
-            trailing={
-              sent ? (
-                <span
-                  className={`shrink-0 text-[13px] tabular-nums ${
-                    expired ? "text-(--color-danger)" : "text-(--color-text-sub)"
-                  }`}
-                >
-                  {remaining}
-                </span>
-              ) : undefined
-            }
+            onChange={changeCode}
+            disabled={!sent}
+            invalid={expired || codeRejected}
           />
+
           <p
             className={`mt-1.5 text-[12px] ${
               expired ? "text-(--color-danger)" : "text-(--color-text-sub)"
             }`}
           >
-            {expired
-              ? "인증번호가 만료됐어요. 다시 받아주세요."
-              : `메일함에서 ${CODE_LENGTH}자리 인증번호를 확인하세요`}
+            {!sent
+              ? "인증요청을 누르면 메일이 가요"
+              : expired
+                ? "인증번호가 만료됐어요. 다시 받아주세요."
+                : `메일함에서 ${CODE_LENGTH}자리 인증번호를 확인하세요`}
           </p>
         </div>
 
@@ -189,12 +241,6 @@ export function EmailVerifyScreen() {
         />
 
         <InfoBox>인증한 이메일로만 로그인할 수 있어요.</InfoBox>
-
-        {error ? (
-          <p role="alert" className="text-[12px] text-(--color-danger)">
-            {error}
-          </p>
-        ) : null}
 
         <div className="rounded-(--radius-md) bg-(--color-primary-light) px-3.5">
           <CheckRow
@@ -218,7 +264,18 @@ export function EmailVerifyScreen() {
         </div>
       </div>
 
-      <div className="mt-auto pt-8">
+      {/* 오류는 방금 누른 버튼 옆에 둔다 — 본문 가운데 있으면 스크롤 위치에 따라 못 본다. */}
+      <StepFooter
+        hint={
+          error ? (
+            <span role="alert" className="text-(--color-danger)">
+              {error}
+            </span>
+          ) : (
+            missing
+          )
+        }
+      >
         <Button
           fullWidth
           disabled={!canSubmit || isSubmitting}
@@ -226,7 +283,7 @@ export function EmailVerifyScreen() {
         >
           {isSubmitting ? "확인 중..." : "동의하고 시작하기"}
         </Button>
-      </div>
+      </StepFooter>
 
       <BottomSheet open={termsOpen} onClose={() => setTermsOpen(false)}>
         <div className="px-5 pt-3">

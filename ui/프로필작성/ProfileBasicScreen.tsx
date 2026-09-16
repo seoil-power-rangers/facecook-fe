@@ -5,6 +5,7 @@ import { Button } from "@ui/공통/Button";
 import { ChipGroup } from "@ui/공통/ChipGroup";
 import { InfoBox } from "@ui/공통/InfoBox";
 import { RadioCard } from "@ui/공통/RadioCard";
+import { StepFooter } from "@ui/공통/StepFooter";
 import { StepHeader, Accent } from "@ui/공통/StepHeader";
 import { TextField } from "@ui/공통/TextField";
 import { BLOOD_TYPES, GENDERS } from "@ui/공통/constants";
@@ -16,12 +17,23 @@ export function ProfileBasicScreen() {
   const { draft, set } = useOnboarding();
 
   const age = Number(draft.age);
+  const ageFilled = Number.isFinite(age) && age > 0;
   const canSubmit =
     draft.nickname.trim().length > 0 &&
     draft.gender !== "" &&
-    Number.isFinite(age) &&
-    age > 0 &&
+    ageFilled &&
     draft.bloodType !== "";
+
+  /** 아직 안 채운 것 중 맨 위 것 하나만 말한다 — 전부 나열하면 읽지 않는다. */
+  const missing = !draft.nickname.trim()
+    ? "닉네임을 입력해주세요"
+    : !draft.gender
+      ? "성별을 골라주세요"
+      : !ageFilled
+        ? "나이를 입력해주세요"
+        : !draft.bloodType
+          ? "혈액형을 골라주세요"
+          : undefined;
 
   return (
     <div className="flex min-h-full flex-col">
@@ -76,7 +88,7 @@ export function ProfileBasicScreen() {
         <InfoBox>필수 항목은 등록 후 수정할 수 없어요.</InfoBox>
       </div>
 
-      <div className="mt-auto pt-8">
+      <StepFooter hint={missing}>
         <Button
           fullWidth
           disabled={!canSubmit}
@@ -84,7 +96,7 @@ export function ProfileBasicScreen() {
         >
           다음으로
         </Button>
-      </div>
+      </StepFooter>
     </div>
   );
 }
