@@ -23,7 +23,13 @@ import { cookErrorMessage, getCooks, sendCook } from "@ui/받은콕/cookApi";
 
 const HOBBY_ICONS: LucideIcon[] = [Utensils, Footprints, Send];
 
-export function ProfileDetailScreen({ userId }: { userId: string }) {
+export function ProfileDetailScreen({
+  userId,
+  readOnly = false,
+}: {
+  userId: string;
+  readOnly?: boolean;
+}) {
   const router = useRouter();
   const numericUserId = Number(userId);
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
@@ -50,6 +56,8 @@ export function ProfileDetailScreen({ userId }: { userId: string }) {
       const target = await getProfile(numericUserId);
       setProfile(target);
 
+      if (readOnly) return;
+
       try {
         const mine = await getMyProfile();
         setCommonCount(commonHobbies(target.hobby, mine.hobby));
@@ -61,7 +69,9 @@ export function ProfileDetailScreen({ userId }: { userId: string }) {
       // 보여준다 — 부가 정보 하나 때문에 화면 전체를 못 보게 할 일은 아니다.
       try {
         const cooks = await getCooks();
-        setKokRemaining(Math.max(cooks.usage.dailyLimit - cooks.usage.todayUsed, 0));
+        setKokRemaining(
+          Math.max(cooks.usage.dailyLimit - cooks.usage.todayUsed, 0),
+        );
         setKokLimit(cooks.usage.dailyLimit);
       } catch {
         setKokRemaining(null);
@@ -72,7 +82,7 @@ export function ProfileDetailScreen({ userId }: { userId: string }) {
     } finally {
       setIsLoading(false);
     }
-  }, [numericUserId]);
+  }, [numericUserId, readOnly]);
 
   useEffect(() => {
     // 라우트의 userId가 바뀌면 해당 프로필을 다시 불러온다.
@@ -102,7 +112,12 @@ export function ProfileDetailScreen({ userId }: { userId: string }) {
     return (
       <PhoneFrame>
         <header className="flex h-14 shrink-0 items-center border-b border-(--color-border) bg-(--color-surface) px-3">
-          <button type="button" aria-label="뒤로가기" className="p-1" onClick={() => router.back()}>
+          <button
+            type="button"
+            aria-label="뒤로가기"
+            className="p-1"
+            onClick={() => router.back()}
+          >
             <ChevronLeft className="h-5 w-5" />
           </button>
         </header>
@@ -114,7 +129,11 @@ export function ProfileDetailScreen({ userId }: { userId: string }) {
         >
           <span>{error ?? "프로필을 불러오는 중..."}</span>
           {error ? (
-            <Button size="sm" variant="outline" onClick={() => void loadProfile()}>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => void loadProfile()}
+            >
               다시 시도
             </Button>
           ) : null}
@@ -137,11 +156,13 @@ export function ProfileDetailScreen({ userId }: { userId: string }) {
 
   return (
     <PhoneFrame>
-      <Toast
-        open={toastMessage !== null}
-        message={toastMessage ?? ""}
-        onDismiss={() => setToastMessage(null)}
-      />
+      {!readOnly ? (
+        <Toast
+          open={toastMessage !== null}
+          message={toastMessage ?? ""}
+          onDismiss={() => setToastMessage(null)}
+        />
+      ) : null}
 
       <div className="flex-1 overflow-y-auto">
         {/*
@@ -150,12 +171,27 @@ export function ProfileDetailScreen({ userId }: { userId: string }) {
         */}
         <div className="bg-(--color-accent-soft) px-4 pb-20 pt-3 text-(--color-text-strong)">
           <div className="flex items-center justify-between">
-            <button type="button" aria-label="뒤로가기" className="p-1" onClick={() => router.back()}>
+            <button
+              type="button"
+              aria-label="뒤로가기"
+              className="p-1"
+              onClick={() => router.back()}
+            >
               <ChevronLeft className="h-5 w-5" />
             </button>
-            <Link href={`/profile/${userId}/report`} aria-label="신고" className="p-1">
-              <Siren className="h-4 w-4" />
-            </Link>
+            {readOnly ? (
+              <span className="text-xs font-semibold text-(--color-text-sub)">
+                조회 전용
+              </span>
+            ) : (
+              <Link
+                href={`/profile/${userId}/report`}
+                aria-label="신고"
+                className="p-1"
+              >
+                <Siren className="h-4 w-4" />
+              </Link>
+            )}
           </div>
 
           <h1 className="mt-4 text-2xl font-extrabold">{profile.nickname}</h1>
@@ -187,53 +223,77 @@ export function ProfileDetailScreen({ userId }: { userId: string }) {
               className="ring-4 ring-(--color-surface)"
             />
           )}
-          {commonCount > 0 ? <Tag variant="accent">공통 관심사 {commonCount}개</Tag> : null}
+          {!readOnly && commonCount > 0 ? (
+            <Tag variant="accent">공통 관심사 {commonCount}개</Tag>
+          ) : null}
         </div>
 
         <div className="flex flex-col gap-6 px-4 pb-6 pt-6">
           <section>
-            <h2 className="mb-2 text-sm font-semibold text-(--color-text-strong)">기본 정보</h2>
+            <h2 className="mb-2 text-sm font-semibold text-(--color-text-strong)">
+              기본 정보
+            </h2>
             <div className="divide-y divide-(--color-border) rounded-(--radius-lg) border border-(--color-border)">
               {infoRows.map((row) => (
-                <div key={row.label} className="flex items-center justify-between px-4 py-3">
-                  <span className="text-sm text-(--color-text-sub)">{row.label}</span>
-                  <span className="text-sm font-semibold text-(--color-text-strong)">{row.value}</span>
+                <div
+                  key={row.label}
+                  className="flex items-center justify-between px-4 py-3"
+                >
+                  <span className="text-sm text-(--color-text-sub)">
+                    {row.label}
+                  </span>
+                  <span className="text-sm font-semibold text-(--color-text-strong)">
+                    {row.value}
+                  </span>
                 </div>
               ))}
             </div>
           </section>
 
           <section>
-            <h2 className="mb-2 text-sm font-semibold text-(--color-text-strong)">자기소개</h2>
+            <h2 className="mb-2 text-sm font-semibold text-(--color-text-strong)">
+              자기소개
+            </h2>
             <p className="rounded-(--radius-lg) bg-(--color-surface-alt) p-4 text-sm leading-relaxed text-(--color-text-body)">
               {profile.bio || "아직 작성한 자기소개가 없어요."}
             </p>
           </section>
 
           <section>
-            <h2 className="mb-3 text-sm font-semibold text-(--color-text-strong)">이런 걸 하고 싶어요</h2>
+            <h2 className="mb-3 text-sm font-semibold text-(--color-text-strong)">
+              이런 걸 하고 싶어요
+            </h2>
             {hobbies.length > 0 ? (
               <div className="flex flex-wrap justify-around gap-4">
                 {hobbies.map((hobby, index) => {
                   const HobbyIcon = HOBBY_ICONS[index % HOBBY_ICONS.length];
                   return (
-                    <div key={hobby} className="flex min-w-20 flex-col items-center gap-2">
+                    <div
+                      key={hobby}
+                      className="flex min-w-20 flex-col items-center gap-2"
+                    >
                       <div className="flex h-14 w-14 items-center justify-center rounded-full bg-(--color-accent-soft) text-(--color-accent)">
                         <HobbyIcon className="h-6 w-6" />
                       </div>
-                      <span className="text-xs text-(--color-text-sub)">{hobby}</span>
+                      <span className="text-xs text-(--color-text-sub)">
+                        {hobby}
+                      </span>
                     </div>
                   );
                 })}
               </div>
             ) : (
-              <p className="text-sm text-(--color-text-sub)">등록한 관심사가 없어요.</p>
+              <p className="text-sm text-(--color-text-sub)">
+                등록한 관심사가 없어요.
+              </p>
             )}
           </section>
 
           {profile.idealType ? (
             <section>
-              <h2 className="mb-2 text-sm font-semibold text-(--color-text-strong)">이상형</h2>
+              <h2 className="mb-2 text-sm font-semibold text-(--color-text-strong)">
+                이상형
+              </h2>
               <p className="rounded-(--radius-lg) bg-(--color-surface-alt) p-4 text-sm text-(--color-text-body)">
                 {profile.idealType}
               </p>
@@ -242,29 +302,36 @@ export function ProfileDetailScreen({ userId }: { userId: string }) {
         </div>
       </div>
 
-      <div className="shrink-0 border-t border-(--color-border) bg-(--color-surface) p-4">
-        <button
-          type="button"
-          onClick={() => setKokSheetOpen(true)}
-          className="flex h-[54px] w-full items-center justify-center rounded-(--radius-lg) bg-(--color-accent) text-base font-bold text-(--color-text-on-primary) transition-colors hover:bg-(--color-accent-hover) active:bg-(--color-accent-pressed)"
-        >
-          콕 보내기
-        </button>
-      </div>
+      {!readOnly ? (
+        <>
+          <div className="shrink-0 border-t border-(--color-border) bg-(--color-surface) p-4">
+            <button
+              type="button"
+              onClick={() => setKokSheetOpen(true)}
+              className="flex h-[54px] w-full items-center justify-center rounded-(--radius-lg) bg-(--color-accent) text-base font-bold text-(--color-text-on-primary) transition-colors hover:bg-(--color-accent-hover) active:bg-(--color-accent-pressed)"
+            >
+              콕 보내기
+            </button>
+          </div>
 
-      <BottomSheet open={kokSheetOpen} onClose={() => !isSending && setKokSheetOpen(false)}>
-        <KokConfirmSheet
-          name={profile.nickname}
-          userId={profile.userId}
-          remaining={kokRemaining}
-          dailyLimit={kokLimit}
-          photoUrl={profile.photo}
-          gender={profile.gender}
-          onCancel={() => setKokSheetOpen(false)}
-          onConfirm={() => void handleSendCook()}
-          isSubmitting={isSending}
-        />
-      </BottomSheet>
+          <BottomSheet
+            open={kokSheetOpen}
+            onClose={() => !isSending && setKokSheetOpen(false)}
+          >
+            <KokConfirmSheet
+              name={profile.nickname}
+              userId={profile.userId}
+              remaining={kokRemaining}
+              dailyLimit={kokLimit}
+              photoUrl={profile.photo}
+              gender={profile.gender}
+              onCancel={() => setKokSheetOpen(false)}
+              onConfirm={() => void handleSendCook()}
+              isSubmitting={isSending}
+            />
+          </BottomSheet>
+        </>
+      ) : null}
 
       {photoViewerOpen && profile.photo ? (
         <PhotoViewer
@@ -278,7 +345,10 @@ export function ProfileDetailScreen({ userId }: { userId: string }) {
 }
 
 function splitHobbies(hobby: string) {
-  return hobby.split(",").map((item) => item.trim()).filter(Boolean);
+  return hobby
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 function commonHobbies(targetHobby: string, myHobby: string) {
