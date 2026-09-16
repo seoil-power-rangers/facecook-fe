@@ -81,9 +81,16 @@ export function getSuperChats() {
   return requestSuper<SuperChatRoomResponse[]>("/api/super/chats");
 }
 
-export function getSuperChatMessages(matchId: number) {
+export function getSuperChatMessages(
+  matchId: number,
+  options: { before?: number; limit?: number } = {},
+) {
+  const query = new URLSearchParams();
+  if (options.before !== undefined) query.set("before", String(options.before));
+  query.set("limit", String(options.limit ?? 50));
+
   return requestSuper<SuperChatMessageResponse[]>(
-    `/api/super/chats/${matchId}/messages?limit=100`,
+    `/api/super/chats/${matchId}/messages?${query.toString()}`,
   );
 }
 

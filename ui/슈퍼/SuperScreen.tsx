@@ -75,7 +75,7 @@ export function SuperScreen() {
     } catch (loadError) {
       if (
         loadError instanceof SuperApiError &&
-        loadError.code === "UNAUTHORIZED"
+        (loadError.code === "UNAUTHORIZED" || loadError.code === "FORBIDDEN")
       ) {
         clearDashboardState();
         await logout().catch(() => undefined);
