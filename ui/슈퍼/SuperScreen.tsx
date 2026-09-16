@@ -10,6 +10,7 @@ import { PhoneFrame } from "@ui/공통/PhoneFrame";
 import { PhotoViewer } from "@ui/공통/PhotoViewer";
 import { Tag } from "@ui/공통/Tag";
 import { TextField } from "@ui/공통/TextField";
+import { resolveAvatarPhoto } from "@ui/공통/avatarColor";
 import { useSession } from "@ui/공통/session";
 import { authErrorMessage, login, logout } from "@ui/로그인/authApi";
 import {
@@ -28,7 +29,7 @@ type SuperTab = "users" | "chats";
  * /super 에서 로그인하면 바로 유저·채팅방 목록이 열린다.
  */
 export function SuperScreen() {
-  const { session, signIn, signOut } = useSession();
+  const { session, signOut } = useSession();
   const router = useRouter();
   const [tab, setTab] = useState<SuperTab>("users");
   const [users, setUsers] = useState<SuperUserResponse[]>([]);
@@ -246,7 +247,7 @@ function UserList({ users }: { users: SuperUserResponse[] }) {
     <>
       <ul className="flex flex-col gap-3 p-4">
         {users.map((user) => {
-          const photoUrl = userPhoto(user.photo, user.gender);
+          const photoUrl = resolveAvatarPhoto(user.photo, user.gender);
           return (
             <li
               key={user.userId}
@@ -263,7 +264,8 @@ function UserList({ users }: { users: SuperUserResponse[] }) {
                     name={user.nickname ?? user.email}
                     size="xl"
                     userId={user.userId}
-                    photoUrl={photoUrl}
+                    photoUrl={user.photo}
+                    gender={user.gender}
                     suspended={user.status === "suspended"}
                   />
                 </button>
@@ -341,13 +343,15 @@ function ChatList({
                 name={memberName(chat.userA)}
                 size="md"
                 userId={chat.userA.userId}
-                photoUrl={userPhoto(chat.userA.photo, chat.userA.gender)}
+                photoUrl={chat.userA.photo}
+                gender={chat.userA.gender}
               />
               <Avatar
                 name={memberName(chat.userB)}
                 size="md"
                 userId={chat.userB.userId}
-                photoUrl={userPhoto(chat.userB.photo, chat.userB.gender)}
+                photoUrl={chat.userB.photo}
+                gender={chat.userB.gender}
               />
             </div>
             <div className="min-w-0 flex-1">
@@ -408,16 +412,6 @@ function TabButton({
 
 function memberName(member: SuperChatRoomResponse["userA"]) {
   return member.nickname ?? member.email ?? `참가자 #${member.userId}`;
-}
-
-function userPhoto(photo: string | null | undefined, gender: string | null | undefined) {
-  if (photo) return photo;
-  const value = gender?.trim().toLowerCase() ?? "";
-  if (value === "여성" || value === "female" || value === "woman" || value === "f" || value === "여") {
-    return "/avatars/default-female.jpg";
-  }
-  if (value) return "/avatars/default-male.jpg";
-  return null;
 }
 
 function roleLabel(role: string) {

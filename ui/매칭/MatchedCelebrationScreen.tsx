@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { ChevronLeft, Heart, MessageCircle, Ticket } from "lucide-react";
 import { Button } from "@ui/공통/Button";
 import { PhoneFrame } from "@ui/공통/PhoneFrame";
-import { avatarColor, avatarEmoji, defaultPhotoForGender } from "@ui/공통/avatarColor";
+import { avatarColor, avatarEmoji, resolveAvatarPhoto } from "@ui/공통/avatarColor";
 import { getMyProfile, type ProfileResponse } from "@ui/프로필작성/profileApi";
 import { getMatch, matchErrorMessage, type MatchResponse } from "./matchApi";
 
@@ -256,8 +256,8 @@ function Face({
   gender?: string | null;
   className: string;
 }) {
-  const fallbackPhoto =
-    photoUrl || (gender ? defaultPhotoForGender(gender) : null);
+  const fallbackPhoto = resolveAvatarPhoto(photoUrl, gender);
+  const isDefaultMalePhoto = fallbackPhoto === "/avatars/default-male.jpg";
 
   return (
     <span
@@ -275,7 +275,15 @@ function Face({
     >
       {fallbackPhoto ? (
         // eslint-disable-next-line @next/next/no-img-element -- 프로필 URL·기본 실루엣이라 next/image 대상이 아니다.
-        <img src={fallbackPhoto} alt="" className="h-full w-full object-cover" />
+        <img
+          src={fallbackPhoto}
+          alt=""
+          className={`h-full w-full ${
+            isDefaultMalePhoto
+              ? "bg-[#c3cbe0] object-contain p-[12%]"
+              : "object-cover"
+          }`}
+        />
       ) : userId === null ? (
         <span className="text-2xl font-bold text-(--color-primary)">나</span>
       ) : (

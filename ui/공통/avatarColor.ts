@@ -22,11 +22,22 @@ export function avatarEmoji(userId: number) {
 }
 
 const FEMALE_VALUES = new Set(["여성", "female", "woman", "f", "여"]);
+const MALE_VALUES = new Set(["남성", "male", "man", "m", "남"]);
 
 /** 사진을 안 올린 참가자에게 성별에 맞는 기본 실루엣을 준다. */
-export function defaultPhotoForGender(gender: string) {
-  if (FEMALE_VALUES.has(gender.trim().toLowerCase())) {
-    return "/avatars/default-female.jpg";
-  }
-  return "/avatars/default-male.jpg";
+export function defaultPhotoForGender(gender: string): string | null {
+  const normalized = gender.trim().toLowerCase();
+  if (FEMALE_VALUES.has(normalized)) return "/avatars/default-female.jpg";
+  if (MALE_VALUES.has(normalized)) return "/avatars/default-male.jpg";
+  return null;
+}
+
+/** 업로드 사진을 우선하고, 없으면 성별 기본 이미지나 중립 아바타로 폴백한다. */
+export function resolveAvatarPhoto(
+  photoUrl?: string | null,
+  gender?: string | null,
+): string | null {
+  const normalizedPhoto = photoUrl?.trim();
+  if (normalizedPhoto) return normalizedPhoto;
+  return gender ? defaultPhotoForGender(gender) : null;
 }
