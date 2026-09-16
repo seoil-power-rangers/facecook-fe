@@ -87,6 +87,7 @@ export function Avatar({
   gender,
 }: AvatarProps) {
   const fallbackPhoto = photoUrl || (gender ? defaultPhotoForGender(gender) : null);
+  const isDefaultMalePhoto = fallbackPhoto === "/avatars/default-male.jpg";
   const face = emoji ?? (userId === undefined ? undefined : avatarEmoji(userId));
   const background =
     bgColor ?? (userId === undefined ? "var(--color-primary)" : avatarColor(userId));
@@ -101,7 +102,15 @@ export function Avatar({
       >
         {fallbackPhoto ? (
           // eslint-disable-next-line @next/next/no-img-element -- S3 원본 URL이라 next/image 최적화 대상이 아니다.
-          <img src={fallbackPhoto} alt="" className="h-full w-full object-cover" />
+          <img
+            src={fallbackPhoto}
+            alt=""
+            className={`h-full w-full ${
+              isDefaultMalePhoto
+                ? "bg-[#c3cbe0] object-contain p-[12%]"
+                : "object-cover"
+            }`}
+          />
         ) : face ? (
           <span className={emojiSizeClasses[size]}>{face}</span>
         ) : (

@@ -258,6 +258,7 @@ function Face({
 }) {
   const fallbackPhoto =
     photoUrl || (gender ? defaultPhotoForGender(gender) : null);
+  const isDefaultMalePhoto = fallbackPhoto === "/avatars/default-male.jpg";
 
   return (
     <span
@@ -275,7 +276,15 @@ function Face({
     >
       {fallbackPhoto ? (
         // eslint-disable-next-line @next/next/no-img-element -- 프로필 URL·기본 실루엣이라 next/image 대상이 아니다.
-        <img src={fallbackPhoto} alt="" className="h-full w-full object-cover" />
+        <img
+          src={fallbackPhoto}
+          alt=""
+          className={`h-full w-full ${
+            isDefaultMalePhoto
+              ? "bg-[#c3cbe0] object-contain p-[12%]"
+              : "object-cover"
+          }`}
+        />
       ) : userId === null ? (
         <span className="text-2xl font-bold text-(--color-primary)">나</span>
       ) : (
