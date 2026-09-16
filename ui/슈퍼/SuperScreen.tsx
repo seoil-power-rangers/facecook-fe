@@ -50,6 +50,8 @@ export function SuperScreen() {
   const { session, signOut } = useSession();
   const router = useRouter();
   const mainRef = useRef<HTMLElement>(null);
+  const loadRequestIdRef = useRef(0);
+  const persistencePausedRef = useRef(false);
   const scrollTopRef = useRef<Record<SuperTab, number>>({ users: 0, chats: 0 });
   const [tab, setTab] = useState<SuperTab>("users");
   const [chatSearch, setChatSearch] = useState("");
@@ -62,7 +64,24 @@ export function SuperScreen() {
 
   const isSuper = session.role === "super";
 
+  const resetDashboard = useCallback(() => {
+    const initial = createDefaultDashboardState();
+    loadRequestIdRef.current += 1;
+    persistencePausedRef.current = true;
+    clearDashboardState();
+    setTab(initial.tab);
+    setChatSearch(initial.chatSearch);
+    setUserPage(initial.userPage);
+    scrollTopRef.current = initial.scrollTop;
+    setUsers([]);
+    setChats([]);
+    setError(null);
+    setIsLoading(false);
+    if (mainRef.current) mainRef.current.scrollTop = 0;
+  }, []);
+
   const load = useCallback(async () => {
+    const requestId = ++loadRequestIdRef.current;
     setIsLoading(true);
     setError(null);
     try {
@@ -70,23 +89,25 @@ export function SuperScreen() {
         getSuperUsers(),
         getSuperChats(),
       ]);
-      setUsers(userList);
+      if (requestId !== loadRequestIdRef.current) return;
+      setUsers([...userList].sort((a, b) => a.userId - b.userId));
       setChats(chatList);
     } catch (loadError) {
+      if (requestId !== loadRequestIdRef.current) return;
       if (
         loadError instanceof SuperApiError &&
-        loadError.code === "UNAUTHORIZED"
+        (loadError.code === "UNAUTHORIZED" || loadError.code === "FORBIDDEN")
       ) {
-        clearDashboardState();
+        resetDashboard();
         await logout().catch(() => undefined);
         signOut();
         return;
       }
       setError(superErrorMessage(loadError));
     } finally {
-      setIsLoading(false);
+      if (requestId === loadRequestIdRef.current) setIsLoading(false);
     }
-  }, [signOut]);
+  }, [resetDashboard, signOut]);
 
   useEffect(() => {
     const saved = readDashboardState();
@@ -106,14 +127,14 @@ export function SuperScreen() {
   }, [isSuper, load]);
 
   useEffect(() => {
-    if (!stateRestored) return;
+    if (!isSuper || !stateRestored || persistencePausedRef.current) return;
     writeDashboardState({
       tab,
       chatSearch,
       userPage,
       scrollTop: scrollTopRef.current,
     });
-  }, [chatSearch, stateRestored, tab, userPage]);
+  }, [chatSearch, isSuper, stateRestored, tab, userPage]);
 
   useEffect(() => {
     if (!stateRestored || isLoading) return;
@@ -170,12 +191,17 @@ export function SuperScreen() {
   };
 
   const handleLogout = async () => {
-    clearDashboardState();
+    resetDashboard();
     await logout().catch(() => undefined);
     signOut();
   };
 
-  if (!isSuper) return <SuperLoginForm />;
+  const handleLoginSuccess = () => {
+    resetDashboard();
+    persistencePausedRef.current = false;
+  };
+
+  if (!isSuper) return <SuperLoginForm onLoginSuccess={handleLoginSuccess} />;
 
   return (
     <PhoneFrame>
@@ -266,7 +292,7 @@ export function SuperScreen() {
   );
 }
 
-function SuperLoginForm() {
+function SuperLoginForm({ onLoginSuccess }: { onLoginSuccess: () => void }) {
   const { signIn } = useSession();
   const [loginId, setLoginId] = useState("");
   const [password, setPassword] = useState("");
@@ -285,7 +311,7 @@ function SuperLoginForm() {
         setError("슈퍼 권한이 없는 계정입니다.");
         return;
       }
-      clearDashboardState();
+      onLoginSuccess();
       signIn({ role: "super", name: user.email });
     } catch (submitError) {
       setError(authErrorMessage(submitError));
@@ -638,10 +664,10 @@ function formatStamp(value: string) {
 }
 
 function readDashboardState(): DashboardState {
-  if (typeof window === "undefined") return DEFAULT_DASHBOARD_STATE;
+  if (typeof window === "undefined") return createDefaultDashboardState();
   try {
     const raw = window.sessionStorage.getItem(DASHBOARD_STATE_KEY);
-    if (!raw) return DEFAULT_DASHBOARD_STATE;
+    if (!raw) return createDefaultDashboardState();
     const parsed = JSON.parse(raw) as Partial<DashboardState>;
     return {
       tab: parsed.tab === "chats" ? "chats" : "users",
@@ -657,8 +683,15 @@ function readDashboardState(): DashboardState {
       },
     };
   } catch {
-    return DEFAULT_DASHBOARD_STATE;
+    return createDefaultDashboardState();
   }
+}
+
+function createDefaultDashboardState(): DashboardState {
+  return {
+    ...DEFAULT_DASHBOARD_STATE,
+    scrollTop: { ...DEFAULT_DASHBOARD_STATE.scrollTop },
+  };
 }
 
 function writeDashboardState(state: DashboardState) {
