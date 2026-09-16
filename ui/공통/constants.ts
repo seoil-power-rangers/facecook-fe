@@ -84,7 +84,7 @@ export const MIN_PASSWORD_LENGTH = 8;
 export const PROGRESS_SLOTS = 5;
 
 export const EVENT = {
-  name: "페이스콕",
+  name: "콕찔러보기",
   period: "9/30 ~ 10/2",
   purgeAt: "10/3 00:00",
 } as const;

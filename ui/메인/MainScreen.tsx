@@ -199,7 +199,7 @@ function Hero({
       <div className="flex-1" aria-hidden="true" />
 
       <p className="relative z-10 mt-3 text-lg font-bold text-(--color-text-sub)">
-        페이스콕
+        콕찔러보기
       </p>
 
       <Mascot />
