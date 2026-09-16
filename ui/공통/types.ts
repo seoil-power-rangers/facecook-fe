@@ -95,9 +95,6 @@ export interface Report {
 /**
  * 온보딩 02~07에서 모으는 입력값.
  * 07의 [완료하고 시작]을 누를 때 User + Profile로 만들어 보낸다.
- *
- * traits(성향 태그)는 시안에는 있지만 DB에 컬럼이 없다 — DB 담당자에게 요청해 둔 상태라
- * 지금은 화면 안에서만 들고 있는다.
  */
 export interface OnboardingDraft {
   email: string;
@@ -109,7 +106,6 @@ export interface OnboardingDraft {
   age: string;
   bloodType: string;
   mbti: string[];
-  traits: string[];
   activities: string[];
   photoUrl: string;
   department: string;
@@ -127,7 +123,6 @@ export const EMPTY_DRAFT: OnboardingDraft = {
   age: "",
   bloodType: "",
   mbti: [],
-  traits: [],
   activities: [],
   photoUrl: "",
   department: "",

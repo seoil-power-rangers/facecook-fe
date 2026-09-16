@@ -31,15 +31,6 @@ export const MBTI_NICKNAMES: Record<string, string> = {
   ESFP: "자유로운 영혼의 연예인",
 };
 
-/** 04 하단 "나를 한마디로 표현하면?" — 최대 2개 */
-export const TRAITS = [
-  "저는 유쾌해요",
-  "저는 다정해요",
-  "저는 속깊어요",
-  "저는 활발해요",
-] as const;
-export const TRAIT_MAX = 2;
-
 /** 05 "이런 걸 하고 싶어요" — 3개 이상 */
 export const ACTIVITIES = [
   "영화보기",

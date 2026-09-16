@@ -50,12 +50,19 @@ export function CheckRow({
           filled ? "h-full pl-3.5" : "py-2"
         }`}
       >
+        {/*
+          안 고른 칸은 빈 동그라미로 둔다. 회색이어도 체크 표시가 그려져 있으면
+          "이미 체크됐는데 색만 죽은 것"으로 읽혀서, 약관 화면에서 동의한 줄
+          알고 넘어가려다 버튼이 안 눌리는 일이 생긴다.
+        */}
         <span
           className={`flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-(--radius-full) text-(--color-text-on-primary) transition-colors ${
-            checked ? "bg-(--color-primary)" : "bg-(--color-border-strong)"
+            checked
+              ? "bg-(--color-primary)"
+              : "border-2 border-(--color-border-strong)"
           }`}
         >
-          <Check className="h-3 w-3" />
+          {checked ? <Check className="h-3 w-3" /> : null}
         </span>
         <span
           className={`flex-1 text-[14px] ${

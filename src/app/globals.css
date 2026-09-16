@@ -119,6 +119,14 @@ body {
   font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
 
   /*
+   * 한국어는 어절 단위로 줄을 바꾼다. 기본값이면 "알려주세 / 요"처럼 한 글자만
+   * 넘어가서 문장이 끊겨 보인다. 대신 이메일·URL처럼 띄어쓰기 없는 긴 문자열은
+   * 어디서든 끊어야 칸을 뚫고 나가지 않으므로 overflow-wrap을 같이 준다.
+   */
+  word-break: keep-all;
+  overflow-wrap: break-word;
+
+  /*
    * 더블탭 확대를 막는다. viewport의 user-scalable=no는 사파리가 무시하지만
    * 이건 지키므로, 아이폰 브라우저에서도 최소한 더블탭은 걸린다.
    * 스크롤과 두 손가락 확대는 그대로 둔다.

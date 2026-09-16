@@ -6,6 +6,7 @@ import { AvatarPhotoPicker } from "@ui/공통/AvatarPhotoPicker";
 import { Button } from "@ui/공통/Button";
 import { ChipGroup } from "@ui/공통/ChipGroup";
 import { DepartmentPicker } from "@ui/공통/DepartmentPicker";
+import { StepFooter } from "@ui/공통/StepFooter";
 import { StepHeader, Accent } from "@ui/공통/StepHeader";
 import { Textarea } from "@ui/공통/Textarea";
 import { BIO_MAX, GRADES } from "@ui/공통/constants";
@@ -80,13 +81,13 @@ export function ProfileOptionalScreen() {
 
       <div className="mt-5 space-y-5">
         <DepartmentPicker
-          label="학과선택"
+          label="학과"
           value={draft.department}
           onChange={(value) => set("department", value)}
         />
 
         <ChipGroup
-          label="학년선택"
+          label="학년"
           options={GRADES}
           value={draft.grade}
           onChange={(value) => set("grade", value)}
@@ -94,7 +95,7 @@ export function ProfileOptionalScreen() {
 
         <Textarea
           label="자기소개"
-          hint="선택"
+          hint={`선택 · ${draft.bio.length}/${BIO_MAX}`}
           rows={3}
           maxLength={BIO_MAX}
           placeholder="주말엔 주로 밀장 가거나 필름카메라 들고 산책해요."
@@ -103,15 +104,15 @@ export function ProfileOptionalScreen() {
         />
       </div>
 
-      <div className="mt-auto pt-8">
-        {error ? (
-          <p
-            role="alert"
-            className="mb-2 text-center text-[12px] text-(--color-danger)"
-          >
-            {error}
-          </p>
-        ) : null}
+      <StepFooter
+        hint={
+          error ? (
+            <span role="alert" className="text-(--color-danger)">
+              {error}
+            </span>
+          ) : undefined
+        }
+      >
         <Button
           fullWidth
           disabled={isSubmitting}
@@ -119,7 +120,7 @@ export function ProfileOptionalScreen() {
         >
           {isSubmitting ? "등록 중..." : "완료하고 시작"}
         </Button>
-      </div>
+      </StepFooter>
     </div>
   );
 }
