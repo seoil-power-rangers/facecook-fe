@@ -275,7 +275,11 @@ export function ExploreScreen() {
             userId={kokTarget.userId}
             remaining={kokRemaining}
             dailyLimit={kokLimit}
-            photoUrl={kokTarget.photo || defaultPhotoForGender(kokTarget.gender)}
+            photoUrl={
+              kokTarget.photo?.trim() ||
+              defaultPhotoForGender(kokTarget.gender) ||
+              undefined
+            }
             onCancel={() => setKokTarget(null)}
             onConfirm={() => void handleKokConfirm()}
             isSubmitting={isSendingKok}
@@ -316,7 +320,11 @@ function MemberCard({
           name={member.nickname}
           size="lg"
           userId={member.userId}
-          photoUrl={member.photo || defaultPhotoForGender(member.gender)}
+          photoUrl={
+            member.photo?.trim() ||
+            defaultPhotoForGender(member.gender) ||
+            undefined
+          }
         />
 
         <div className="flex flex-1 flex-col items-start gap-1 overflow-hidden">
