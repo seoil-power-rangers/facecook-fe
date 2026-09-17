@@ -90,7 +90,6 @@ export type AnalyticsEvent =
    * 그래서 cook_accepted를 따로 두지 않는다.
    */
   | { name: "cook_sent"; props: { from: "explore" | "profile_detail" | "kok" } }
-  | { name: "cook_cancelled"; props?: never }
   | { name: "match_created"; props?: never }
   /** 매칭됐지만 대화까지 가지 않는 비율을 보려면 방 진입을 따로 세야 한다. */
   | { name: "chat_room_opened"; props?: never }
