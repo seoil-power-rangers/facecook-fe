@@ -19,7 +19,12 @@ import {
   profileErrorMessage,
   type ProfileResponse,
 } from "@ui/프로필작성/profileApi";
-import { cookErrorMessage, getCooks, sendCook } from "@ui/받은콕/cookApi";
+import {
+  cookErrorCode,
+  cookErrorMessage,
+  getCooks,
+  sendCook,
+} from "@ui/받은콕/cookApi";
 import { track } from "@ui/공통/analytics";
 
 const HOBBY_ICONS: LucideIcon[] = [Utensils, Footprints, Send];
@@ -105,6 +110,10 @@ export function ProfileDetailScreen({
       }
       setToastMessage("콕을 보냈어요. 상대의 콕을 기다려주세요.");
     } catch (sendError) {
+      track({
+        name: "cook_failed",
+        props: { code: cookErrorCode(sendError), from: "profile_detail" },
+      });
       setToastMessage(cookErrorMessage(sendError));
     } finally {
       setIsSending(false);

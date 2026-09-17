@@ -13,6 +13,7 @@ import { TabBarMain } from "@ui/공통/TabBar";
 import { Toast } from "@ui/공통/Toast";
 import {
   cancelCook,
+  cookErrorCode,
   cookErrorMessage,
   getCooks,
   sendCook,
@@ -75,6 +76,10 @@ export function KokScreen() {
       setToastMessage("콕을 보냈어요.");
       await loadCooks();
     } catch (sendError) {
+      track({
+        name: "cook_failed",
+        props: { code: cookErrorCode(sendError), from: "kok" },
+      });
       setToastMessage(cookErrorMessage(sendError));
     } finally {
       setSendingUserId(null);

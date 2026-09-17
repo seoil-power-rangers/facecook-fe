@@ -243,7 +243,7 @@ async function requestProfile<T>(
     // 어느 화면의 요청이든 여기 한 곳을 거치므로, 로그인 화면이 아닌
     // 최초 진입 시점에 세션이 끊긴 것도 여기서 바로 잡아낸다.
     if (isSignedOut(apiError)) {
-      redirectToLoginOnSignOut(apiError.message);
+      redirectToLoginOnSignOut(apiError.message, apiError.code);
     }
     throw apiError;
   }

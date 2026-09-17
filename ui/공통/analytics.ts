@@ -90,6 +90,16 @@ export type AnalyticsEvent =
    * 그래서 cook_accepted를 따로 두지 않는다.
    */
   | { name: "cook_sent"; props: { from: "explore" | "profile_detail" | "kok" } }
+  /**
+   * 콕을 못 보낸 경우. 성공만 세면 "못 보낸 사람이 왜 못 보냈는지"가 통째로
+   * 안 보인다. 사유별로 해석이 갈린다 — DAILY_LIMIT이 많으면 한도가 낮은
+   * 것이고, DUPLICATE가 많으면 이미 보낸 상대를 화면이 구분해주지 못하는
+   * 것이다.
+   */
+  | {
+      name: "cook_failed";
+      props: { code: string; from: "explore" | "profile_detail" | "kok" };
+    }
   | { name: "match_created"; props?: never }
   /** 매칭됐지만 대화까지 가지 않는 비율을 보려면 방 진입을 따로 세야 한다. */
   | { name: "chat_room_opened"; props?: never }
@@ -110,7 +120,14 @@ export type AnalyticsEvent =
    * currentStep은 1~3이 진행 중인 단계, 4가 전부 완료를 뜻한다(missionModel.ts).
    */
   | { name: "mission_viewed"; props: { currentStep: number } }
-  | { name: "report_submitted"; props?: never };
+  | { name: "report_submitted"; props?: never }
+  /**
+   * 세션이 끊겨 로그인 화면으로 돌려보낸 순간.
+   *
+   * 부스에서 "로그인이 자꾸 풀려요"가 나오면 이 로그 말고는 단서가 없다.
+   * 몇 명에게 얼마나 자주 일어나는지를 여기서만 알 수 있다.
+   */
+  | { name: "session_expired"; props: { reason: string } };
 
 export type UserRole = "participant" | "admin" | "super";
 
