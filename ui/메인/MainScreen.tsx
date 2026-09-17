@@ -15,6 +15,7 @@ import {
 import { CampusScene } from "./CampusScene";
 import { Mascot } from "./Mascot";
 import { reportError } from "@ui/공통/analytics";
+import { LIVE_BADGE_POLL_INTERVAL_MS } from "@ui/공통/constants";
 
 /**
  * 홈. 참가자 목록 대신 마스코트와 오늘의 콕을 보여주고, 나머지 화면으로
@@ -39,14 +40,25 @@ export function MainScreen() {
       })
       .catch(reportError);
 
-    getMyProfile()
-      .then((profile) => {
-        if (active) setMyUserId(profile.userId);
-      })
-      .catch(reportError);
+    // 한 번 실패하면 화면을 나갔다 돌아오기 전까지 종 배지가 계속 0으로
+    // 남는다 — 성공할 때까지(내 userId를 한 번 알아낼 때까지만) 재시도한다.
+    // 그 뒤엔 값이 안 바뀌니 계속 조회할 필요 없다.
+    const loadMyProfile = () => {
+      getMyProfile()
+        .then((profile) => {
+          if (!active) return;
+          setMyUserId(profile.userId);
+          if (retryInterval) clearInterval(retryInterval);
+        })
+        .catch(reportError);
+    };
+
+    loadMyProfile();
+    const retryInterval = setInterval(loadMyProfile, LIVE_BADGE_POLL_INTERVAL_MS);
 
     return () => {
       active = false;
+      clearInterval(retryInterval);
     };
   }, []);
 

@@ -17,12 +17,29 @@ export interface LiveBadgesState {
   matches: MatchResponse[] | null;
 }
 
-let state: LiveBadgesState = { cooks: null, matches: null };
+const EMPTY_STATE: LiveBadgesState = { cooks: null, matches: null };
+
+let state: LiveBadgesState = EMPTY_STATE;
 const listeners = new Set<() => void>();
 let intervalId: ReturnType<typeof setInterval> | null = null;
 
+/**
+ * 로그아웃/로그인으로 계정이 바뀌어도 이 스토어는 모듈 전역이라 그대로
+ * 살아있다 — 세대 번호로 "이 응답이 지금 계정 걸로 시작한 요청인지"를
+ * 표시해서, 리셋 이전에 시작된 응답이 늦게 도착해도 새 계정 상태를 덮어쓰지
+ * 못하게 막는다.
+ */
+let generation = 0;
+
 function notify() {
   for (const listener of listeners) listener();
+}
+
+/** 로그아웃·로그인 시 호출한다 — 이전 계정의 배지 데이터가 새 계정 화면에 잠깐이라도 보이면 안 된다. */
+export function resetLiveBadges() {
+  generation += 1;
+  state = EMPTY_STATE;
+  notify();
 }
 
 function refresh() {
@@ -31,9 +48,12 @@ function refresh() {
   // 재배포 없이 즉시 멈출 수 있는 비상 스위치다.
   if (!isEnabled("live-badge-polling")) return;
 
+  const requestGeneration = generation;
+
   // 둘을 따로 받는다. 묶으면 한쪽이 실패할 때 멀쩡한 다른 배지까지 사라진다.
   getCooks()
     .then((cooks) => {
+      if (requestGeneration !== generation) return;
       state = { ...state, cooks };
       notify();
     })
@@ -41,6 +61,7 @@ function refresh() {
 
   getMatches()
     .then((matches) => {
+      if (requestGeneration !== generation) return;
       state = { ...state, matches };
       notify();
     })
