@@ -180,6 +180,22 @@ function setUpPostHog(posthog: PostHog) {
      * 초기 번들을 늘리지 않는다.
      */
     capture_exceptions: true,
+    /*
+     * SDK는 모든 이벤트에 현재 주소를 자동으로 붙인다. 이 앱의 주소에는
+     * 남의 userId와 매칭 ID가 들어 있어서(/profile/12, /match/34) 그대로
+     * 두면 이벤트마다 그게 실려 나간다. 한 곳에서 전부 덮는다 —
+     * 이벤트를 새로 추가할 때 빠뜨릴 여지를 없애려고 여기 둔다.
+     */
+    before_send: (event) => {
+      const properties = event?.properties;
+      if (properties) {
+        for (const key of URL_PROPERTIES) {
+          const value = properties[key];
+          if (typeof value === "string") properties[key] = maskPath(value);
+        }
+      }
+      return event;
+    },
     disable_session_recording: !ENABLE_REPLAY,
     session_recording: {
       // 입력값은 전부 가린다. 자기소개·비밀번호·인증코드가 여기 다 들어온다.
@@ -264,12 +280,21 @@ export function resetAnalytics() {
  * 매칭 ID가 들어 있어서, 숫자 자리는 [id]로 덮어 어떤 종류의 화면인지만 남긴다.
  */
 export function trackPageview(pathname: string) {
-  const masked = maskPath(pathname);
-  withClient((posthog) =>
-    posthog.capture("$pageview", { $current_url: masked, $pathname: masked }),
-  );
+  void pathname; // 주소는 SDK가 붙이고 before_send가 가린다
+  withClient((posthog) => posthog.capture("$pageview"));
 }
 
-function maskPath(pathname: string) {
-  return pathname.replace(/\/\d+/g, "/[id]");
+/** 주소가 담기는 속성들. before_send가 이 값들을 전부 가린다. */
+const URL_PROPERTIES = [
+  "$current_url",
+  "$pathname",
+  "$initial_current_url",
+  "$initial_pathname",
+  "$referrer",
+  "$initial_referrer",
+] as const;
+
+/** "/profile/12" → "/profile/[id]". 전체 URL이 와도 경로 부분만 바뀐다. */
+function maskPath(url: string) {
+  return url.replace(/\/\d+/g, "/[id]");
 }
