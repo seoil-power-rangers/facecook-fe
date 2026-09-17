@@ -14,6 +14,7 @@ import {
 } from "@ui/알림/notificationFeed";
 import { CampusScene } from "./CampusScene";
 import { Mascot } from "./Mascot";
+import { reportError } from "@ui/공통/analytics";
 
 /**
  * 홈. 참가자 목록 대신 마스코트와 오늘의 콕을 보여주고, 나머지 화면으로
@@ -36,13 +37,13 @@ export function MainScreen() {
       .then((profiles) => {
         if (active) setTotalUsers(profiles.length);
       })
-      .catch(() => undefined);
+      .catch(reportError);
 
     getMyProfile()
       .then((profile) => {
         if (active) setMyUserId(profile.userId);
       })
-      .catch(() => undefined);
+      .catch(reportError);
 
     return () => {
       active = false;
@@ -55,7 +56,8 @@ export function MainScreen() {
   const receivedKokCount = cooks?.received.length ?? 0;
   const matchCount = matches?.length ?? 0;
 
-  // 종 배지: 콕/매칭이 갱신될 때마다 다시 계산한다(별도 폴링 없음).
+  // 종 배지: 콕/매칭이 갱신될 때마다 다시 계산한다(별도 폴링 없음, 킬스위치는
+  // 그 공유 폴링 안에서 이미 처리된다).
   const unseenCount = useMemo(() => {
     if (!cooks || !matches || myUserId === null) return 0;
     const feed = buildFeedFromData(cooks, matches, myUserId);

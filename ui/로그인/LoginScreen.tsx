@@ -10,6 +10,7 @@ import { takeAuthNotice } from "@ui/공통/authSession";
 import { EVENT } from "@ui/공통/constants";
 import { useSession } from "@ui/공통/session";
 import { authErrorMessage, login, logout } from "./authApi";
+import { identifyUser, track } from "@ui/공통/analytics";
 
 type LoginTab = "participant" | "admin";
 
@@ -160,6 +161,10 @@ function ParticipantForm() {
     try {
       const user = await login(email, password);
       signIn({ role: "participant", name: user.email });
+      // 가입 → 콕 → 매칭이 한 사람의 여정으로 이어지게 한다. 이메일이 아니라
+      // userId만 넘긴다(analytics.ts 참고).
+      identifyUser(user.userId, "participant");
+      track({ name: "login_succeeded", props: { role: "participant" } });
       router.push("/main");
     } catch (submitError) {
       setError(authErrorMessage(submitError));
@@ -260,6 +265,8 @@ function AdminForm() {
       const user = await login(adminId, password);
       if (user.role === "super") {
         signIn({ role: "super", name: user.email });
+        identifyUser(user.userId, "super");
+        track({ name: "login_succeeded", props: { role: "super" } });
         router.replace("/super");
         return;
       }
@@ -269,6 +276,8 @@ function AdminForm() {
         return;
       }
       signIn({ role: "admin", name: user.email });
+      identifyUser(user.userId, "admin");
+      track({ name: "login_succeeded", props: { role: "admin" } });
       router.replace("/admin/dashboard");
     } catch (submitError) {
       setError(authErrorMessage(submitError));

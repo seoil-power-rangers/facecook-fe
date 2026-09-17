@@ -1,6 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
+import { REPLAY_BLOCK_CLASS } from "./avatarColor";
 
 interface PhotoViewerProps {
   photoUrl: string;
@@ -36,7 +37,7 @@ export function PhotoViewer({ photoUrl, alt = "", onClose }: PhotoViewerProps) {
         src={photoUrl}
         alt={alt}
         onClick={(event) => event.stopPropagation()}
-        className="max-h-[80vh] max-w-full object-contain"
+        className={`max-h-[80vh] max-w-full object-contain ${REPLAY_BLOCK_CLASS}`}
       />
     </div>
   );

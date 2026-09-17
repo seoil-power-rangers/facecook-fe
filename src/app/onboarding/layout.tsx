@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { PhoneFrame } from "@ui/공통/PhoneFrame";
 import { getMyProfile } from "@ui/프로필작성/profileApi";
+import { track, type OnboardingStep } from "@ui/공통/analytics";
 
 /** 진행바·뒤로가기가 붙는 입력 단계. 07 완료 화면은 여기 없다. */
 const STEP_ROUTES = new Set([
@@ -26,6 +27,21 @@ const STEP_ROUTES = new Set([
  */
 const STEPS_AFTER_SIGNUP = new Set(["/onboarding/basic", "/onboarding/mbti", "/onboarding/hobby", "/onboarding/optional"]);
 
+/**
+ * 주소 → 로그에 남길 단계 이름. 단계별 이탈률의 재료다.
+ *
+ * STEP_ROUTES와 목록이 겹치지만 따로 둔다 — 저쪽은 "진행바를 그릴지"를
+ * 정하는 화면 기준이고, 이쪽은 로그 이름이라 화면 구성이 바뀌어도
+ * 지표의 의미가 흔들리면 안 된다.
+ */
+const STEP_NAMES: Record<string, OnboardingStep> = {
+  "/onboarding/email": "email",
+  "/onboarding/basic": "basic",
+  "/onboarding/mbti": "mbti",
+  "/onboarding/hobby": "hobby",
+  "/onboarding/optional": "optional",
+};
+
 export default function OnboardingLayout({
   children,
 }: {
@@ -33,6 +49,15 @@ export default function OnboardingLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+
+  /*
+   * 온보딩 화면 다섯 개가 각자 부르는 대신 여기 한 곳에서 보낸다 — 화면이
+   * 늘거나 순서가 바뀌어도 로그가 빠지지 않는다.
+   */
+  useEffect(() => {
+    const step = STEP_NAMES[pathname];
+    if (step) track({ name: "onboarding_step_viewed", props: { step } });
+  }, [pathname]);
 
   useEffect(() => {
     if (!STEPS_AFTER_SIGNUP.has(pathname)) return;

@@ -34,6 +34,7 @@ import {
   matchErrorMessage,
   type MatchResponse,
 } from "@ui/매칭/matchApi";
+import { track } from "@ui/공통/analytics";
 
 const CHAT_OPEN_HOUR = Number(process.env.NEXT_PUBLIC_CHAT_OPEN_HOUR ?? "9");
 const CHAT_CLOSE_HOUR = Number(process.env.NEXT_PUBLIC_CHAT_CLOSE_HOUR ?? "18");
@@ -107,6 +108,16 @@ export function ChatScreen({ matchId }: { matchId: string }) {
     } finally {
       setIsHistoryLoading(false);
     }
+  }, [numericMatchId]);
+
+  /*
+   * 매칭까지 갔지만 대화는 시작하지 않는 사람이 얼마나 되는지 보려면 방
+   * 진입을 따로 세야 한다. 메시지 전송(chat_message_sent)만으로는 "안 보낸
+   * 사람"이 방에 들어왔다 나간 건지 아예 안 들어온 건지 알 수 없다.
+   */
+  useEffect(() => {
+    if (Number.isNaN(numericMatchId)) return;
+    track({ name: "chat_room_opened" });
   }, [numericMatchId]);
 
   useEffect(() => {
@@ -191,6 +202,7 @@ export function ChatScreen({ matchId }: { matchId: string }) {
             window.clearTimeout(timeout);
           }
           pendingTimeoutsRef.current.clear();
+          track({ name: "chat_socket_error", props: { code: socketError.code } });
           setToastMessage(socketError.message);
           setMessages((current) => markPendingMessagesFailed(current));
         },
@@ -308,7 +320,11 @@ export function ChatScreen({ matchId }: { matchId: string }) {
 
     try {
       socketRef.current.send(content, clientMessageId);
+      track({ name: "chat_message_sent" });
       const timeout = window.setTimeout(() => {
+        // 보낸 메시지가 서버에 저장됐는지 확인하지 못한 경우. 이 비율이
+        // 채팅 신뢰성 지표가 된다.
+        track({ name: "chat_ack_timeout" });
         pendingTimeoutsRef.current.delete(clientMessageId);
         setMessages((current) => markMessageFailed(current, clientMessageId));
         setToastMessage("메시지 저장을 확인하지 못했어요. 다시 시도해주세요.");
@@ -524,6 +540,11 @@ function MessageBubble({
               ? "rounded-[1.25rem] rounded-br-md bg-(--color-chat-mine) px-4 py-2.5 text-[15px] leading-relaxed text-(--color-chat-mine-text)"
               : "rounded-[1.25rem] rounded-bl-md bg-(--color-chat-other) px-4 py-2.5 text-[15px] leading-relaxed text-(--color-chat-other-text) shadow-(--shadow-card)"
           }
+          /*
+           * 세션 리플레이에서 가린다. 녹화 동의는 테스터 본인에게만 받았고,
+           * 대화 상대는 동의한 적이 없다.
+           */
+          data-private
         >
           {message.content}
         </div>

@@ -3,6 +3,8 @@
 import { getCooks, type CookListResponse } from "@ui/받은콕/cookApi";
 import { getMatches, type MatchResponse } from "@ui/매칭/matchApi";
 import { LIVE_BADGE_POLL_INTERVAL_MS } from "@ui/공통/constants";
+import { reportError } from "@ui/공통/analytics";
+import { isEnabled } from "@ui/공통/killSwitch";
 
 /**
  * TabBar와 홈 화면이 각자 5초마다 콕/매칭을 따로 조회하면, 둘 다 떠있는
@@ -25,20 +27,24 @@ function notify() {
 
 function refresh() {
   if (document.visibilityState !== "visible") return;
+  // 대시보드에서 "live-badge-polling"을 끄면 여기서 막힌다 — 부하가 몰릴 때
+  // 재배포 없이 즉시 멈출 수 있는 비상 스위치다.
+  if (!isEnabled("live-badge-polling")) return;
+
   // 둘을 따로 받는다. 묶으면 한쪽이 실패할 때 멀쩡한 다른 배지까지 사라진다.
   getCooks()
     .then((cooks) => {
       state = { ...state, cooks };
       notify();
     })
-    .catch(() => undefined);
+    .catch(reportError);
 
   getMatches()
     .then((matches) => {
       state = { ...state, matches };
       notify();
     })
-    .catch(() => undefined);
+    .catch(reportError);
 }
 
 function start() {

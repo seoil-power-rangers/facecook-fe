@@ -42,6 +42,7 @@ export function TabBar() {
   const pathname = usePathname();
   // 콕/매칭 조회는 useLiveBadges가 홈 화면과 공유해서 5초마다 한 번만
   // 나가게 한다 — 여기서 직접 폴링하면 같은 화면에서 두 번씩 나간다.
+  // 킬스위치·에러 리포팅은 그 공유 폴링(liveBadgesStore) 안에서 처리한다.
   const { cooks, matches } = useLiveBadges();
   const pendingReceivedCount =
     cooks?.received.filter((cook) => cook.status === "pending").length ?? 0;

@@ -128,7 +128,11 @@ export function NotificationScreen() {
                         />
                       ) : null}
                     </span>
-                    <span className="truncate text-xs text-(--color-text-sub)">
+                    {/* 메시지 알림은 본문에 대화 내용이 그대로 들어간다. */}
+                    <span
+                      data-private
+                      className="truncate text-xs text-(--color-text-sub)"
+                    >
                       {item.body}
                     </span>
                   </span>

@@ -6,7 +6,13 @@ import { useRouter } from "next/navigation";
 import { ChevronLeft, Heart, MessageCircle, Ticket } from "lucide-react";
 import { Button } from "@ui/공통/Button";
 import { PhoneFrame } from "@ui/공통/PhoneFrame";
-import { avatarColor, avatarEmoji, resolveAvatarPhoto } from "@ui/공통/avatarColor";
+import {
+  REPLAY_BLOCK_CLASS,
+  avatarColor,
+  avatarEmoji,
+  isUploadedPhoto,
+  resolveAvatarPhoto,
+} from "@ui/공통/avatarColor";
 import { getMyProfile, type ProfileResponse } from "@ui/프로필작성/profileApi";
 import { getMatch, matchErrorMessage, type MatchResponse } from "./matchApi";
 
@@ -279,6 +285,8 @@ function Face({
           src={fallbackPhoto}
           alt=""
           className={`h-full w-full ${
+            isUploadedPhoto(fallbackPhoto) ? REPLAY_BLOCK_CLASS : ""
+          } ${
             isDefaultMalePhoto
               ? "bg-[#c3cbe0] object-contain p-[12%]"
               : "object-cover"

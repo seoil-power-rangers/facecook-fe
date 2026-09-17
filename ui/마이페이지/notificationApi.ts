@@ -1,3 +1,5 @@
+import { track } from "@ui/공통/analytics";
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "");
 const SERVICE_WORKER_PATH = "/push-sw.js";
 
@@ -62,6 +64,8 @@ export async function enablePushNotifications() {
   assertWebPushSupported();
 
   const permission = await Notification.requestPermission();
+  // 거절률이 곧 알림 도달률의 상한이다.
+  track({ name: "push_permission", props: { result: permission } });
   if (permission !== "granted") {
     throw new NotificationApiError(
       "PERMISSION_DENIED",
