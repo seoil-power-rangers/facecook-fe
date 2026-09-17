@@ -137,13 +137,15 @@ export function EmailVerifyScreen() {
     setIsSubmitting(true);
     setError(null);
     try {
-      track({ name: "signup_verified" });
       await verifySignup(
         draft.email,
         code,
         draft.password,
         draft.agreedTerms,
       );
+      // 호출 뒤에 남긴다. 앞에 두면 코드를 틀려 실패한 시도까지 "인증됨"으로
+      // 세어져서, 퍼널에서 코드 때문에 막힌 사람이 보이지 않는다.
+      track({ name: "signup_verified" });
       router.push("/onboarding/basic");
     } catch (submitError) {
       setError(authErrorMessage(submitError));
