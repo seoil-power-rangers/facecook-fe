@@ -198,7 +198,35 @@ function setUpPostHog(posthog: PostHog) {
  */
 export function reportError(error: unknown) {
   const normalized = error instanceof Error ? error : new Error(String(error));
+  if (!shouldReport(normalized)) return;
   withClient((posthog) => posthog.captureException(normalized));
+}
+
+/**
+ * 같은 에러를 몇 번이고 다시 올리지 않게 막는다.
+ *
+ * 이게 없으면 서버가 아플 때 상황이 더 나빠진다 — 배지 폴링이 5초마다
+ * 도는데 그 안에서 실패가 세 건 나므로, 백엔드가 죽으면 사용자 한 명당
+ * 분당 36건이 올라간다. 접속자가 붙으면 분당 수천 건이다. 장애를 알리려고
+ * 넣은 장치가 장애를 키우는 셈이고, 무료 한도도 몇 분 만에 동난다.
+ *
+ * 같은 종류는 1분에 한 번만 보내고, 한 세션에서 올리는 종류 수에도 상한을
+ * 둔다(메시지가 매번 달라지는 에러가 상한을 우회하는 걸 막는다).
+ */
+const reported = new Map<string, number>();
+const REPORT_INTERVAL_MS = 60_000;
+const REPORT_KIND_LIMIT = 20;
+
+function shouldReport(error: Error) {
+  const key = `${error.name}: ${error.message}`;
+  const now = Date.now();
+  const last = reported.get(key);
+
+  if (last !== undefined && now - last < REPORT_INTERVAL_MS) return false;
+  if (last === undefined && reported.size >= REPORT_KIND_LIMIT) return false;
+
+  reported.set(key, now);
+  return true;
 }
 
 /** 이벤트 하나 보낸다. 키가 없거나 실패해도 화면은 그대로 굴러가야 한다. */
