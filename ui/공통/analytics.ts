@@ -1,6 +1,6 @@
 "use client";
 
-import posthog from "posthog-js";
+import type { PostHog } from "posthog-js";
 
 import { startWatchingKillSwitches } from "./killSwitch";
 
@@ -18,6 +18,11 @@ import { startWatchingKillSwitches } from "./killSwitch";
  *
  * 키가 없으면 아무것도 하지 않는다 — 로컬 개발이나 키를 안 넣은 배포에서
  * 화면이 깨지면 안 되므로, 이 파일의 모든 함수는 조용히 no-op이 된다.
+ *
+ * SDK는 정적으로 import하지 않는다. 그렇게 하면 모든 화면의 첫 로딩
+ * 번들에 gzip 기준 94KB가 얹히는데(측정치), 로그 수집 때문에 로그인
+ * 화면이 늦게 뜨는 건 앞뒤가 바뀐 얘기다. 브라우저가 한가해진 뒤에
+ * 내려받고, 그 전에 생긴 이벤트는 큐에 담아뒀다가 흘려보낸다.
  */
 
 const POSTHOG_KEY = process.env.NEXT_PUBLIC_POSTHOG_KEY;
@@ -31,7 +36,33 @@ const POSTHOG_HOST =
  */
 const ENABLE_REPLAY = process.env.NEXT_PUBLIC_POSTHOG_REPLAY === "true";
 
-let ready = false;
+/** 로딩이 끝나기 전에는 null. 끝나면 이후 호출은 곧장 여기로 간다. */
+let client: PostHog | null = null;
+let started = false;
+
+/**
+ * SDK가 준비되기 전에 생긴 호출을 담아둔다.
+ *
+ * 비워두면 가장 이른 이벤트들이 통째로 사라진다 — PWA 설치 상태는 앱이
+ * 뜨자마자 한 번만 찍히고, 첫 화면의 pageview도 마찬가지다. 상한을 두는
+ * 건 SDK가 끝내 안 올라오는 경우(키 오류, 차단기) 메모리가 계속 차는 걸
+ * 막기 위해서다.
+ */
+const pending: Array<(posthog: PostHog) => void> = [];
+const PENDING_LIMIT = 50;
+
+function withClient(run: (posthog: PostHog) => void) {
+  if (client) {
+    try {
+      run(client);
+    } catch {
+      // 로그 수집 실패로 사용자 흐름을 막지 않는다.
+    }
+    return;
+  }
+  if (!started) return; // 키가 없어 아예 시작하지 않은 경우
+  if (pending.length < PENDING_LIMIT) pending.push(run);
+}
 
 /**
  * 보내는 이벤트 목록. 여기 없는 이름은 타입이 막는다.
@@ -91,11 +122,46 @@ export type OnboardingStep =
   | "optional"
   | "done";
 
+/**
+ * 로그 수집을 시작한다. 곧바로 받지 않고 브라우저가 한가해질 때까지 미룬다.
+ *
+ * timeout을 두는 이유: 사용자가 계속 스크롤하거나 입력하면 유휴 시점이
+ * 영영 안 올 수 있어서, 3초가 지나면 그냥 받는다. requestIdleCallback이
+ * 없는 브라우저(일부 사파리)는 타이머로 대신한다.
+ */
 export function initAnalytics() {
-  if (ready || !POSTHOG_KEY || typeof window === "undefined") return;
-  ready = true;
+  if (started || !POSTHOG_KEY || typeof window === "undefined") return;
+  started = true;
 
-  posthog.init(POSTHOG_KEY, {
+  const load = () => {
+    void import("posthog-js")
+      .then(({ default: posthog }) => {
+        setUpPostHog(posthog);
+        client = posthog;
+        for (const run of pending.splice(0)) {
+          try {
+            run(posthog);
+          } catch {
+            // 한 건이 실패해도 나머지는 흘려보낸다.
+          }
+        }
+        startWatchingKillSwitches(posthog);
+      })
+      .catch(() => {
+        // 차단기나 네트워크로 못 받아오면 수집만 없는 상태로 둔다.
+        pending.length = 0;
+      });
+  };
+
+  if (typeof window.requestIdleCallback === "function") {
+    window.requestIdleCallback(load, { timeout: 3000 });
+  } else {
+    window.setTimeout(load, 2000);
+  }
+}
+
+function setUpPostHog(posthog: PostHog) {
+  posthog.init(POSTHOG_KEY!, {
     api_host: POSTHOG_HOST,
     // 아래 두 개가 이 파일의 핵심이다. 위 주석 참고.
     autocapture: false,
@@ -121,8 +187,6 @@ export function initAnalytics() {
       maskTextSelector: "[data-private]",
     },
   });
-
-  startWatchingKillSwitches();
 }
 
 /**
@@ -133,24 +197,13 @@ export function initAnalytics() {
  * 모른다. 화면은 멀쩡해 보이고 배지만 조용히 사라진다.
  */
 export function reportError(error: unknown) {
-  if (!ready) return;
-  try {
-    posthog.captureException(
-      error instanceof Error ? error : new Error(String(error)),
-    );
-  } catch {
-    // 보고 실패로 사용자 흐름을 막지 않는다.
-  }
+  const normalized = error instanceof Error ? error : new Error(String(error));
+  withClient((posthog) => posthog.captureException(normalized));
 }
 
 /** 이벤트 하나 보낸다. 키가 없거나 실패해도 화면은 그대로 굴러가야 한다. */
 export function track(event: AnalyticsEvent) {
-  if (!ready) return;
-  try {
-    posthog.capture(event.name, event.props);
-  } catch {
-    // 로그 수집 실패로 사용자 흐름을 막지 않는다.
-  }
+  withClient((posthog) => posthog.capture(event.name, event.props));
 }
 
 /**
@@ -160,22 +213,12 @@ export function track(event: AnalyticsEvent) {
  * 익명 ID가 기기마다 따로 잡혀서 퍼널이 끊긴다.
  */
 export function identifyUser(userId: number, role: UserRole) {
-  if (!ready) return;
-  try {
-    posthog.identify(String(userId), { role });
-  } catch {
-    // 무시
-  }
+  withClient((posthog) => posthog.identify(String(userId), { role }));
 }
 
 /** 로그아웃·세션 만료 시점. 다음 사람이 같은 폰을 쓸 때 섞이지 않게 끊는다. */
 export function resetAnalytics() {
-  if (!ready) return;
-  try {
-    posthog.reset();
-  } catch {
-    // 무시
-  }
+  withClient((posthog) => posthog.reset());
 }
 
 /**
@@ -186,12 +229,10 @@ export function resetAnalytics() {
  * 매칭 ID가 들어 있어서, 숫자 자리는 [id]로 덮어 어떤 종류의 화면인지만 남긴다.
  */
 export function trackPageview(pathname: string) {
-  if (!ready) return;
-  try {
-    posthog.capture("$pageview", { $current_url: maskPath(pathname) });
-  } catch {
-    // 무시
-  }
+  const masked = maskPath(pathname);
+  withClient((posthog) =>
+    posthog.capture("$pageview", { $current_url: masked, $pathname: masked }),
+  );
 }
 
 function maskPath(pathname: string) {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import posthog from "posthog-js";
+import type { PostHog } from "posthog-js";
 
 /**
  * 원격 끄기 스위치. PostHog Feature Flags를 A/B가 아니라 **비상 차단**으로 쓴다.
@@ -38,7 +38,7 @@ function publish() {
  * onFeatureFlags는 최초 로딩과 이후 갱신에 모두 불리므로, 축제 도중에
  * 대시보드에서 끄면 화면을 새로고침하지 않아도 반영된다.
  */
-export function startWatchingKillSwitches() {
+export function startWatchingKillSwitches(posthog: PostHog) {
   try {
     posthog.onFeatureFlags((flags) => {
       const next = new Set<string>();
