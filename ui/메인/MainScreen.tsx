@@ -1,23 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Bell, ChevronRight, Heart, MessageCircle, Search } from "lucide-react";
 import { PhoneFrame } from "@ui/공통/PhoneFrame";
 import { TabBarMain } from "@ui/공통/TabBar";
-import { getCooks } from "@ui/받은콕/cookApi";
-import { getMatches } from "@ui/매칭/matchApi";
-import { getProfiles } from "@ui/프로필작성/profileApi";
+import { useLiveBadges } from "@ui/공통/useLiveBadges";
+import { getMyProfile, getProfiles } from "@ui/프로필작성/profileApi";
 import {
-  buildFeed,
+  buildFeedFromData,
   countUnseen,
   readLastSeen,
 } from "@ui/알림/notificationFeed";
-import { LIVE_BADGE_POLL_INTERVAL_MS } from "@ui/공통/constants";
 import { CampusScene } from "./CampusScene";
 import { Mascot } from "./Mascot";
 import { reportError } from "@ui/공통/analytics";
-import { useKillSwitch } from "@ui/공통/killSwitch";
+import { LIVE_BADGE_POLL_INTERVAL_MS } from "@ui/공통/constants";
 
 /**
  * 홈. 참가자 목록 대신 마스코트와 오늘의 콕을 보여주고, 나머지 화면으로
@@ -28,80 +26,55 @@ import { useKillSwitch } from "@ui/공통/killSwitch";
  */
 export function MainScreen() {
   const [totalUsers, setTotalUsers] = useState(0);
-  const [todayUsed, setTodayUsed] = useState(0);
-  const [dailyLimit, setDailyLimit] = useState(0);
-  const [receivedKokCount, setReceivedKokCount] = useState(0);
-  const [matchCount, setMatchCount] = useState(0);
-  const [unseenCount, setUnseenCount] = useState(0);
+  const [myUserId, setMyUserId] = useState<number | null>(null);
+  // 콕/매칭은 useLiveBadges가 TabBar와 공유해서 5초마다 한 번만 조회한다 —
+  // 여기서 따로 또 조회하면 같은 화면에서 두 번씩 나간다.
+  const { cooks, matches } = useLiveBadges();
 
   useEffect(() => {
     let active = true;
 
-    /*
-     * 셋을 따로 받는다. Promise.all로 묶으면 하나만 실패해도 나머지 둘까지
-     * 버려져서, 콕은 멀쩡히 왔는데 화면에는 "없음"이 뜬다 — 데이터가 없는
-     * 건지 조회가 실패한 건지 구분할 수 없게 된다.
-     */
     getProfiles()
       .then((profiles) => {
         if (active) setTotalUsers(profiles.length);
       })
       .catch(reportError);
 
-    getCooks()
-      .then((cooks) => {
-        if (!active) return;
-        setTodayUsed(cooks.usage.todayUsed);
-        setDailyLimit(cooks.usage.dailyLimit);
-        // 만료된 것도 받은 건 받은 거라 같이 센다. 마이페이지 숫자와 같은 기준이다.
-        setReceivedKokCount(cooks.received.length);
-      })
-      .catch(reportError);
+    // 한 번 실패하면 화면을 나갔다 돌아오기 전까지 종 배지가 계속 0으로
+    // 남는다 — 성공할 때까지(내 userId를 한 번 알아낼 때까지만) 재시도한다.
+    // 그 뒤엔 값이 안 바뀌니 계속 조회할 필요 없다.
+    const loadMyProfile = () => {
+      getMyProfile()
+        .then((profile) => {
+          if (!active) return;
+          setMyUserId(profile.userId);
+          if (retryInterval) clearInterval(retryInterval);
+        })
+        .catch(reportError);
+    };
 
-    getMatches()
-      .then((matches) => {
-        if (active) setMatchCount(matches.length);
-      })
-      .catch(reportError);
+    loadMyProfile();
+    const retryInterval = setInterval(loadMyProfile, LIVE_BADGE_POLL_INTERVAL_MS);
 
     return () => {
       active = false;
+      clearInterval(retryInterval);
     };
   }, []);
 
-  const pollingEnabled = useKillSwitch("live-badge-polling");
+  const todayUsed = cooks?.usage.todayUsed ?? 0;
+  const dailyLimit = cooks?.usage.dailyLimit ?? 0;
+  // 만료된 것도 받은 건 받은 거라 같이 센다. 마이페이지 숫자와 같은 기준이다.
+  const receivedKokCount = cooks?.received.length ?? 0;
+  const matchCount = matches?.length ?? 0;
 
-  useEffect(() => {
-    if (!pollingEnabled) return;
-    let active = true;
-
-    // 종 배지도 화면에 머물러 있는 동안 주기적으로 갱신한다. 메시지는
-    // facecook-be #44로 서버가 채팅방별 안읽음을 정확히 계산해주게 됐고
-    // ChatScreen이 들어올 때/나갈 때 서버에도 읽음을 알리므로(markMatchRead),
-    // 콕·매칭과 똑같이 실시간 집계에 포함해도 된다.
-    const refresh = () => {
-      if (document.visibilityState !== "visible") return;
-      buildFeed()
-        .then((feed) => {
-          if (active) setUnseenCount(countUnseen(feed, readLastSeen()));
-        })
-        .catch((error) => {
-          // 배지는 부가 정보라 화면에서는 그냥 숨긴다. 다만 전부 실패하는
-          // 상황은 알아야 해서 보고는 남긴다.
-          reportError(error);
-        });
-    };
-
-    refresh();
-    const interval = setInterval(refresh, LIVE_BADGE_POLL_INTERVAL_MS);
-    document.addEventListener("visibilitychange", refresh);
-
-    return () => {
-      active = false;
-      clearInterval(interval);
-      document.removeEventListener("visibilitychange", refresh);
-    };
-  }, [pollingEnabled]);
+  // 종 배지: 콕/매칭이 갱신될 때마다 다시 계산한다(별도 폴링 없음, 킬스위치는
+  // 그 공유 폴링 안에서 이미 처리된다).
+  const unseenCount = useMemo(() => {
+    if (!cooks || !matches || myUserId === null) return 0;
+    const feed = buildFeedFromData(cooks, matches, myUserId);
+    return countUnseen(feed, readLastSeen());
+  }, [cooks, matches, myUserId]);
 
   return (
     <PhoneFrame>

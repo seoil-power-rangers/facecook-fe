@@ -2,6 +2,7 @@
 
 import { useCallback, useSyncExternalStore } from "react";
 import { resetAnalytics } from "./analytics";
+import { resetLiveBadges } from "./liveBadgesStore";
 
 const STORAGE_KEY = "facecook:session";
 
@@ -87,6 +88,9 @@ export function clearSession() {
   // 로그 수집의 사람 식별도 같이 끊는다 — 부스에서 같은 폰을 다음 사람이
   // 쓸 때 이전 사용자의 여정에 이어붙지 않게 한다.
   resetAnalytics();
+  // 콕/매칭 배지도 같이 지운다 — 안 지우면 다음 사람 화면에 이전 사람의
+  // 콕·매칭 개수가 잠깐(또는 조회가 실패하면 계속) 남는다.
+  resetLiveBadges();
   try {
     localStorage.removeItem(STORAGE_KEY);
   } catch {
@@ -100,6 +104,7 @@ export function useSession() {
 
   const signIn = useCallback((next: Session) => {
     session = next;
+    resetLiveBadges();
     save();
     publish();
   }, []);
@@ -107,6 +112,7 @@ export function useSession() {
   const signOut = useCallback(() => {
     session = EMPTY_SESSION;
     resetAnalytics();
+    resetLiveBadges();
     try {
       localStorage.removeItem(STORAGE_KEY);
     } catch {

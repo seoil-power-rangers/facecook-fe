@@ -1,7 +1,7 @@
 "use client";
 
-import { getCooks } from "@ui/받은콕/cookApi";
-import { getMatches } from "@ui/매칭/matchApi";
+import { getCooks, type CookListResponse } from "@ui/받은콕/cookApi";
+import { getMatches, type MatchResponse } from "@ui/매칭/matchApi";
 import { getMyProfile } from "@ui/프로필작성/profileApi";
 
 /**
@@ -34,6 +34,20 @@ export async function buildFeed(): Promise<FeedItem[]> {
     getMyProfile(),
   ]);
 
+  return buildFeedFromData(cooks, matches, me.userId);
+}
+
+/**
+ * 홈 화면은 콕/매칭을 useLiveBadges로 이미 공유해서 갖고 있다 — 여기서
+ * 또 조회하면 같은 API가 두 번 나간다. 그래서 조회 없이 조합만 하는
+ * 버전을 따로 둔다. `buildFeed()`는 이 함수를 조회 후 호출하는 얇은
+ * 래퍼일 뿐이다(알림 보관함 화면처럼 단독으로 진입하는 곳에서 씀).
+ */
+export function buildFeedFromData(
+  cooks: CookListResponse,
+  matches: MatchResponse[],
+  myUserId: number,
+): FeedItem[] {
   const items: FeedItem[] = [];
 
   for (const cook of cooks.received) {
@@ -64,7 +78,7 @@ export async function buildFeed(): Promise<FeedItem[]> {
 
     // 내가 보낸 메시지는 알림이 아니다.
     const recent = match.recentMessage;
-    if (recent && recent.senderId !== me.userId) {
+    if (recent && recent.senderId !== myUserId) {
       items.push({
         id: `message-${match.matchId}-${recent.sentAt}`,
         kind: "message",

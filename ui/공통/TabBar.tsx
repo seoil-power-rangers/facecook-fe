@@ -1,16 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Compass, Heart, House, MessageCircle, User } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { getCooks } from "@ui/받은콕/cookApi";
-import { getMatches } from "@ui/매칭/matchApi";
-import { LIVE_BADGE_POLL_INTERVAL_MS } from "@ui/공통/constants";
-import { reportError } from "@ui/공통/analytics";
-import { useKillSwitch } from "@ui/공통/killSwitch";
+import { useLiveBadges } from "@ui/공통/useLiveBadges";
 
 interface TabBarMainProps {
   children: ReactNode;
@@ -45,50 +40,14 @@ interface TabConfig {
 
 export function TabBar() {
   const pathname = usePathname();
-  const [pendingReceivedCount, setPendingReceivedCount] = useState(0);
-  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
-
-  const pollingEnabled = useKillSwitch("live-badge-polling");
-
-  useEffect(() => {
-    if (!pollingEnabled) return;
-    let active = true;
-
-    // 화면에 가만히 머물러 있어도 배지가 갱신되도록 주기적으로 다시
-    // 조회한다. 탭이 백그라운드일 때는 멈춘다 — 안 보이는 화면 갱신은
-    // 배터리·데이터 낭비다.
-    const refresh = () => {
-      if (document.visibilityState !== "visible") return;
-      // 둘을 따로 받는다. 묶으면 한쪽이 실패할 때 멀쩡한 다른 배지까지 사라진다.
-      getCooks()
-        .then((cooks) => {
-          if (!active) return;
-          setPendingReceivedCount(
-            cooks.received.filter((cook) => cook.status === "pending").length,
-          );
-        })
-        .catch(reportError);
-
-      getMatches()
-        .then((matches) => {
-          if (!active) return;
-          setUnreadMessageCount(
-            matches.reduce((sum, match) => sum + (match.unreadCount ?? 0), 0),
-          );
-        })
-        .catch(reportError);
-    };
-
-    refresh();
-    const interval = setInterval(refresh, LIVE_BADGE_POLL_INTERVAL_MS);
-    document.addEventListener("visibilitychange", refresh);
-
-    return () => {
-      active = false;
-      clearInterval(interval);
-      document.removeEventListener("visibilitychange", refresh);
-    };
-  }, [pathname, pollingEnabled]);
+  // 콕/매칭 조회는 useLiveBadges가 홈 화면과 공유해서 5초마다 한 번만
+  // 나가게 한다 — 여기서 직접 폴링하면 같은 화면에서 두 번씩 나간다.
+  // 킬스위치·에러 리포팅은 그 공유 폴링(liveBadgesStore) 안에서 처리한다.
+  const { cooks, matches } = useLiveBadges();
+  const pendingReceivedCount =
+    cooks?.received.filter((cook) => cook.status === "pending").length ?? 0;
+  const unreadMessageCount =
+    matches?.reduce((sum, match) => sum + (match.unreadCount ?? 0), 0) ?? 0;
 
   const tabs: TabConfig[] = [
     { href: "/main", label: "홈", icon: House },
