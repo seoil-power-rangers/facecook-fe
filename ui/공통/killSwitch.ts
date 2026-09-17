@@ -24,7 +24,7 @@ export type KillSwitch =
   /** 세션 리플레이(화면 녹화) */
   | "session-replay";
 
-/** 대시보드에서 플래그를 못 받아온 항목은 여기 없다 — 즉 켜진 상태로 본다. */
+/** 대시보드에서 명시적으로 끈 항목만 들어온다. 여기 없으면 켜진 상태다. */
 let disabled = new Set<string>();
 const listeners = new Set<() => void>();
 
@@ -35,28 +35,48 @@ function publish() {
 /**
  * 플래그 변화를 구독한다. initAnalytics()가 한 번 부른다.
  *
- * onFeatureFlags는 최초 로딩과 이후 갱신에 모두 불리므로, 축제 도중에
- * 대시보드에서 끄면 화면을 새로고침하지 않아도 반영된다.
+ * 콜백이 넘겨주는 배열은 **켜진 플래그만** 담는다. 그래서 그 배열에 있는지로
+ * 판단하면 정작 꺼진 플래그를 영영 못 잡는다 — 조건의 앞부분이 먼저 거짓이
+ * 되어 끄는 코드에 닿지 못한다. 값을 직접 확인해야 한다.
+ *
+ * getFeatureFlag는 만든 적 없는 플래그에 undefined를 주므로, false와 엄격히
+ * 비교하면 "설정한 적 없음"은 켜진 채로 남는다 — 기본값이 켜짐이라는 원칙이
+ * 여기서 지켜진다.
+ *
+ * send_event를 끄는 이유: 비상 스위치를 확인하는 내부 조회일 뿐인데 켜두면
+ * 갱신될 때마다 $feature_flag_called가 쌓여 무료 한도를 깎아먹는다.
+ *
+ * @param replayAllowed 환경변수로 리플레이를 켠 배포인지. false면 스위치를
+ *   다시 켜도 녹화를 시작하지 않는다 — 환경변수가 상위 규칙이다.
  */
-export function startWatchingKillSwitches(posthog: PostHog) {
+export function startWatchingKillSwitches(
+  posthog: PostHog,
+  { replayAllowed }: { replayAllowed: boolean },
+) {
   try {
-    posthog.onFeatureFlags((flags) => {
+    posthog.onFeatureFlags(() => {
       const next = new Set<string>();
       for (const key of ALL_SWITCHES) {
-        // 플래그가 있고 명시적으로 false일 때만 끈다.
-        if (flags.includes(key) && posthog.isFeatureEnabled(key) === false) {
+        if (posthog.getFeatureFlag(key, { send_event: false }) === false) {
           next.add(key);
         }
       }
+
+      const wasReplayOff = disabled.has("session-replay");
+      const isReplayOff = next.has("session-replay");
       disabled = next;
       publish();
 
       /*
-       * 리플레이만 여기서 직접 끊는다. 다른 스위치는 화면이 구독해서
-       * 다시 그리면 되지만, 녹화는 이미 돌고 있는 것을 멈춰야 의미가 있다.
+       * 리플레이만 여기서 직접 여닫는다. 다른 스위치는 화면이 구독해서 다시
+       * 그리면 되지만, 녹화는 이미 돌고 있는 것을 멈추고 다시 시작해야
+       * 의미가 있다. 껐다 켰을 때 되살아나지 않으면 스위치가 아니라 일회용
+       * 차단기가 된다.
        */
-      if (next.has("session-replay")) {
+      if (isReplayOff && !wasReplayOff) {
         posthog.stopSessionRecording();
+      } else if (!isReplayOff && wasReplayOff && replayAllowed) {
+        posthog.startSessionRecording();
       }
     });
   } catch {
