@@ -16,6 +16,7 @@ import {
   createProfileRequestFromDraft,
   profileErrorMessage,
 } from "./profileApi";
+import { track } from "@ui/공통/analytics";
 
 /**
  * 06 선택 (STEP 5)
@@ -36,6 +37,7 @@ export function ProfileOptionalScreen() {
     setError(null);
     try {
       await createProfile(createProfileRequestFromDraft(draft));
+      track({ name: "onboarding_completed" });
       router.push("/onboarding/done");
     } catch (submitError) {
       setError(profileErrorMessage(submitError));

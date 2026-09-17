@@ -19,6 +19,7 @@ import {
   type CookItemResponse,
   type CookListResponse,
 } from "./cookApi";
+import { track } from "@ui/공통/analytics";
 
 type KokTab = "sent" | "received";
 
@@ -65,6 +66,8 @@ export function KokScreen() {
     setSendingUserId(userId);
     try {
       const result = await sendCook(userId);
+      track({ name: "cook_sent", props: { from: "kok" } });
+      if (result.matched) track({ name: "match_created" });
       if (result.matched && result.matchId !== null) {
         router.push(`/match/${result.matchId}/matched`);
         return;

@@ -34,6 +34,7 @@ import {
   matchErrorMessage,
   type MatchResponse,
 } from "@ui/매칭/matchApi";
+import { track } from "@ui/공통/analytics";
 
 const CHAT_OPEN_HOUR = Number(process.env.NEXT_PUBLIC_CHAT_OPEN_HOUR ?? "9");
 const CHAT_CLOSE_HOUR = Number(process.env.NEXT_PUBLIC_CHAT_CLOSE_HOUR ?? "18");
@@ -191,6 +192,7 @@ export function ChatScreen({ matchId }: { matchId: string }) {
             window.clearTimeout(timeout);
           }
           pendingTimeoutsRef.current.clear();
+          track({ name: "chat_socket_error", props: { code: socketError.code } });
           setToastMessage(socketError.message);
           setMessages((current) => markPendingMessagesFailed(current));
         },
@@ -308,7 +310,11 @@ export function ChatScreen({ matchId }: { matchId: string }) {
 
     try {
       socketRef.current.send(content, clientMessageId);
+      track({ name: "chat_message_sent" });
       const timeout = window.setTimeout(() => {
+        // 보낸 메시지가 서버에 저장됐는지 확인하지 못한 경우. 이 비율이
+        // 채팅 신뢰성 지표가 된다.
+        track({ name: "chat_ack_timeout" });
         pendingTimeoutsRef.current.delete(clientMessageId);
         setMessages((current) => markMessageFailed(current, clientMessageId));
         setToastMessage("메시지 저장을 확인하지 못했어요. 다시 시도해주세요.");

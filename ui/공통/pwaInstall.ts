@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useSyncExternalStore } from "react";
+import { track } from "./analytics";
 
 /**
  * "홈 화면에 추가" 상태를 담아두는 곳. session.ts와 같은 방식으로 React 밖에 둔다.
@@ -74,6 +75,8 @@ export function startCapturingInstallPrompt() {
   if (started || typeof window === "undefined") return;
   started = true;
   state = resolveState();
+  // 아이폰 웹푸시는 설치를 전제로 해서, 이 분포가 곧 알림 도달률의 상한이다.
+  track({ name: "pwa_install_state", props: { state } });
 
   window.addEventListener("beforeinstallprompt", (event) => {
     // 기본 미니 배너를 막고 우리 버튼으로 띄운다.
@@ -117,6 +120,7 @@ export function usePwaInstall() {
     deferred = null;
     await event.prompt();
     const { outcome } = await event.userChoice;
+    track({ name: "pwa_install_result", props: { outcome } });
     publish(outcome === "accepted" ? "installed" : resolveState());
     return outcome;
   }, []);

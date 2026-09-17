@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useSyncExternalStore } from "react";
+import { resetAnalytics } from "./analytics";
 
 const STORAGE_KEY = "facecook:session";
 
@@ -83,6 +84,9 @@ function getServerSnapshot() {
  */
 export function clearSession() {
   session = EMPTY_SESSION;
+  // 로그 수집의 사람 식별도 같이 끊는다 — 부스에서 같은 폰을 다음 사람이
+  // 쓸 때 이전 사용자의 여정에 이어붙지 않게 한다.
+  resetAnalytics();
   try {
     localStorage.removeItem(STORAGE_KEY);
   } catch {
@@ -102,6 +106,7 @@ export function useSession() {
 
   const signOut = useCallback(() => {
     session = EMPTY_SESSION;
+    resetAnalytics();
     try {
       localStorage.removeItem(STORAGE_KEY);
     } catch {
