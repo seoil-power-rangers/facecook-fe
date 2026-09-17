@@ -110,6 +110,16 @@ export function ChatScreen({ matchId }: { matchId: string }) {
     }
   }, [numericMatchId]);
 
+  /*
+   * 매칭까지 갔지만 대화는 시작하지 않는 사람이 얼마나 되는지 보려면 방
+   * 진입을 따로 세야 한다. 메시지 전송(chat_message_sent)만으로는 "안 보낸
+   * 사람"이 방에 들어왔다 나간 건지 아예 안 들어온 건지 알 수 없다.
+   */
+  useEffect(() => {
+    if (Number.isNaN(numericMatchId)) return;
+    track({ name: "chat_room_opened" });
+  }, [numericMatchId]);
+
   useEffect(() => {
     if (Number.isNaN(numericMatchId)) return;
 

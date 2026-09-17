@@ -87,6 +87,7 @@ export function KokScreen() {
     setIsCancelling(true);
     try {
       await cancelCook(cancelTarget.cookId);
+      track({ name: "cook_cancelled" });
       setCancelTarget(null);
       setToastMessage("콕을 취소했어요.");
       await loadCooks();

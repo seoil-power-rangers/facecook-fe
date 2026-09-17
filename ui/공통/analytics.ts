@@ -41,10 +41,25 @@ export type AnalyticsEvent =
   /** 온보딩 5단계 중 한 화면에 도착 — 단계별 이탈률의 재료 */
   | { name: "onboarding_step_viewed"; props: { step: OnboardingStep } }
   | { name: "onboarding_completed"; props?: never }
-  /** 콕을 보낸 지점. 탐색 목록에서 바로 보내는지, 상세를 보고 보내는지 */
+  /**
+   * 가입 퍼널의 맨 앞. 부스에서 학교 메일을 못 열거나 코드가 안 오는 등
+   * 실패 지점이 많은 구간이라, 화면 도달(onboarding_step_viewed)만으로는
+   * 원인을 가릴 수 없어서 따로 남긴다.
+   */
+  | { name: "signup_code_requested"; props?: never }
+  | { name: "signup_verified"; props?: never }
+  | { name: "login_succeeded"; props: { role: UserRole } }
+  /**
+   * 콕을 보낸 지점. 탐색 목록에서 바로 보내는지, 상세를 보고 보내는지.
+   *
+   * 받은 콕에 답하는 맞콕도 같은 API를 쓰므로 from: "kok"이 곧 수락이다 —
+   * 그래서 cook_accepted를 따로 두지 않는다.
+   */
   | { name: "cook_sent"; props: { from: "explore" | "profile_detail" | "kok" } }
-  | { name: "cook_accepted"; props?: never }
+  | { name: "cook_cancelled"; props?: never }
   | { name: "match_created"; props?: never }
+  /** 매칭됐지만 대화까지 가지 않는 비율을 보려면 방 진입을 따로 세야 한다. */
+  | { name: "chat_room_opened"; props?: never }
   | { name: "chat_message_sent"; props?: never }
   /** 채팅 신뢰성 — ACK 10초 안에 안 온 경우 */
   | { name: "chat_ack_timeout"; props?: never }
@@ -54,7 +69,17 @@ export type AnalyticsEvent =
   /** PWA 설치 — 아이폰 웹푸시가 설치를 전제로 해서 도달률의 상한이 된다 */
   | { name: "pwa_install_state"; props: { state: string } }
   | { name: "pwa_install_result"; props: { outcome: "accepted" | "dismissed" } }
-  | { name: "push_permission"; props: { result: NotificationPermission } };
+  | { name: "push_permission"; props: { result: NotificationPermission } }
+  /** 프로필 사진을 실제로 올리는 비율. 기본 아바타로 남는 사람이 얼마인지 */
+  | { name: "profile_photo_uploaded"; props?: never }
+  /**
+   * 미션은 매칭 이후 체류를 늘리려고 넣은 기능이라 도달 자체가 지표다.
+   * currentStep은 1~3이 진행 중인 단계, 4가 전부 완료를 뜻한다(missionModel.ts).
+   */
+  | { name: "mission_viewed"; props: { currentStep: number } }
+  | { name: "report_submitted"; props?: never };
+
+export type UserRole = "participant" | "admin" | "super";
 
 export type OnboardingStep =
   | "email"
@@ -104,10 +129,7 @@ export function track(event: AnalyticsEvent) {
  * 이걸 불러야 "가입 → 콕 → 매칭"이 한 사람의 여정으로 이어진다. 안 부르면
  * 익명 ID가 기기마다 따로 잡혀서 퍼널이 끊긴다.
  */
-export function identifyUser(
-  userId: number,
-  role: "participant" | "admin" | "super",
-) {
+export function identifyUser(userId: number, role: UserRole) {
   if (!ready) return;
   try {
     posthog.identify(String(userId), { role });

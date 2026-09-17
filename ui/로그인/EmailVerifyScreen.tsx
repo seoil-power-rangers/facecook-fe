@@ -20,6 +20,7 @@ import {
   verifySignup,
 } from "./authApi";
 import { useVerificationCode } from "./verificationCode";
+import { track } from "@ui/공통/analytics";
 
 const REQUIRED_TERM_IDS: string[] = TERMS.filter((term) => term.required).map(
   (term) => term.id,
@@ -121,6 +122,7 @@ export function EmailVerifyScreen() {
     setError(null);
     try {
       const response = await requestCode(draft.email, "signup");
+      track({ name: "signup_code_requested" });
       start(response.expiresInSeconds);
     } catch (requestError) {
       setError(authErrorMessage(requestError));
@@ -135,6 +137,7 @@ export function EmailVerifyScreen() {
     setIsSubmitting(true);
     setError(null);
     try {
+      track({ name: "signup_verified" });
       await verifySignup(
         draft.email,
         code,

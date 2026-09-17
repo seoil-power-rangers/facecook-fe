@@ -20,6 +20,7 @@ import {
   missionErrorMessage,
   type MissionProgressResponse,
 } from "./missionApi";
+import { track } from "@ui/공통/analytics";
 
 type StepStatus = "done" | "progress" | "locked";
 
@@ -58,6 +59,11 @@ export function MissionScreen({ matchId }: { matchId: string }) {
         selectLatestMissionProgress(current, missionProgress),
       );
       setMatch(matchDetail);
+      // 매칭 이후 체류를 늘리려고 넣은 기능이라 도달 자체가 지표다.
+      track({
+        name: "mission_viewed",
+        props: { currentStep: missionProgress.currentStep },
+      });
     } catch (loadError) {
       setError(
         loadError instanceof MissionApiError
