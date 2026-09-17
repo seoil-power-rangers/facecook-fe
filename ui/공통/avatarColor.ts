@@ -32,6 +32,24 @@ export function defaultPhotoForGender(gender: string): string | null {
   return null;
 }
 
+/**
+ * 세션 리플레이에서 가릴 이미지에 다는 클래스.
+ *
+ * rrweb은 텍스트만 마스킹하고 이미지는 src를 그대로 기록한다 — 가려도
+ * 재생하면 원본이 다시 불러와진다. 이 클래스가 붙은 요소는 플레이스홀더로
+ * 대체되고 그 아래는 기록 자체가 멈춘다.
+ */
+export const REPLAY_BLOCK_CLASS = "ph-no-capture";
+
+/**
+ * 참가자가 직접 올린 사진인지. 성별 기본 실루엣은 우리가 넣어둔 정적
+ * 파일이라 가릴 이유가 없고, 가리면 리플레이에서 화면 구성이 안 보인다.
+ * 업로드 사진만 S3 절대 URL로 온다.
+ */
+export function isUploadedPhoto(photo: string | null | undefined) {
+  return Boolean(photo) && !photo!.startsWith("/");
+}
+
 /** 업로드 사진을 우선하고, 없으면 성별 기본 이미지나 중립 아바타로 폴백한다. */
 export function resolveAvatarPhoto(
   photoUrl?: string | null,

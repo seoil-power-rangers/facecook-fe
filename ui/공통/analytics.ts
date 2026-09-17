@@ -2,6 +2,7 @@
 
 import type { PostHog } from "posthog-js";
 
+import { REPLAY_BLOCK_CLASS } from "./avatarColor";
 import { startWatchingKillSwitches } from "./killSwitch";
 
 /**
@@ -185,6 +186,12 @@ function setUpPostHog(posthog: PostHog) {
       maskAllInputs: true,
       // 가려야 할 텍스트에는 화면에서 data-private를 달면 된다.
       maskTextSelector: "[data-private]",
+      /*
+       * 이미지는 위 마스킹으로 못 가린다 — 텍스트만 가려지고 src는 그대로
+       * 기록돼서, 재생할 때 원본을 다시 불러온다. 참가자가 올린 얼굴 사진이
+       * 여기 해당하므로 요소째 차단한다(avatarColor.ts의 REPLAY_BLOCK_CLASS).
+       */
+      blockSelector: `.${REPLAY_BLOCK_CLASS}`,
     },
   });
 }
