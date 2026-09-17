@@ -162,7 +162,7 @@ export function initAnalytics() {
             // 한 건이 실패해도 나머지는 흘려보낸다.
           }
         }
-        startWatchingKillSwitches(posthog);
+        startWatchingKillSwitches(posthog, { replayAllowed: ENABLE_REPLAY });
       })
       .catch(() => {
         // 차단기나 네트워크로 못 받아오면 수집만 없는 상태로 둔다.
@@ -216,14 +216,32 @@ function setUpPostHog(posthog: PostHog) {
     session_recording: {
       // 입력값은 전부 가린다. 자기소개·비밀번호·인증코드가 여기 다 들어온다.
       maskAllInputs: true,
-      // 가려야 할 텍스트에는 화면에서 data-private를 달면 된다.
-      maskTextSelector: "[data-private]",
       /*
-       * 이미지는 위 마스킹으로 못 가린다 — 텍스트만 가려지고 src는 그대로
-       * 기록돼서, 재생할 때 원본을 다시 불러온다. 참가자가 올린 얼굴 사진이
-       * 여기 해당하므로 요소째 차단한다(avatarColor.ts의 REPLAY_BLOCK_CLASS).
+       * 화면 텍스트를 통째로 가린다.
+       *
+       * 처음에는 data-private를 단 곳만 가렸는데, 그 방식은 가릴 곳을 사람이
+       * 빠짐없이 찾아내야만 성립한다. 실제로는 닉네임·나이·성별·학과·MBTI·
+       * 취미가 탐색과 프로필 곳곳에 흩어져 있고, 관리자 화면에는 이메일까지
+       * 나온다. 하나라도 빠지면 그대로 녹화된다.
+       *
+       * 더 중요한 건 동의의 범위다. 녹화 동의는 테스터 본인에게만 받았는데,
+       * 화면에 등장하는 상대 참가자는 동의한 적이 없다. 소개팅 서비스라
+       * 남의 얼굴과 신상이 늘 화면에 있으므로, 기본값을 "가린다"로 두고
+       * 필요하면 푸는 방향이 맞다.
+       *
+       * 대신 리플레이에서 글자는 못 읽는다. 레이아웃·클릭·스크롤·헛누름은
+       * 그대로 보이므로 사용성 관찰이라는 목적은 유지된다.
        */
-      blockSelector: `.${REPLAY_BLOCK_CLASS}`,
+      maskTextSelector: "*",
+      // aria-label 같은 속성에도 닉네임이 들어간다.
+      maskAllElementAttributes: true,
+      /*
+       * 이미지는 마스킹으로 못 가린다 — 글자만 가려지고 src는 그대로 기록돼서,
+       * 재생할 때 원본을 다시 불러온다. 참가자가 올린 얼굴 사진이 여기
+       * 해당하므로 요소째 차단한다(avatarColor.ts의 REPLAY_BLOCK_CLASS).
+       * 파일 입력도 같이 막는다 — 업로드한 파일명도 신상이다.
+       */
+      blockSelector: `.${REPLAY_BLOCK_CLASS}, input[type="file"]`,
     },
   });
 }
