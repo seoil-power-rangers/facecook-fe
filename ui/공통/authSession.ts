@@ -1,3 +1,4 @@
+import { track } from "./analytics";
 import { clearSession } from "./session";
 
 const NOTICE_KEY = "facecook:authNotice";
@@ -12,8 +13,10 @@ const NOTICE_KEY = "facecook:authNotice";
  * 트리 밖(순수 fetch 래퍼)에서도 호출되므로 router 인스턴스를 들고 있을
  * 수 없다.
  */
-export function redirectToLoginOnSignOut(message?: string) {
+export function redirectToLoginOnSignOut(message?: string, reason = "UNKNOWN") {
   if (typeof window === "undefined") return;
+  // clearSession()이 곧 식별을 끊으므로 그 전에 남긴다.
+  track({ name: "session_expired", props: { reason } });
   try {
     if (message) sessionStorage.setItem(NOTICE_KEY, message);
   } catch {

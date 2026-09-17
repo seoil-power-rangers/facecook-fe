@@ -63,6 +63,14 @@ const COOK_ERROR_MESSAGES: Record<string, string> = {
   UNAUTHORIZED: "로그인이 만료됐어요. 다시 로그인해주세요.",
 };
 
+/**
+ * 로그에 남길 실패 사유. 화면에 띄우는 문구(cookErrorMessage)와 달리 코드
+ * 그대로 남긴다 — 문구는 바뀌어도 지표가 흔들리면 안 된다.
+ */
+export function cookErrorCode(error: unknown) {
+  return error instanceof CookApiError ? error.code : "NETWORK";
+}
+
 export function cookErrorMessage(error: unknown) {
   if (error instanceof CookApiError) {
     return COOK_ERROR_MESSAGES[error.code] ?? error.message;
@@ -127,7 +135,7 @@ async function requestCook<T>(path: string, init: RequestInit = {}): Promise<T> 
     // profileApi와 같은 원칙: 이 화면의 요청이 401로 끊긴 것도 여기서
     // 바로 로그인 화면으로 보낸다(콕 조회·전송은 세션이 없으면 의미가 없다).
     if (response.status === 401 || code === "UNAUTHORIZED") {
-      redirectToLoginOnSignOut(message);
+      redirectToLoginOnSignOut(message, code);
     }
     throw new CookApiError(code, message);
   }

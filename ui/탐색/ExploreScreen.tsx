@@ -14,6 +14,7 @@ import { TabBarMain } from "@ui/공통/TabBar";
 import { Toast } from "@ui/공통/Toast";
 import { MBTI_AXES } from "@ui/공통/constants";
 import {
+  cookErrorCode,
   cookErrorMessage,
   getCooks,
   sendCook,
@@ -147,6 +148,10 @@ export function ExploreScreen() {
       setKokRemaining((prev) => (prev === null ? null : Math.max(prev - 1, 0)));
       setToastMessage("콕을 보냈어요. 상대의 콕을 기다려주세요.");
     } catch (sendError) {
+      track({
+        name: "cook_failed",
+        props: { code: cookErrorCode(sendError), from: "explore" },
+      });
       setToastMessage(cookErrorMessage(sendError));
     } finally {
       setIsSendingKok(false);
