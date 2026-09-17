@@ -16,7 +16,7 @@ import {
   createProfileRequestFromDraft,
   profileErrorMessage,
 } from "./profileApi";
-import { track } from "@ui/공통/analytics";
+import { identifyUser, track } from "@ui/공통/analytics";
 
 /**
  * 06 선택 (STEP 5)
@@ -36,7 +36,14 @@ export function ProfileOptionalScreen() {
     setIsSubmitting(true);
     setError(null);
     try {
-      await createProfile(createProfileRequestFromDraft(draft));
+      const profile = await createProfile(createProfileRequestFromDraft(draft));
+      /*
+       * 가입은 여기서 끝난다. 로그인 화면에서만 identify하면 부스 참가자
+       * 대부분이 3일 내내 익명으로 남는다 — 한 번 가입하면 세션 쿠키가
+       * 유지돼서 다시 로그인할 일이 없기 때문이다. 그러면 가입 → 콕 →
+       * 매칭이라는 핵심 퍼널이 신규 가입자에게서 끊긴다.
+       */
+      identifyUser(profile.userId, "participant");
       track({ name: "onboarding_completed" });
       router.push("/onboarding/done");
     } catch (submitError) {

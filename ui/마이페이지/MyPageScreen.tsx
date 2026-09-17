@@ -240,6 +240,7 @@ export function MyPageScreen() {
                 label="한 마디"
                 value={profile.bio || "아직 없어요"}
                 muted={!profile.bio}
+                private
               />
 
               <div className="mt-3 flex flex-col gap-2">
@@ -395,11 +396,14 @@ function InfoCard({
   label,
   value,
   muted = false,
+  /** 세션 리플레이에서 가릴 값인지. 자기소개처럼 본인이 쓴 문장에 쓴다. */
+  private: isPrivate = false,
 }: {
   emoji: string;
   label: string;
   value: string;
   muted?: boolean;
+  private?: boolean;
 }) {
   return (
     <div className="flex items-center gap-3 rounded-[1.25rem] bg-(--color-surface) p-4 shadow-(--shadow-card)">
@@ -409,6 +413,7 @@ function InfoCard({
       <div className="flex flex-col gap-0.5 overflow-hidden">
         <span className="text-xs text-(--color-text-muted)">{label}</span>
         <span
+          data-private={isPrivate || undefined}
           className={`truncate text-[15px] font-bold ${
             muted ? "text-(--color-text-muted)" : "text-(--color-text-strong)"
           }`}

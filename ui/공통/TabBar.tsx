@@ -9,6 +9,8 @@ import type { LucideIcon } from "lucide-react";
 import { getCooks } from "@ui/받은콕/cookApi";
 import { getMatches } from "@ui/매칭/matchApi";
 import { LIVE_BADGE_POLL_INTERVAL_MS } from "@ui/공통/constants";
+import { reportError } from "@ui/공통/analytics";
+import { useKillSwitch } from "@ui/공통/killSwitch";
 
 interface TabBarMainProps {
   children: ReactNode;
@@ -46,7 +48,10 @@ export function TabBar() {
   const [pendingReceivedCount, setPendingReceivedCount] = useState(0);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
 
+  const pollingEnabled = useKillSwitch("live-badge-polling");
+
   useEffect(() => {
+    if (!pollingEnabled) return;
     let active = true;
 
     // 화면에 가만히 머물러 있어도 배지가 갱신되도록 주기적으로 다시
@@ -62,7 +67,7 @@ export function TabBar() {
             cooks.received.filter((cook) => cook.status === "pending").length,
           );
         })
-        .catch(() => undefined);
+        .catch(reportError);
 
       getMatches()
         .then((matches) => {
@@ -71,7 +76,7 @@ export function TabBar() {
             matches.reduce((sum, match) => sum + (match.unreadCount ?? 0), 0),
           );
         })
-        .catch(() => undefined);
+        .catch(reportError);
     };
 
     refresh();
@@ -83,7 +88,7 @@ export function TabBar() {
       clearInterval(interval);
       document.removeEventListener("visibilitychange", refresh);
     };
-  }, [pathname]);
+  }, [pathname, pollingEnabled]);
 
   const tabs: TabConfig[] = [
     { href: "/main", label: "홈", icon: House },

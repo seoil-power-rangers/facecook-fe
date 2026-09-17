@@ -540,6 +540,11 @@ function MessageBubble({
               ? "rounded-[1.25rem] rounded-br-md bg-(--color-chat-mine) px-4 py-2.5 text-[15px] leading-relaxed text-(--color-chat-mine-text)"
               : "rounded-[1.25rem] rounded-bl-md bg-(--color-chat-other) px-4 py-2.5 text-[15px] leading-relaxed text-(--color-chat-other-text) shadow-(--shadow-card)"
           }
+          /*
+           * 세션 리플레이에서 가린다. 녹화 동의는 테스터 본인에게만 받았고,
+           * 대화 상대는 동의한 적이 없다.
+           */
+          data-private
         >
           {message.content}
         </div>

@@ -2,6 +2,8 @@
 
 import posthog from "posthog-js";
 
+import { startWatchingKillSwitches } from "./killSwitch";
+
 /**
  * 사용 로그 수집. 부스 3일 동안 어디서 사람이 빠져나가는지 보려고 둔다.
  *
@@ -103,6 +105,14 @@ export function initAnalytics() {
     // 로그인한 사람만 프로필을 만든다 — 비로그인 방문자까지 사람으로 세면
     // 무료 한도를 쓸데없이 깎아먹는다.
     person_profiles: "identified_only",
+    /*
+     * 잡히지 않은 에러와 promise rejection을 모은다. 부스에서 흰 화면을 본
+     * 사람이 말해주기를 기다릴 수는 없다.
+     *
+     * 이 기능은 별도 스크립트로 따로 내려받아서(loadExternalDependency)
+     * 초기 번들을 늘리지 않는다.
+     */
+    capture_exceptions: true,
     disable_session_recording: !ENABLE_REPLAY,
     session_recording: {
       // 입력값은 전부 가린다. 자기소개·비밀번호·인증코드가 여기 다 들어온다.
@@ -111,6 +121,26 @@ export function initAnalytics() {
       maskTextSelector: "[data-private]",
     },
   });
+
+  startWatchingKillSwitches();
+}
+
+/**
+ * 삼켜버린 에러 중 조용히 죽으면 곤란한 것만 올린다.
+ *
+ * 배지 조회처럼 실패해도 화면을 막지 않는 요청이 여럿 있는데(부가 정보라
+ * 그게 맞다), 그대로 두면 축제 당일 그 API가 전부 500을 뱉어도 아무도
+ * 모른다. 화면은 멀쩡해 보이고 배지만 조용히 사라진다.
+ */
+export function reportError(error: unknown) {
+  if (!ready) return;
+  try {
+    posthog.captureException(
+      error instanceof Error ? error : new Error(String(error)),
+    );
+  } catch {
+    // 보고 실패로 사용자 흐름을 막지 않는다.
+  }
 }
 
 /** 이벤트 하나 보낸다. 키가 없거나 실패해도 화면은 그대로 굴러가야 한다. */
