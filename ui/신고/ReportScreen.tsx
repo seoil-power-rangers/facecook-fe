@@ -12,6 +12,7 @@ import {
   type ProfileResponse,
 } from "@ui/프로필작성/profileApi";
 import { createReport, reportErrorMessage } from "./reportApi";
+import { track } from "@ui/공통/analytics";
 
 const REPORT_REASONS = [
   "부적절한 프로필·사진",
@@ -69,6 +70,7 @@ export function ReportScreen({ userId }: { userId: string }) {
         reason,
         ...(trimmedDetail ? { detail: trimmedDetail } : {}),
       });
+      track({ name: "report_submitted" });
       setIsSubmitted(true);
     } catch (error) {
       setSubmitError(reportErrorMessage(error));

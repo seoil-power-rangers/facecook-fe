@@ -1,5 +1,11 @@
 import { User, X } from "lucide-react";
-import { avatarColor, avatarEmoji, resolveAvatarPhoto } from "./avatarColor";
+import {
+  REPLAY_BLOCK_CLASS,
+  avatarColor,
+  avatarEmoji,
+  isUploadedPhoto,
+  resolveAvatarPhoto,
+} from "./avatarColor";
 
 type AvatarSize = "sm" | "md" | "lg" | "xl" | "2xl";
 
@@ -113,7 +119,7 @@ export function Avatar({
             alt=""
             className={`h-full w-full object-cover ${
               isDefaultMalePhoto ? "scale-[1.6]" : ""
-            }`}
+            } ${isUploadedPhoto(fallbackPhoto) ? REPLAY_BLOCK_CLASS : ""}`}
           />
         ) : face ? (
           <span className={emojiSizeClasses[size]}>{face}</span>

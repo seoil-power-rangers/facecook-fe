@@ -35,6 +35,7 @@ import {
   type ExploreFilters,
   type ExploreOptions,
 } from "./FilterSheet";
+import { track } from "@ui/공통/analytics";
 
 /**
  * 참가자를 둘러보고 콕을 보내는 화면.
@@ -133,6 +134,8 @@ export function ExploreScreen() {
     setIsSendingKok(true);
     try {
       const result = await sendCook(target.userId);
+      track({ name: "cook_sent", props: { from: "explore" } });
+      if (result.matched) track({ name: "match_created" });
       setKokTarget(null);
       if (result.matched && result.matchId !== null) {
         router.push(`/match/${result.matchId}/matched`);

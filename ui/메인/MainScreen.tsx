@@ -16,6 +16,8 @@ import {
 import { LIVE_BADGE_POLL_INTERVAL_MS } from "@ui/공통/constants";
 import { CampusScene } from "./CampusScene";
 import { Mascot } from "./Mascot";
+import { reportError } from "@ui/공통/analytics";
+import { useKillSwitch } from "@ui/공통/killSwitch";
 
 /**
  * 홈. 참가자 목록 대신 마스코트와 오늘의 콕을 보여주고, 나머지 화면으로
@@ -44,7 +46,7 @@ export function MainScreen() {
       .then((profiles) => {
         if (active) setTotalUsers(profiles.length);
       })
-      .catch(() => undefined);
+      .catch(reportError);
 
     getCooks()
       .then((cooks) => {
@@ -54,20 +56,23 @@ export function MainScreen() {
         // 만료된 것도 받은 건 받은 거라 같이 센다. 마이페이지 숫자와 같은 기준이다.
         setReceivedKokCount(cooks.received.length);
       })
-      .catch(() => undefined);
+      .catch(reportError);
 
     getMatches()
       .then((matches) => {
         if (active) setMatchCount(matches.length);
       })
-      .catch(() => undefined);
+      .catch(reportError);
 
     return () => {
       active = false;
     };
   }, []);
 
+  const pollingEnabled = useKillSwitch("live-badge-polling");
+
   useEffect(() => {
+    if (!pollingEnabled) return;
     let active = true;
 
     // 종 배지도 화면에 머물러 있는 동안 주기적으로 갱신한다. 메시지는
@@ -80,8 +85,10 @@ export function MainScreen() {
         .then((feed) => {
           if (active) setUnseenCount(countUnseen(feed, readLastSeen()));
         })
-        .catch(() => {
-          // 배지는 부가 정보라 조회 실패 시 그냥 숨긴다.
+        .catch((error) => {
+          // 배지는 부가 정보라 화면에서는 그냥 숨긴다. 다만 전부 실패하는
+          // 상황은 알아야 해서 보고는 남긴다.
+          reportError(error);
         });
     };
 
@@ -94,7 +101,7 @@ export function MainScreen() {
       clearInterval(interval);
       document.removeEventListener("visibilitychange", refresh);
     };
-  }, []);
+  }, [pollingEnabled]);
 
   return (
     <PhoneFrame>

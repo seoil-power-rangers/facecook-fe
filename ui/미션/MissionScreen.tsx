@@ -20,6 +20,8 @@ import {
   missionErrorMessage,
   type MissionProgressResponse,
 } from "./missionApi";
+import { track } from "@ui/공통/analytics";
+import { useKillSwitch } from "@ui/공통/killSwitch";
 
 type StepStatus = "done" | "progress" | "locked";
 
@@ -58,6 +60,11 @@ export function MissionScreen({ matchId }: { matchId: string }) {
         selectLatestMissionProgress(current, missionProgress),
       );
       setMatch(matchDetail);
+      // 매칭 이후 체류를 늘리려고 넣은 기능이라 도달 자체가 지표다.
+      track({
+        name: "mission_viewed",
+        props: { currentStep: missionProgress.currentStep },
+      });
     } catch (loadError) {
       setError(
         loadError instanceof MissionApiError
@@ -69,6 +76,12 @@ export function MissionScreen({ matchId }: { matchId: string }) {
     }
   }, [numericMatchId]);
 
+  /*
+   * 실시간 갱신은 대시보드에서 끌 수 있다. 꺼져도 REST로 불러온 상태는
+   * 그대로 보여주므로 화면이 비지는 않는다.
+   */
+  const realtimeEnabled = useKillSwitch("mission-realtime");
+
   useEffect(() => {
     // 라우트의 matchId가 바뀌면 해당 매칭의 미션 진행 상태를 다시 불러온다.
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -77,7 +90,7 @@ export function MissionScreen({ matchId }: { matchId: string }) {
 
   useEffect(() => {
     if (!Number.isInteger(numericMatchId) || numericMatchId <= 0) return;
-
+    if (!realtimeEnabled) return;
     let active = true;
     let connection: ReturnType<typeof connectMissionSocket> | null = null;
     try {
@@ -110,7 +123,7 @@ export function MissionScreen({ matchId }: { matchId: string }) {
       active = false;
       if (connection) void connection.disconnect();
     };
-  }, [numericMatchId]);
+  }, [numericMatchId, realtimeEnabled]);
 
   if (isLoading || error || !progress || !match) {
     return (

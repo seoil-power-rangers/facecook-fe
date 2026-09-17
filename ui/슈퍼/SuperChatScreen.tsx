@@ -247,7 +247,8 @@ export function SuperChatScreen({ matchId }: { matchId: string }) {
                           : "self-end bg-(--color-primary-light) text-(--color-text-strong)"
                       }`}
                     >
-                      {message.content}
+                      {/* 리플레이에서 가린다 — 남의 대화다. */}
+                      <span data-private>{message.content}</span>
                     </p>
                   </div>
                 );

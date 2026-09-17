@@ -8,6 +8,7 @@ import {
   profileErrorMessage,
   uploadProfilePhoto,
 } from "@ui/프로필작성/profileApi";
+import { track } from "./analytics";
 
 interface AvatarPhotoPickerProps {
   name: string;
@@ -50,6 +51,8 @@ export function AvatarPhotoPicker({
     setIsUploading(true);
     try {
       const uploadedUrl = await uploadProfilePhoto(file);
+      // 기본 아바타로 남는 사람이 얼마나 되는지 보는 기준이 된다.
+      track({ name: "profile_photo_uploaded" });
       onChange(uploadedUrl);
     } catch (error) {
       onError?.(profileErrorMessage(error));

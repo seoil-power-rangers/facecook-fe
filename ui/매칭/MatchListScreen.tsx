@@ -167,6 +167,7 @@ function MatchRow({
               ? "font-medium text-(--color-text-body)"
               : "text-(--color-text-sub)"
           }`}
+          data-private
         >
           {recent?.content ?? match.partner.department ?? "먼저 인사를 건네보세요"}
         </span>

@@ -20,6 +20,7 @@ import {
   type ProfileResponse,
 } from "@ui/프로필작성/profileApi";
 import { cookErrorMessage, getCooks, sendCook } from "@ui/받은콕/cookApi";
+import { track } from "@ui/공통/analytics";
 
 const HOBBY_ICONS: LucideIcon[] = [Utensils, Footprints, Send];
 
@@ -95,6 +96,8 @@ export function ProfileDetailScreen({
     setIsSending(true);
     try {
       const result = await sendCook(profile.userId);
+      track({ name: "cook_sent", props: { from: "profile_detail" } });
+      if (result.matched) track({ name: "match_created" });
       setKokSheetOpen(false);
       if (result.matched && result.matchId !== null) {
         router.push(`/match/${result.matchId}/matched`);
@@ -254,7 +257,10 @@ export function ProfileDetailScreen({
             <h2 className="mb-2 text-sm font-semibold text-(--color-text-strong)">
               자기소개
             </h2>
-            <p className="rounded-(--radius-lg) bg-(--color-surface-alt) p-4 text-sm leading-relaxed text-(--color-text-body)">
+            <p
+              data-private
+              className="rounded-(--radius-lg) bg-(--color-surface-alt) p-4 text-sm leading-relaxed text-(--color-text-body)"
+            >
               {profile.bio || "아직 작성한 자기소개가 없어요."}
             </p>
           </section>

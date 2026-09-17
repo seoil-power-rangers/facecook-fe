@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { MBTI_AXES } from "@ui/공통/constants";
 import type { DepartmentGroup } from "@ui/프로필작성/profileApi";
+import { track } from "@ui/공통/analytics";
 
 export interface ExploreFilters {
   departments: string[];
@@ -194,7 +195,13 @@ export function FilterSheet({
         </button>
         <button
           type="button"
-          onClick={() => onApply(draft)}
+          onClick={() => {
+            track({
+              name: "explore_filter_applied",
+              props: { count: countFilters(draft) },
+            });
+            onApply(draft);
+          }}
           className="flex-1 rounded-(--radius-lg) bg-(--color-accent) py-3.5 text-base font-bold text-(--color-text-on-primary)"
         >
           {picked > 0 ? `${picked}개 조건으로 보기` : "전체 보기"}
