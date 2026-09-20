@@ -11,10 +11,9 @@ import { PhoneFrame } from "@ui/공통/PhoneFrame";
 import { Tag } from "@ui/공통/Tag";
 import { TabBarMain } from "@ui/공통/TabBar";
 import { Toast } from "@ui/공통/Toast";
-import { addRejected, readRejected, removeRejected } from "./rejectedCooks";
+import { addRejected, readRejected } from "./rejectedCooks";
 import {
   cancelCook,
-  cancelReject,
   cookErrorCode,
   cookErrorMessage,
   getCooks,
@@ -38,8 +37,8 @@ export function KokScreen() {
   const [sendingUserId, setSendingUserId] = useState<number | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [rejectedIds, setRejectedIds] = useState<Set<number>>(() => new Set());
-  /** 방금 거절한 콕. 토스트를 누르면 이 하나만 되돌린다. */
-  const [undoTarget, setUndoTarget] = useState<number | null>(null);
+  /** 거절을 확인받는 중인 콕. 시트에 상대 얼굴과 이름을 띄운다. */
+  const [rejectTarget, setRejectTarget] = useState<CookItemResponse | null>(null);
   const [cancelTarget, setCancelTarget] = useState<CookItemResponse | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
 
@@ -80,19 +79,12 @@ export function KokScreen() {
    * 카드가 한 박자 늦게 사라져서 두 번 누르게 되고, 아직 없는 엔드포인트라
    * 실패가 정상이다(cookApi의 rejectCook 주석 참고).
    */
-  const handleReject = (cookId: number) => {
-    setRejectedIds((current) => addRejected(current, cookId));
-    setUndoTarget(cookId);
-    setToastMessage("거절했어요. 되돌리려면 눌러주세요");
-    void rejectCook(cookId).catch(() => {});
-  };
-
-  const handleUndoReject = () => {
-    if (undoTarget === null) return;
-    setRejectedIds((current) => removeRejected(current, undoTarget));
-    void cancelReject(undoTarget).catch(() => {});
-    setUndoTarget(null);
-    setToastMessage(null);
+  const handleReject = () => {
+    if (!rejectTarget) return;
+    setRejectedIds((current) => addRejected(current, rejectTarget.cookId));
+    void rejectCook(rejectTarget.cookId).catch(() => {});
+    setRejectTarget(null);
+    setToastMessage("콕을 거절했어요.");
   };
 
   const handleSendCook = async (userId: number) => {
@@ -139,7 +131,6 @@ export function KokScreen() {
       <Toast
         open={toastMessage !== null}
         message={toastMessage ?? ""}
-        onClick={undoTarget === null ? undefined : handleUndoReject}
         onDismiss={() => setToastMessage(null)}
       />
 
@@ -181,10 +172,23 @@ export function KokScreen() {
             cooks={data.received.filter((cook) => !rejectedIds.has(cook.cookId))}
             sendingUserId={sendingUserId}
             onSend={handleSendCook}
-            onReject={handleReject}
+            onReject={setRejectTarget}
           />
         ) : null}
       </TabBarMain>
+
+      <BottomSheet
+        open={rejectTarget !== null}
+        onClose={() => setRejectTarget(null)}
+      >
+        {rejectTarget ? (
+          <RejectKokSheet
+            cook={rejectTarget}
+            onKeep={() => setRejectTarget(null)}
+            onReject={handleReject}
+          />
+        ) : null}
+      </BottomSheet>
 
       <BottomSheet
         open={cancelTarget !== null}
@@ -326,6 +330,59 @@ function SentKokCard({
 }
 
 /**
+ * 거절도 한 번 확인받는다. 맞콕 버튼 바로 옆이라 손가락으로 잘못 누르기 쉽고,
+ * 되돌릴 방법을 두지 않기로 했다.
+ *
+ * 상대에게 알리지 않는다는 걸 적어둔다 — 거절이 통보되는 줄 알면 마음에 없는
+ * 콕을 그냥 남겨두게 된다.
+ */
+function RejectKokSheet({
+  cook,
+  onKeep,
+  onReject,
+}: {
+  cook: CookItemResponse;
+  onKeep: () => void;
+  onReject: () => void;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-4 px-6 pt-2">
+      <Avatar
+        name={cook.profile.nickname}
+        size="xl"
+        userId={cook.userId}
+        photoUrl={cook.profile.photo}
+        gender={cook.profile.gender}
+      />
+
+      <div className="flex flex-col items-center gap-1 text-center">
+        <p className="text-xl font-bold text-(--color-text-strong)">
+          {cook.profile.nickname}님의 콕을 거절할까요?
+        </p>
+        <p className="text-sm text-(--color-text-sub)">
+          목록에서 사라지고, 상대는 거절한 걸 알 수 없어요.
+        </p>
+      </div>
+
+      <button
+        type="button"
+        onClick={onReject}
+        className="w-full rounded-(--radius-lg) bg-(--color-danger) py-4 text-base font-bold text-(--color-text-on-primary)"
+      >
+        거절하기
+      </button>
+      <button
+        type="button"
+        onClick={onKeep}
+        className="text-sm text-(--color-text-sub)"
+      >
+        그대로 둘게요
+      </button>
+    </div>
+  );
+}
+
+/**
  * 되돌릴 수 없는 행동이라 한 번 확인받는다. 상대가 이미 콕을 봤을 수도 있고,
  * 취소해도 오늘 횟수는 돌아오지 않는다.
  */
@@ -417,7 +474,7 @@ function ReceivedKokPanel({
   cooks: CookItemResponse[];
   sendingUserId: number | null;
   onSend: (userId: number) => Promise<void>;
-  onReject: (cookId: number) => void;
+  onReject: (cook: CookItemResponse) => void;
 }) {
   return (
     <section className="flex flex-col gap-3">
@@ -456,7 +513,7 @@ function ReceivedKokPanel({
                   */}
                   <button
                     type="button"
-                    onClick={() => onReject(cook.cookId)}
+                    onClick={() => onReject(cook)}
                     className="shrink-0 rounded-full px-3 py-2.5 text-sm font-medium text-(--color-text-sub) active:bg-(--color-surface-alt)"
                   >
                     거절

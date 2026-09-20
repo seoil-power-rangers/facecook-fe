@@ -105,15 +105,13 @@ export function cancelCook(cookId: number) {
  * 남기고(rejectedCooks.ts), 이 호출은 서버가 알게 해서 다른 기기에서도
  * 감춰지게 하는 용도다. 서버에 아직 없으면 404가 나고 조용히 지나간다.
  *
+ * 되돌리는 길은 두지 않는다. 누르기 전에 시트로 한 번 확인받으므로 물릴
+ * 일이 없고, 엔드포인트를 하나로 줄여 백엔드에 넘기기로 했다.
+ *
  * 서버가 생기면 rejectedCooks.ts의 로컬 저장을 걷어내고 이쪽만 남기면 된다.
  */
 export function rejectCook(cookId: number) {
   return requestCook<void>(`/api/cooks/${cookId}/reject`, { method: "POST" });
-}
-
-/** 거절 되돌리기. 잘못 눌러 거절한 걸 토스트에서 물릴 때 쓴다. */
-export function cancelReject(cookId: number) {
-  return requestCook<void>(`/api/cooks/${cookId}/reject`, { method: "DELETE" });
 }
 
 function requireApiBaseUrl() {

@@ -70,10 +70,3 @@ export function addRejected(current: Set<number>, cookId: number) {
   save(next);
   return next;
 }
-
-export function removeRejected(current: Set<number>, cookId: number) {
-  const next = new Set(current);
-  next.delete(cookId);
-  save(next);
-  return next;
-}
