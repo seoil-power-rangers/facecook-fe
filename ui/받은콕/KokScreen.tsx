@@ -11,12 +11,14 @@ import { PhoneFrame } from "@ui/공통/PhoneFrame";
 import { Tag } from "@ui/공통/Tag";
 import { TabBarMain } from "@ui/공통/TabBar";
 import { Toast } from "@ui/공통/Toast";
-import { readRejected, rejectCook, undoReject } from "./rejectedCooks";
+import { addRejected, readRejected, removeRejected } from "./rejectedCooks";
 import {
   cancelCook,
+  cancelReject,
   cookErrorCode,
   cookErrorMessage,
   getCooks,
+  rejectCook,
   sendCook,
   type CookItemResponse,
   type CookListResponse,
@@ -73,15 +75,22 @@ export function KokScreen() {
     setRejectedIds(readRejected());
   }, []);
 
+  /*
+   * 감추는 건 브라우저가 하고, 서버에는 알리기만 한다. 서버 응답을 기다리면
+   * 카드가 한 박자 늦게 사라져서 두 번 누르게 되고, 아직 없는 엔드포인트라
+   * 실패가 정상이다(cookApi의 rejectCook 주석 참고).
+   */
   const handleReject = (cookId: number) => {
-    setRejectedIds((current) => rejectCook(current, cookId));
+    setRejectedIds((current) => addRejected(current, cookId));
     setUndoTarget(cookId);
     setToastMessage("거절했어요. 되돌리려면 눌러주세요");
+    void rejectCook(cookId).catch(() => {});
   };
 
   const handleUndoReject = () => {
     if (undoTarget === null) return;
-    setRejectedIds((current) => undoReject(current, undoTarget));
+    setRejectedIds((current) => removeRejected(current, undoTarget));
+    void cancelReject(undoTarget).catch(() => {});
     setUndoTarget(null);
     setToastMessage(null);
   };

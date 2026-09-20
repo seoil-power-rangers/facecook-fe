@@ -65,13 +65,13 @@ function save(ids: Set<number>) {
   }
 }
 
-export function rejectCook(current: Set<number>, cookId: number) {
+export function addRejected(current: Set<number>, cookId: number) {
   const next = new Set(current).add(cookId);
   save(next);
   return next;
 }
 
-export function undoReject(current: Set<number>, cookId: number) {
+export function removeRejected(current: Set<number>, cookId: number) {
   const next = new Set(current);
   next.delete(cookId);
   save(next);

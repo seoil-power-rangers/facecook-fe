@@ -98,6 +98,24 @@ export function cancelCook(cookId: number) {
   return requestCook<void>(`/api/cooks/${cookId}`, { method: "DELETE" });
 }
 
+/**
+ * 받은 콕 거절. 아직 facecook-be에 없는 엔드포인트라 미리 맞춰둔 자리다.
+ *
+ * 화면은 이 호출의 성패와 무관하게 동작한다 — 거절 자체는 브라우저에
+ * 남기고(rejectedCooks.ts), 이 호출은 서버가 알게 해서 다른 기기에서도
+ * 감춰지게 하는 용도다. 서버에 아직 없으면 404가 나고 조용히 지나간다.
+ *
+ * 서버가 생기면 rejectedCooks.ts의 로컬 저장을 걷어내고 이쪽만 남기면 된다.
+ */
+export function rejectCook(cookId: number) {
+  return requestCook<void>(`/api/cooks/${cookId}/reject`, { method: "POST" });
+}
+
+/** 거절 되돌리기. 잘못 눌러 거절한 걸 토스트에서 물릴 때 쓴다. */
+export function cancelReject(cookId: number) {
+  return requestCook<void>(`/api/cooks/${cookId}/reject`, { method: "DELETE" });
+}
+
 function requireApiBaseUrl() {
   if (!API_BASE_URL) {
     throw new CookApiError(
