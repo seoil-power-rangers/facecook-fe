@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { FormEvent, UIEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowUp, ChevronDown, ChevronLeft, Clock, Lock, Ticket } from "lucide-react";
+import { ArrowUp, ChevronDown, ChevronLeft, Clock, Lock, Siren } from "lucide-react";
 import { Avatar } from "@ui/공통/Avatar";
 import { Button } from "@ui/공통/Button";
 import { PhoneFrame } from "@ui/공통/PhoneFrame";
@@ -410,12 +410,18 @@ export function ChatScreen({ matchId }: { matchId: string }) {
           </div>
         </Link>
 
+        {/*
+          미션은 바로 아래 MissionStatusCard가 이미 같은 곳으로 보낸다. 같은
+          목적지를 위아래로 두 번 두면 자리만 먹으므로, 이 자리는 대화 중에
+          필요해질 수 있는 신고로 넘긴다 — 상대 프로필까지 들어가야 신고할 수
+          있으면 정작 필요한 순간에 멀다.
+        */}
         <Link
-          href={`/match/${match.matchId}/mission`}
-          aria-label="미션 보기"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-(--color-primary-light) text-(--color-primary)"
+          href={`/profile/${partner.userId}/report`}
+          aria-label="신고"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-(--color-surface-alt) text-(--color-text-sub)"
         >
-          <Ticket className="h-4.5 w-4.5" />
+          <Siren className="h-4.5 w-4.5" />
         </Link>
       </header>
 
