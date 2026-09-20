@@ -12,7 +12,7 @@ import { PhoneFrame } from "@ui/공통/PhoneFrame";
 import { Tag } from "@ui/공통/Tag";
 import { TabBarMain } from "@ui/공통/TabBar";
 import { Toast } from "@ui/공통/Toast";
-import { MBTI_AXES } from "@ui/공통/constants";
+import { GENDERS, MBTI_AXES } from "@ui/공통/constants";
 import {
   cookErrorCode,
   cookErrorMessage,
@@ -33,6 +33,8 @@ import {
   countFilters,
   EMPTY_FILTERS,
   FilterSheet,
+  MIN_AGE,
+  withAgeBounds,
   type ExploreFilters,
   type ExploreOptions,
 } from "./FilterSheet";
@@ -78,6 +80,9 @@ export function ExploreScreen() {
         if (!active) return;
         setMembers(profiles);
         setMyProfile(mine);
+        // 슬라이더 양 끝을 실제 참가자에 맞춘다. 맞춰두지 않으면 아무것도
+        // 안 골랐는데 상한이 20세에 걸려 목록이 비어 보인다.
+        setFilters((current) => withAgeBounds(current, buildOptions(profiles).ageBounds));
       } catch (loadError) {
         if (active) setError(profileErrorMessage(loadError));
       } finally {
@@ -116,7 +121,7 @@ export function ExploreScreen() {
   const options = useMemo(() => buildOptions(members), [members]);
   const filtered = useMemo(
     () =>
-      shuffleForSession(members, myProfile?.userId ?? 0).filter((member) =>
+      sortForSession(members, myProfile?.userId ?? 0).filter((member) =>
         matches(member, filters),
       ),
     [members, filters, myProfile?.userId],
@@ -180,15 +185,21 @@ export function ExploreScreen() {
       <TabBarMain className="gap-3 px-4 pb-4">
         <div className="flex shrink-0 items-center justify-between">
           {/*
-            "현재 활동 중"은 lastActiveAt이 있어야 셀 수 있는데 아직 서버가
-            내려주지 않는다. 없는 동안 0명이라고 쓰면 거짓말이라, 셀 수 있게
-            되기 전까지는 전체 인원을 보여준다.
+            목록에는 전원이 나오므로 전체 인원을 먼저 쓴다. 활동 중 인원만
+            적어두면 그만큼만 보이는 줄 알게 된다.
+
+            활동 중은 lastActiveAt이 있어야 셀 수 있는데 서버가 아직 안 줄 수
+            있다. 그동안 "활동 중 0명"이라고 쓰면 거짓말이라 아예 감춘다.
           */}
           <p className="text-sm text-(--color-text-sub)">
-            {knowsActivity ? "현재 활동 중 " : "참가자 "}
-            <span className="font-bold text-(--color-accent)">
-              {knowsActivity ? activeCount : members.length}명
-            </span>
+            참가자{" "}
+            <span className="font-bold text-(--color-accent)">{members.length}명</span>
+            {knowsActivity ? (
+              <>
+                {" · 활동 중 "}
+                <span className="font-bold text-(--color-online)">{activeCount}명</span>
+              </>
+            ) : null}
           </p>
 
           <button
@@ -198,9 +209,9 @@ export function ExploreScreen() {
           >
             <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
             필터
-            {countFilters(filters) > 0 ? (
+            {countFilters(filters, options.ageBounds) > 0 ? (
               <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-(--color-accent) px-1 text-[11px] text-(--color-text-on-primary)">
-                {countFilters(filters)}
+                {countFilters(filters, options.ageBounds)}
               </span>
             ) : null}
           </button>
@@ -224,7 +235,7 @@ export function ExploreScreen() {
               🔍
             </span>
             <p className="text-sm text-(--color-text-sub)">조건에 맞는 참가자가 없어요</p>
-            {countFilters(filters) > 0 ? (
+            {countFilters(filters, options.ageBounds) > 0 ? (
               <Button
                 size="sm"
                 variant="outline"
@@ -379,9 +390,23 @@ const SEED_KEY = "facecook:explore:seed";
  * 다만 매번 새로 섞으면 아까 본 사람을 다시 못 찾는다. 그래서 앱을 열 때
  * 뽑은 씨앗을 세션에 저장해 두고, 그 세션 동안에는 순서가 고정되게 한다.
  */
-function shuffleForSession(members: ProfileResponse[], fallbackSeed: number) {
+/**
+ * 목록 순서. 활동 중인 사람을 앞으로 올리고, 그 안에서는 섞는다.
+ *
+ * 전원을 다 보여주되(기능명세 3절: 본인 제외 전체), 지금 접속해 있는 사람이
+ * 뒤에 묻히면 콕을 보내도 답이 안 온다. 부스에서 그 자리에 있는 사람끼리
+ * 이어지는 게 이 서비스의 목적이라 활동 여부를 첫 기준으로 둔다.
+ *
+ * 같은 무리 안에서 섞는 이유는 그대로다 — 순서를 고정하면 앞줄만 콕을 받는다.
+ */
+function sortForSession(members: ProfileResponse[], fallbackSeed: number) {
   const seed = sessionSeed(fallbackSeed);
-  return [...members].sort((a, b) => mix(a.userId, seed) - mix(b.userId, seed));
+
+  return [...members].sort((a, b) => {
+    const activeGap = Number(isActiveNow(b)) - Number(isActiveNow(a));
+    if (activeGap !== 0) return activeGap;
+    return mix(a.userId, seed) - mix(b.userId, seed);
+  });
 }
 
 function sessionSeed(fallbackSeed: number) {
@@ -413,17 +438,32 @@ function buildOptions(members: ProfileResponse[]): ExploreOptions {
   const departments = new Set<string>();
   const mbtis = new Set<string>();
   const hobbies = new Set<string>();
+  const genders = new Set<string>();
+  const ages: number[] = [];
 
   for (const member of members) {
     if (member.department) departments.add(member.department);
     if (member.mbti) mbtis.add(member.mbti);
+    if (member.gender) genders.add(member.gender);
+    if (Number.isFinite(member.age)) ages.push(member.age);
     for (const hobby of splitHobby(member)) hobbies.add(hobby);
   }
+
+  /*
+   * 슬라이더 양 끝은 실제 참가자에 맞춘다. 눈금을 넓게 잡아두면 아무도 없는
+   * 구간을 드래그하게 되고, 좁혀도 결과가 안 변해서 고장 난 것처럼 보인다.
+   * 하한은 MIN_AGE 아래로 내려가지 않는다.
+   */
+  const low = Math.max(MIN_AGE, ages.length > 0 ? Math.min(...ages) : MIN_AGE);
+  const high = Math.max(low, ages.length > 0 ? Math.max(...ages) : MIN_AGE);
 
   return {
     departments: [...departments].sort(),
     mbtis: [...mbtis].sort(),
     hobbies: [...hobbies].sort(),
+    // GENDERS와 같은 순서(여성·남성)로 고정한다. Set 순서는 데이터에 따라 뒤집힌다.
+    genders: GENDERS.filter((gender) => genders.has(gender)),
+    ageBounds: [low, high],
   };
 }
 
@@ -453,6 +493,11 @@ function matches(member: ProfileResponse, filters: ExploreFilters) {
     const own = splitHobby(member);
     if (!filters.hobbies.some((hobby) => own.includes(hobby))) return false;
   }
+  if (filters.genders.length > 0 && !filters.genders.includes(member.gender)) {
+    return false;
+  }
+  const [from, to] = filters.ageRange;
+  if (member.age < from || member.age > to) return false;
   return true;
 }
 
