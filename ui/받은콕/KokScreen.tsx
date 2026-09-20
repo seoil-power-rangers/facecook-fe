@@ -11,6 +11,7 @@ import { PhoneFrame } from "@ui/공통/PhoneFrame";
 import { Tag } from "@ui/공통/Tag";
 import { TabBarMain } from "@ui/공통/TabBar";
 import { Toast } from "@ui/공통/Toast";
+import { readRejected, rejectCook, undoReject } from "./rejectedCooks";
 import {
   cancelCook,
   cookErrorCode,
@@ -34,6 +35,9 @@ export function KokScreen() {
   const [error, setError] = useState<string | null>(null);
   const [sendingUserId, setSendingUserId] = useState<number | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [rejectedIds, setRejectedIds] = useState<Set<number>>(() => new Set());
+  /** 방금 거절한 콕. 토스트를 누르면 이 하나만 되돌린다. */
+  const [undoTarget, setUndoTarget] = useState<number | null>(null);
   const [cancelTarget, setCancelTarget] = useState<CookItemResponse | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
 
@@ -61,6 +65,25 @@ export function KokScreen() {
   const handleTabChange = (next: KokTab) => {
     setTab(next);
     sessionStorage.setItem(KOK_TAB_STORAGE_KEY, next);
+  };
+
+  useEffect(() => {
+    // localStorage는 서버 렌더에 없다. 처음 그릴 때는 비워두고 붙은 뒤에 읽는다.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setRejectedIds(readRejected());
+  }, []);
+
+  const handleReject = (cookId: number) => {
+    setRejectedIds((current) => rejectCook(current, cookId));
+    setUndoTarget(cookId);
+    setToastMessage("거절했어요. 되돌리려면 눌러주세요");
+  };
+
+  const handleUndoReject = () => {
+    if (undoTarget === null) return;
+    setRejectedIds((current) => undoReject(current, undoTarget));
+    setUndoTarget(null);
+    setToastMessage(null);
   };
 
   const handleSendCook = async (userId: number) => {
@@ -107,6 +130,7 @@ export function KokScreen() {
       <Toast
         open={toastMessage !== null}
         message={toastMessage ?? ""}
+        onClick={undoTarget === null ? undefined : handleUndoReject}
         onDismiss={() => setToastMessage(null)}
       />
 
@@ -145,9 +169,10 @@ export function KokScreen() {
 
         {!isLoading && !error && data && tab === "received" ? (
           <ReceivedKokPanel
-            cooks={data.received}
+            cooks={data.received.filter((cook) => !rejectedIds.has(cook.cookId))}
             sendingUserId={sendingUserId}
             onSend={handleSendCook}
+            onReject={handleReject}
           />
         ) : null}
       </TabBarMain>
@@ -378,10 +403,12 @@ function ReceivedKokPanel({
   cooks,
   sendingUserId,
   onSend,
+  onReject,
 }: {
   cooks: CookItemResponse[];
   sendingUserId: number | null;
   onSend: (userId: number) => Promise<void>;
+  onReject: (cookId: number) => void;
 }) {
   return (
     <section className="flex flex-col gap-3">
@@ -413,10 +440,23 @@ function ReceivedKokPanel({
               {matched && cook.matchId !== null ? (
                 <ChatPill matchId={cook.matchId} />
               ) : cook.status === "pending" ? (
-                <KokBackButton
-                  sending={sendingUserId === cook.userId}
-                  onClick={() => void onSend(cook.userId)}
-                />
+                <div className="flex shrink-0 items-center gap-1">
+                  {/*
+                    거절은 맞콕과 무게를 달리한다. 같은 크기로 나란히 두면
+                    고르기를 망설이게 되고, 이 화면에서 바라는 건 맞콕이다.
+                  */}
+                  <button
+                    type="button"
+                    onClick={() => onReject(cook.cookId)}
+                    className="shrink-0 rounded-full px-3 py-2.5 text-sm font-medium text-(--color-text-sub) active:bg-(--color-surface-alt)"
+                  >
+                    거절
+                  </button>
+                  <KokBackButton
+                    sending={sendingUserId === cook.userId}
+                    onClick={() => void onSend(cook.userId)}
+                  />
+                </div>
               ) : null}
             </KokCard>
           );
