@@ -64,7 +64,6 @@ export function MainScreen() {
 
   const todayUsed = cooks?.usage.todayUsed ?? 0;
   const dailyLimit = cooks?.usage.dailyLimit ?? 0;
-  // 만료된 것도 받은 건 받은 거라 같이 센다. 마이페이지 숫자와 같은 기준이다.
   const receivedKokCount = cooks?.received.length ?? 0;
   const matchCount = matches?.length ?? 0;
 

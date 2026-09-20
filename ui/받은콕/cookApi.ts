@@ -3,7 +3,7 @@ import type { ProfileResponse } from "@ui/프로필작성/profileApi";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "");
 
-export type CookStatus = "pending" | "matched" | "expired";
+export type CookStatus = "pending" | "matched";
 
 export interface CookItemResponse {
   cookId: number;
@@ -59,7 +59,6 @@ const COOK_ERROR_MESSAGES: Record<string, string> = {
   EVENT_LIMIT: "지금은 콕 발송이 잠시 제한됐어요.",
   // 취소
   FORBIDDEN: "내가 보낸 콕만 취소할 수 있어요.",
-  ALREADY_EXPIRED: "이미 만료된 콕이에요.",
   UNAUTHORIZED: "로그인이 만료됐어요. 다시 로그인해주세요.",
 };
 

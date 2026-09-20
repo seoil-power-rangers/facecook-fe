@@ -270,12 +270,9 @@ function SentKokCard({
     <KokCard
       cook={cook}
       matched={matched}
-      dimmed={cook.status === "expired"}
       status={
         cook.status === "pending" ? (
           <StatusChip tone="waiting">응답 대기 중</StatusChip>
-        ) : cook.status === "expired" ? (
-          <StatusChip tone="muted">만료됨</StatusChip>
         ) : undefined
       }
     >
@@ -386,74 +383,46 @@ function ReceivedKokPanel({
   sendingUserId: number | null;
   onSend: (userId: number) => Promise<void>;
 }) {
-  const active = cooks.filter((cook) => cook.status !== "expired");
-  const expired = cooks.filter((cook) => cook.status === "expired");
-
   return (
-    <>
-      <section className="flex flex-col gap-3">
-        <SectionHead label="나를 콕한 사람" count={active.length} />
+    <section className="flex flex-col gap-3">
+      <SectionHead label="나를 콕한 사람" count={cooks.length} />
 
-        {active.length === 0 ? (
-          <EmptyState
-            emoji="💌"
-            message="아직 받은 콕이 없어요"
-            hint="먼저 콕을 보내면 답이 올 확률이 높아요"
-          />
-        ) : (
-          active.map((cook) => {
-            const matched = cook.status === "matched" && cook.matchId !== null;
+      {cooks.length === 0 ? (
+        <EmptyState
+          emoji="💌"
+          message="아직 받은 콕이 없어요"
+          hint="먼저 콕을 보내면 답이 올 확률이 높아요"
+        />
+      ) : (
+        cooks.map((cook) => {
+          const matched = cook.status === "matched" && cook.matchId !== null;
 
-            return (
-              <KokCard
-                key={cook.cookId}
-                cook={cook}
-                matched={matched}
-                status={
-                  matched ? undefined : (
-                    <StatusChip tone="waiting" icon={<Clock className="h-3 w-3" />}>
-                      맞콕 기다리는 중
-                    </StatusChip>
-                  )
-                }
-              >
-                {matched && cook.matchId !== null ? (
-                  <ChatPill matchId={cook.matchId} />
-                ) : cook.status === "pending" ? (
-                  <KokBackButton
-                    sending={sendingUserId === cook.userId}
-                    onClick={() => void onSend(cook.userId)}
-                  />
-                ) : null}
-              </KokCard>
-            );
-          })
-        )}
-      </section>
-
-      {expired.length > 0 ? (
-        <section className="flex flex-col gap-3">
-          {/* 홈·마이페이지의 "받은 콕"은 만료된 것까지 센다. 여기서 나뉜 두 숫자를
-              더하면 그 값이 되도록 이쪽에도 개수를 적는다. */}
-          <div className="flex items-baseline justify-between">
-            <h2 className="text-[15px] font-bold text-(--color-text-muted)">놓친 콕</h2>
-            <span className="text-sm font-bold text-(--color-text-muted) tabular-nums">
-              {expired.length}명
-            </span>
-          </div>
-          {expired.map((cook) => (
+          return (
             <KokCard
               key={cook.cookId}
               cook={cook}
-              dimmed
-              status={<StatusChip tone="muted">만료됨</StatusChip>}
+              matched={matched}
+              status={
+                matched ? undefined : (
+                  <StatusChip tone="waiting" icon={<Clock className="h-3 w-3" />}>
+                    맞콕 기다리는 중
+                  </StatusChip>
+                )
+              }
             >
-              {null}
+              {matched && cook.matchId !== null ? (
+                <ChatPill matchId={cook.matchId} />
+              ) : cook.status === "pending" ? (
+                <KokBackButton
+                  sending={sendingUserId === cook.userId}
+                  onClick={() => void onSend(cook.userId)}
+                />
+              ) : null}
             </KokCard>
-          ))}
-        </section>
-      ) : null}
-    </>
+          );
+        })
+      )}
+    </section>
   );
 }
 

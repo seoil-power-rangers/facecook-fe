@@ -56,11 +56,9 @@ export function buildFeedFromData(
       kind: "cook",
       title: `${cook.profile.nickname}님이 콕을 보냈어요`,
       body:
-        cook.status === "pending"
-          ? "맞콕하면 바로 매칭돼요"
-          : cook.status === "matched"
-            ? "매칭으로 이어졌어요"
-            : "답하지 않아 만료됐어요",
+        cook.status === "matched"
+          ? "매칭으로 이어졌어요"
+          : "맞콕하면 바로 매칭돼요",
       at: cook.sentAt,
       href: "/kok",
     });

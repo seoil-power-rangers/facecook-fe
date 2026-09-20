@@ -5,7 +5,7 @@
 
 export type Role = "participant" | "admin";
 export type UserStatus = "active" | "suspended";
-export type CookStatus = "pending" | "matched" | "expired";
+export type CookStatus = "pending" | "matched";
 export type ReportStatus = "pending" | "reviewed";
 
 export interface User {
