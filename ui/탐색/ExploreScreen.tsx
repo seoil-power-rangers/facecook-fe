@@ -33,8 +33,6 @@ import {
   countFilters,
   EMPTY_FILTERS,
   FilterSheet,
-  MIN_AGE,
-  withAgeBounds,
   type ExploreFilters,
   type ExploreOptions,
 } from "./FilterSheet";
@@ -80,9 +78,6 @@ export function ExploreScreen() {
         if (!active) return;
         setMembers(profiles);
         setMyProfile(mine);
-        // 슬라이더 양 끝을 실제 참가자에 맞춘다. 맞춰두지 않으면 아무것도
-        // 안 골랐는데 상한이 20세에 걸려 목록이 비어 보인다.
-        setFilters((current) => withAgeBounds(current, buildOptions(profiles).ageBounds));
       } catch (loadError) {
         if (active) setError(profileErrorMessage(loadError));
       } finally {
@@ -209,9 +204,9 @@ export function ExploreScreen() {
           >
             <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
             필터
-            {countFilters(filters, options.ageBounds) > 0 ? (
+            {countFilters(filters) > 0 ? (
               <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-(--color-accent) px-1 text-[11px] text-(--color-text-on-primary)">
-                {countFilters(filters, options.ageBounds)}
+                {countFilters(filters)}
               </span>
             ) : null}
           </button>
@@ -235,7 +230,7 @@ export function ExploreScreen() {
               🔍
             </span>
             <p className="text-sm text-(--color-text-sub)">조건에 맞는 참가자가 없어요</p>
-            {countFilters(filters, options.ageBounds) > 0 ? (
+            {countFilters(filters) > 0 ? (
               <Button
                 size="sm"
                 variant="outline"
@@ -439,23 +434,13 @@ function buildOptions(members: ProfileResponse[]): ExploreOptions {
   const mbtis = new Set<string>();
   const hobbies = new Set<string>();
   const genders = new Set<string>();
-  const ages: number[] = [];
 
   for (const member of members) {
     if (member.department) departments.add(member.department);
     if (member.mbti) mbtis.add(member.mbti);
     if (member.gender) genders.add(member.gender);
-    if (Number.isFinite(member.age)) ages.push(member.age);
     for (const hobby of splitHobby(member)) hobbies.add(hobby);
   }
-
-  /*
-   * 슬라이더 양 끝은 실제 참가자에 맞춘다. 눈금을 넓게 잡아두면 아무도 없는
-   * 구간을 드래그하게 되고, 좁혀도 결과가 안 변해서 고장 난 것처럼 보인다.
-   * 하한은 MIN_AGE 아래로 내려가지 않는다.
-   */
-  const low = Math.max(MIN_AGE, ages.length > 0 ? Math.min(...ages) : MIN_AGE);
-  const high = Math.max(low, ages.length > 0 ? Math.max(...ages) : MIN_AGE);
 
   return {
     departments: [...departments].sort(),
@@ -463,7 +448,6 @@ function buildOptions(members: ProfileResponse[]): ExploreOptions {
     hobbies: [...hobbies].sort(),
     // GENDERS와 같은 순서(여성·남성)로 고정한다. Set 순서는 데이터에 따라 뒤집힌다.
     genders: GENDERS.filter((gender) => genders.has(gender)),
-    ageBounds: [low, high],
   };
 }
 
@@ -496,8 +480,7 @@ function matches(member: ProfileResponse, filters: ExploreFilters) {
   if (filters.genders.length > 0 && !filters.genders.includes(member.gender)) {
     return false;
   }
-  const [from, to] = filters.ageRange;
-  if (member.age < from || member.age > to) return false;
+  if (member.age < filters.minAge) return false;
   return true;
 }
 
