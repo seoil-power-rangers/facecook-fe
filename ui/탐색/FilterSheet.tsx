@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
-import { MBTI_AXES } from "@ui/공통/constants";
+import { MAX_FILTER_AGE, MBTI_AXES, MIN_AGE } from "@ui/공통/constants";
 import type { DepartmentGroup } from "@ui/프로필작성/profileApi";
 import { track } from "@ui/공통/analytics";
 
@@ -11,6 +11,10 @@ export interface ExploreFilters {
   /** 고른 MBTI 글자들(E·N·F…). 유형 16개가 아니라 축별로 고른다. */
   mbtiLetters: string[];
   hobbies: string[];
+  /** 고른 성별. 둘 다 고르거나 아무것도 안 고르면 전체와 같다. */
+  genders: string[];
+  /** 이 나이 이상만 본다. MIN_AGE면 안 고른 것과 같다. */
+  minAge: number;
 }
 
 /** 참가자 목록에서 뽑아낸 선택지. mbtis는 실제로 있는 유형 전체(ENFP…)다. */
@@ -18,16 +22,38 @@ export interface ExploreOptions {
   departments: string[];
   mbtis: string[];
   hobbies: string[];
+  genders: string[];
 }
+
+/*
+ * 눈금의 양 끝. 하한은 가입 검증과 같은 값을 쓴다(공통/constants.ts) —
+ * 갈라두면 하한보다 어린 참가자가 목록에서 통째로 사라진다.
+ *
+ * 참가자 데이터에서 뽑지 않고 고정하는 이유는, 그날 누가 왔느냐에 따라
+ * 눈금이 늘었다 줄었다 하면 같은 자리를 끌어도 다른 나이가 잡히기 때문이다.
+ */
+const MAX_AGE = MAX_FILTER_AGE;
 
 export const EMPTY_FILTERS: ExploreFilters = {
   departments: [],
   mbtiLetters: [],
   hobbies: [],
+  genders: [],
+  minAge: MIN_AGE,
 };
 
+/**
+ * 조건을 몇 개 걸었는지. 나이는 눈금 왼쪽 끝을 벗어났을 때만 1로 센다 —
+ * 20세 이상은 전체와 결과가 같은데 배지에 숫자가 뜨면 왜 줄었는지 찾게 된다.
+ */
 export function countFilters(filters: ExploreFilters) {
-  return filters.departments.length + filters.mbtiLetters.length + filters.hobbies.length;
+  return (
+    filters.departments.length +
+    filters.mbtiLetters.length +
+    filters.hobbies.length +
+    filters.genders.length +
+    (filters.minAge > MIN_AGE ? 1 : 0)
+  );
 }
 
 interface FilterSheetProps {
@@ -40,7 +66,8 @@ interface FilterSheetProps {
   onClose: () => void;
 }
 
-type FilterKey = keyof ExploreFilters;
+/** 문자열 여러 개를 담는 필드만. 나이는 모양이 달라 따로 다룬다. */
+type FilterKey = "departments" | "mbtiLetters" | "hobbies" | "genders";
 
 /**
  * 학과·MBTI는 따로 그린다. 여기는 선택지와 고른 값이 같은 모양이라 한 줄로
@@ -126,6 +153,41 @@ export function FilterSheet({
       </div>
 
       <div className="flex flex-1 flex-col gap-6 overflow-y-auto px-5 pb-4">
+        {options.genders.length < 2 ? null : (
+          <section className="flex flex-col gap-3">
+            <h3 className="text-sm font-bold text-(--color-text-strong)">성별</h3>
+            <div className="flex gap-2">
+              {options.genders.map((value) => {
+                const active = draft.genders.includes(value);
+
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => toggle("genders", value)}
+                    className={`flex-1 rounded-full py-2.5 text-sm font-medium transition-colors ${
+                      active
+                        ? "bg-(--color-primary) text-(--color-text-on-primary)"
+                        : "bg-(--color-primary-lighter) text-(--color-text-body)"
+                    }`}
+                  >
+                    {value}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        <section className="flex flex-col gap-3">
+          <h3 className="text-sm font-bold text-(--color-text-strong)">나이</h3>
+          <AgeSlider
+            value={draft.minAge}
+            onChange={(minAge) => setDraft((current) => ({ ...current, minAge }))}
+          />
+        </section>
+
         {options.departments.length === 0 ? null : (
           <section className="flex flex-col gap-3">
             <h3 className="text-sm font-bold text-(--color-text-strong)">학과</h3>
@@ -206,6 +268,96 @@ export function FilterSheet({
         >
           {picked > 0 ? `${picked}개 조건으로 보기` : "전체 보기"}
         </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 최소 나이를 고르는 슬라이더. 고른 값과 그 위를 모두 본다.
+ *
+ * 값은 손잡이를 끌어도, 숫자를 눌러 직접 적어도 바뀐다. 드래그는 대충 맞출
+ * 때 빠르고, 정확히 26세를 집으려면 손가락으로는 잘 안 잡힌다 — 둘 다 열어둔다.
+ *
+ * 왼쪽 끝(MIN_AGE)은 "조건 없음"과 같다. 그래서 그 자리에서는 숫자 대신
+ * "전체"라고 적는다. "20세 이상"은 참인 말이지만 조건을 건 것처럼 읽힌다.
+ */
+function AgeSlider({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (next: number) => void;
+}) {
+  const [typing, setTyping] = useState<string | null>(null);
+  const filled = ((value - MIN_AGE) / (MAX_AGE - MIN_AGE)) * 100;
+
+  /** 적어 넣은 값을 눈금 안으로 접어 넣는다. 빈 칸이나 글자는 없던 일로 둔다. */
+  const commit = () => {
+    const parsed = Number(typing);
+    if (typing !== null && typing !== "" && Number.isFinite(parsed)) {
+      onChange(Math.min(MAX_AGE, Math.max(MIN_AGE, Math.round(parsed))));
+    }
+    setTyping(null);
+  };
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-baseline gap-1.5">
+        {typing === null ? (
+          <button
+            type="button"
+            onClick={() => setTyping(String(value))}
+            aria-label="나이 직접 입력"
+            className="rounded-(--radius-sm) px-1 text-2xl font-extrabold text-(--color-primary) tabular-nums underline decoration-(--color-primary-light) decoration-2 underline-offset-4"
+          >
+            {value === MIN_AGE ? "전체" : value}
+          </button>
+        ) : (
+          <input
+            type="number"
+            inputMode="numeric"
+            min={MIN_AGE}
+            max={MAX_AGE}
+            value={typing}
+            autoFocus
+            aria-label="나이 직접 입력"
+            onChange={(event) => setTyping(event.target.value)}
+            onBlur={commit}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") commit();
+              // 빠져나갈 길을 둔다. 잘못 눌러 열렸을 때 값을 안 건드리고 닫는다.
+              if (event.key === "Escape") setTyping(null);
+            }}
+            className="w-16 rounded-(--radius-sm) bg-(--color-primary-lighter) px-1 text-2xl font-extrabold text-(--color-primary) tabular-nums outline-none"
+          />
+        )}
+        <span className="text-sm text-(--color-text-sub)">
+          {value === MIN_AGE ? "나이 상관없어요" : "세 이상"}
+        </span>
+      </div>
+
+      <div className="relative h-6">
+        <div className="absolute inset-x-0 top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-(--color-primary-lighter)" />
+        <div
+          className="absolute left-0 top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-(--color-primary)"
+          style={{ width: `${filled}%` }}
+        />
+        <input
+          type="range"
+          min={MIN_AGE}
+          max={MAX_AGE}
+          value={value}
+          aria-label="최소 나이"
+          aria-valuetext={value === MIN_AGE ? "나이 상관없음" : `${value}세 이상`}
+          onChange={(event) => onChange(Number(event.target.value))}
+          className="age-slider absolute inset-x-0 top-0 h-6 w-full appearance-none bg-transparent"
+        />
+      </div>
+
+      <div className="flex justify-between text-[12px] text-(--color-text-muted) tabular-nums">
+        <span>{MIN_AGE}세</span>
+        <span>{MAX_AGE}세</span>
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { getCooks, type CookListResponse } from "@ui/받은콕/cookApi";
+import { readRejected } from "@ui/받은콕/rejectedCooks";
 import { getMatches, type MatchResponse } from "@ui/매칭/matchApi";
 import { getMyProfile } from "@ui/프로필작성/profileApi";
 
@@ -49,18 +50,19 @@ export function buildFeedFromData(
   myUserId: number,
 ): FeedItem[] {
   const items: FeedItem[] = [];
+  // 거절한 콕은 콕 화면에서 지웠으니 알림에도 남기지 않는다.
+  const rejected = readRejected();
 
   for (const cook of cooks.received) {
+    if (rejected.has(cook.cookId)) continue;
     items.push({
       id: `cook-${cook.cookId}`,
       kind: "cook",
       title: `${cook.profile.nickname}님이 콕을 보냈어요`,
       body:
-        cook.status === "pending"
-          ? "맞콕하면 바로 매칭돼요"
-          : cook.status === "matched"
-            ? "매칭으로 이어졌어요"
-            : "답하지 않아 만료됐어요",
+        cook.status === "matched"
+          ? "매칭으로 이어졌어요"
+          : "맞콕하면 바로 매칭돼요",
       at: cook.sentAt,
       href: "/kok",
     });

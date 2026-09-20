@@ -246,3 +246,47 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/*
+ * 나이 슬라이더(FilterSheet).
+ *
+ * 트랙은 화면 쪽에서 직접 그리므로 입력의 기본 트랙은 감추고 손잡이만 남긴다.
+ * 손잡이를 기본값보다 크게 잡는 이유는 손가락으로 집는 자리라서다 — 기본
+ * 크기는 마우스 기준이고 부스에서는 전부 폰으로 만진다.
+ */
+.age-slider::-webkit-slider-thumb {
+  appearance: none;
+  height: 1.5rem;
+  width: 1.5rem;
+  border-radius: 9999px;
+  border: 3px solid var(--color-surface);
+  background: var(--color-primary);
+  box-shadow: var(--shadow-card);
+  cursor: pointer;
+}
+
+.age-slider::-moz-range-thumb {
+  height: 1.5rem;
+  width: 1.5rem;
+  border-radius: 9999px;
+  border: 3px solid var(--color-surface);
+  background: var(--color-primary);
+  box-shadow: var(--shadow-card);
+  cursor: pointer;
+}
+
+.age-slider::-webkit-slider-runnable-track,
+.age-slider::-moz-range-track {
+  background: transparent;
+}
+
+/* 키보드로 옮길 때 손잡이가 어디 있는지 보여야 한다. */
+.age-slider:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.age-slider:focus-visible::-moz-range-thumb {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}

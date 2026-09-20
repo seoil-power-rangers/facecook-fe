@@ -8,7 +8,7 @@ import { RadioCard } from "@ui/공통/RadioCard";
 import { StepFooter } from "@ui/공통/StepFooter";
 import { StepHeader, Accent } from "@ui/공통/StepHeader";
 import { TextField } from "@ui/공통/TextField";
-import { BLOOD_TYPES, GENDERS } from "@ui/공통/constants";
+import { BLOOD_TYPES, GENDERS, MIN_AGE } from "@ui/공통/constants";
 import { useOnboarding } from "@ui/공통/onboarding";
 
 /** 03 기본정보 (STEP 2) — 닉네임·성별·나이·혈액형. 모두 필수. */
@@ -17,11 +17,19 @@ export function ProfileBasicScreen() {
   const { draft, set } = useOnboarding();
 
   const age = Number(draft.age);
-  const ageFilled = Number.isFinite(age) && age > 0;
+  const ageFilled = draft.age.trim().length > 0 && Number.isFinite(age);
+  /*
+   * 참가 하한은 탐색 필터의 눈금과 같은 값을 쓴다(공통/constants.ts). 여기만
+   * 낮춰두면 가입은 되는데 탐색에서는 안 보이는 사람이 생긴다.
+   *
+   * 서버도 같이 막아야 우회가 안 된다 — 이 검증은 잘못 적은 사람에게 알려주는
+   * 몫이지, 막는 몫이 아니다.
+   */
+  const ageAllowed = ageFilled && age >= MIN_AGE;
   const canSubmit =
     draft.nickname.trim().length > 0 &&
     draft.gender !== "" &&
-    ageFilled &&
+    ageAllowed &&
     draft.bloodType !== "";
 
   /** 아직 안 채운 것 중 맨 위 것 하나만 말한다 — 전부 나열하면 읽지 않는다. */
@@ -31,6 +39,8 @@ export function ProfileBasicScreen() {
       ? "성별을 골라주세요"
       : !ageFilled
         ? "나이를 입력해주세요"
+        : !ageAllowed
+          ? `${MIN_AGE}세부터 참여할 수 있어요`
         : !draft.bloodType
           ? "혈액형을 골라주세요"
           : undefined;
@@ -70,7 +80,7 @@ export function ProfileBasicScreen() {
             inputMode="numeric"
             maxLength={2}
             suffix="세"
-            placeholder="24"
+            placeholder={String(MIN_AGE + 5)}
             value={draft.age}
             onChange={(event) =>
               set("age", event.target.value.replace(/\D/g, ""))

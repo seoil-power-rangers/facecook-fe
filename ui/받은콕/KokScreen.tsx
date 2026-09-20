@@ -11,11 +11,13 @@ import { PhoneFrame } from "@ui/공통/PhoneFrame";
 import { Tag } from "@ui/공통/Tag";
 import { TabBarMain } from "@ui/공통/TabBar";
 import { Toast } from "@ui/공통/Toast";
+import { addRejected, readRejected } from "./rejectedCooks";
 import {
   cancelCook,
   cookErrorCode,
   cookErrorMessage,
   getCooks,
+  rejectCook,
   sendCook,
   type CookItemResponse,
   type CookListResponse,
@@ -34,6 +36,9 @@ export function KokScreen() {
   const [error, setError] = useState<string | null>(null);
   const [sendingUserId, setSendingUserId] = useState<number | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [rejectedIds, setRejectedIds] = useState<Set<number>>(() => new Set());
+  /** 거절을 확인받는 중인 콕. 시트에 상대 얼굴과 이름을 띄운다. */
+  const [rejectTarget, setRejectTarget] = useState<CookItemResponse | null>(null);
   const [cancelTarget, setCancelTarget] = useState<CookItemResponse | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
 
@@ -61,6 +66,25 @@ export function KokScreen() {
   const handleTabChange = (next: KokTab) => {
     setTab(next);
     sessionStorage.setItem(KOK_TAB_STORAGE_KEY, next);
+  };
+
+  useEffect(() => {
+    // localStorage는 서버 렌더에 없다. 처음 그릴 때는 비워두고 붙은 뒤에 읽는다.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setRejectedIds(readRejected());
+  }, []);
+
+  /*
+   * 감추는 건 브라우저가 하고, 서버에는 알리기만 한다. 서버 응답을 기다리면
+   * 카드가 한 박자 늦게 사라져서 두 번 누르게 되고, 아직 없는 엔드포인트라
+   * 실패가 정상이다(cookApi의 rejectCook 주석 참고).
+   */
+  const handleReject = () => {
+    if (!rejectTarget) return;
+    setRejectedIds((current) => addRejected(current, rejectTarget.cookId));
+    void rejectCook(rejectTarget.cookId).catch(() => {});
+    setRejectTarget(null);
+    setToastMessage("콕을 거절했어요.");
   };
 
   const handleSendCook = async (userId: number) => {
@@ -145,12 +169,26 @@ export function KokScreen() {
 
         {!isLoading && !error && data && tab === "received" ? (
           <ReceivedKokPanel
-            cooks={data.received}
+            cooks={data.received.filter((cook) => !rejectedIds.has(cook.cookId))}
             sendingUserId={sendingUserId}
             onSend={handleSendCook}
+            onReject={setRejectTarget}
           />
         ) : null}
       </TabBarMain>
+
+      <BottomSheet
+        open={rejectTarget !== null}
+        onClose={() => setRejectTarget(null)}
+      >
+        {rejectTarget ? (
+          <RejectKokSheet
+            cook={rejectTarget}
+            onKeep={() => setRejectTarget(null)}
+            onReject={handleReject}
+          />
+        ) : null}
+      </BottomSheet>
 
       <BottomSheet
         open={cancelTarget !== null}
@@ -270,12 +308,9 @@ function SentKokCard({
     <KokCard
       cook={cook}
       matched={matched}
-      dimmed={cook.status === "expired"}
       status={
         cook.status === "pending" ? (
           <StatusChip tone="waiting">응답 대기 중</StatusChip>
-        ) : cook.status === "expired" ? (
-          <StatusChip tone="muted">만료됨</StatusChip>
         ) : undefined
       }
     >
@@ -291,6 +326,59 @@ function SentKokCard({
         </button>
       ) : null}
     </KokCard>
+  );
+}
+
+/**
+ * 거절도 한 번 확인받는다. 맞콕 버튼 바로 옆이라 손가락으로 잘못 누르기 쉽고,
+ * 되돌릴 방법을 두지 않기로 했다.
+ *
+ * 상대에게 알리지 않는다는 걸 적어둔다 — 거절이 통보되는 줄 알면 마음에 없는
+ * 콕을 그냥 남겨두게 된다.
+ */
+function RejectKokSheet({
+  cook,
+  onKeep,
+  onReject,
+}: {
+  cook: CookItemResponse;
+  onKeep: () => void;
+  onReject: () => void;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-4 px-6 pt-2">
+      <Avatar
+        name={cook.profile.nickname}
+        size="xl"
+        userId={cook.userId}
+        photoUrl={cook.profile.photo}
+        gender={cook.profile.gender}
+      />
+
+      <div className="flex flex-col items-center gap-1 text-center">
+        <p className="text-xl font-bold text-(--color-text-strong)">
+          {cook.profile.nickname}님의 콕을 거절할까요?
+        </p>
+        <p className="text-sm text-(--color-text-sub)">
+          목록에서 사라지고, 상대는 거절한 걸 알 수 없어요.
+        </p>
+      </div>
+
+      <button
+        type="button"
+        onClick={onReject}
+        className="w-full rounded-(--radius-lg) bg-(--color-danger) py-4 text-base font-bold text-(--color-text-on-primary)"
+      >
+        거절하기
+      </button>
+      <button
+        type="button"
+        onClick={onKeep}
+        className="text-sm text-(--color-text-sub)"
+      >
+        그대로 둘게요
+      </button>
+    </div>
   );
 }
 
@@ -381,79 +469,66 @@ function ReceivedKokPanel({
   cooks,
   sendingUserId,
   onSend,
+  onReject,
 }: {
   cooks: CookItemResponse[];
   sendingUserId: number | null;
   onSend: (userId: number) => Promise<void>;
+  onReject: (cook: CookItemResponse) => void;
 }) {
-  const active = cooks.filter((cook) => cook.status !== "expired");
-  const expired = cooks.filter((cook) => cook.status === "expired");
-
   return (
-    <>
-      <section className="flex flex-col gap-3">
-        <SectionHead label="나를 콕한 사람" count={active.length} />
+    <section className="flex flex-col gap-3">
+      <SectionHead label="나를 콕한 사람" count={cooks.length} />
 
-        {active.length === 0 ? (
-          <EmptyState
-            emoji="💌"
-            message="아직 받은 콕이 없어요"
-            hint="먼저 콕을 보내면 답이 올 확률이 높아요"
-          />
-        ) : (
-          active.map((cook) => {
-            const matched = cook.status === "matched" && cook.matchId !== null;
+      {cooks.length === 0 ? (
+        <EmptyState
+          emoji="💌"
+          message="아직 받은 콕이 없어요"
+          hint="먼저 콕을 보내면 답이 올 확률이 높아요"
+        />
+      ) : (
+        cooks.map((cook) => {
+          const matched = cook.status === "matched" && cook.matchId !== null;
 
-            return (
-              <KokCard
-                key={cook.cookId}
-                cook={cook}
-                matched={matched}
-                status={
-                  matched ? undefined : (
-                    <StatusChip tone="waiting" icon={<Clock className="h-3 w-3" />}>
-                      맞콕 기다리는 중
-                    </StatusChip>
-                  )
-                }
-              >
-                {matched && cook.matchId !== null ? (
-                  <ChatPill matchId={cook.matchId} />
-                ) : cook.status === "pending" ? (
+          return (
+            <KokCard
+              key={cook.cookId}
+              cook={cook}
+              matched={matched}
+              status={
+                matched ? undefined : (
+                  <StatusChip tone="waiting" icon={<Clock className="h-3 w-3" />}>
+                    맞콕 기다리는 중
+                  </StatusChip>
+                )
+              }
+            >
+              {matched && cook.matchId !== null ? (
+                <ChatPill matchId={cook.matchId} />
+              ) : cook.status === "pending" ? (
+                <div className="flex shrink-0 items-center gap-1">
+                  {/*
+                    거절은 맞콕과 무게를 달리한다. 같은 크기로 나란히 두면
+                    고르기를 망설이게 되고, 이 화면에서 바라는 건 맞콕이다.
+                  */}
+                  <button
+                    type="button"
+                    onClick={() => onReject(cook)}
+                    className="shrink-0 rounded-full px-3 py-2.5 text-sm font-medium text-(--color-text-sub) active:bg-(--color-surface-alt)"
+                  >
+                    거절
+                  </button>
                   <KokBackButton
                     sending={sendingUserId === cook.userId}
                     onClick={() => void onSend(cook.userId)}
                   />
-                ) : null}
-              </KokCard>
-            );
-          })
-        )}
-      </section>
-
-      {expired.length > 0 ? (
-        <section className="flex flex-col gap-3">
-          {/* 홈·마이페이지의 "받은 콕"은 만료된 것까지 센다. 여기서 나뉜 두 숫자를
-              더하면 그 값이 되도록 이쪽에도 개수를 적는다. */}
-          <div className="flex items-baseline justify-between">
-            <h2 className="text-[15px] font-bold text-(--color-text-muted)">놓친 콕</h2>
-            <span className="text-sm font-bold text-(--color-text-muted) tabular-nums">
-              {expired.length}명
-            </span>
-          </div>
-          {expired.map((cook) => (
-            <KokCard
-              key={cook.cookId}
-              cook={cook}
-              dimmed
-              status={<StatusChip tone="muted">만료됨</StatusChip>}
-            >
-              {null}
+                </div>
+              ) : null}
             </KokCard>
-          ))}
-        </section>
-      ) : null}
-    </>
+          );
+        })
+      )}
+    </section>
   );
 }
 

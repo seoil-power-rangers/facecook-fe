@@ -3,7 +3,7 @@ import type { ProfileResponse } from "@ui/프로필작성/profileApi";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "");
 
-export type CookStatus = "pending" | "matched" | "expired";
+export type CookStatus = "pending" | "matched";
 
 export interface CookItemResponse {
   cookId: number;
@@ -59,7 +59,6 @@ const COOK_ERROR_MESSAGES: Record<string, string> = {
   EVENT_LIMIT: "지금은 콕 발송이 잠시 제한됐어요.",
   // 취소
   FORBIDDEN: "내가 보낸 콕만 취소할 수 있어요.",
-  ALREADY_EXPIRED: "이미 만료된 콕이에요.",
   UNAUTHORIZED: "로그인이 만료됐어요. 다시 로그인해주세요.",
 };
 
@@ -97,6 +96,22 @@ export function sendCook(receiverId: number) {
  */
 export function cancelCook(cookId: number) {
   return requestCook<void>(`/api/cooks/${cookId}`, { method: "DELETE" });
+}
+
+/**
+ * 받은 콕 거절. 아직 facecook-be에 없는 엔드포인트라 미리 맞춰둔 자리다.
+ *
+ * 화면은 이 호출의 성패와 무관하게 동작한다 — 거절 자체는 브라우저에
+ * 남기고(rejectedCooks.ts), 이 호출은 서버가 알게 해서 다른 기기에서도
+ * 감춰지게 하는 용도다. 서버에 아직 없으면 404가 나고 조용히 지나간다.
+ *
+ * 되돌리는 길은 두지 않는다. 누르기 전에 시트로 한 번 확인받으므로 물릴
+ * 일이 없고, 엔드포인트를 하나로 줄여 백엔드에 넘기기로 했다.
+ *
+ * 서버가 생기면 rejectedCooks.ts의 로컬 저장을 걷어내고 이쪽만 남기면 된다.
+ */
+export function rejectCook(cookId: number) {
+  return requestCook<void>(`/api/cooks/${cookId}/reject`, { method: "POST" });
 }
 
 function requireApiBaseUrl() {

@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import type { FormEvent, UIEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowUp, ChevronDown, ChevronLeft, Clock, Lock, Ticket } from "lucide-react";
+import { ArrowUp, ChevronDown, ChevronLeft, Clock, Lock, Siren } from "lucide-react";
 import { Avatar } from "@ui/공통/Avatar";
 import { Button } from "@ui/공통/Button";
 import { PhoneFrame } from "@ui/공통/PhoneFrame";
@@ -410,12 +410,18 @@ export function ChatScreen({ matchId }: { matchId: string }) {
           </div>
         </Link>
 
+        {/*
+          미션은 바로 아래 MissionStatusCard가 이미 같은 곳으로 보낸다. 같은
+          목적지를 위아래로 두 번 두면 자리만 먹으므로, 이 자리는 대화 중에
+          필요해질 수 있는 신고로 넘긴다 — 상대 프로필까지 들어가야 신고할 수
+          있으면 정작 필요한 순간에 멀다.
+        */}
         <Link
-          href={`/match/${match.matchId}/mission`}
-          aria-label="미션 보기"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-(--color-primary-light) text-(--color-primary)"
+          href={`/profile/${partner.userId}/report`}
+          aria-label="신고"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-(--color-surface-alt) text-(--color-text-sub)"
         >
-          <Ticket className="h-4.5 w-4.5" />
+          <Siren className="h-4.5 w-4.5" />
         </Link>
       </header>
 
@@ -467,14 +473,18 @@ export function ChatScreen({ matchId }: { matchId: string }) {
           const previous = messages[index - 1];
 
           return (
-            <MessageBubble
-              key={message.clientMessageId}
-              message={message}
-              isMine={isMine}
-              partner={partner}
-              // 상대가 연달아 보내면 첫 줄에만 얼굴을 둔다.
-              showAvatar={!isMine && previous?.senderId !== message.senderId}
-            />
+            <Fragment key={message.clientMessageId}>
+              {startsNewDay(previous, message) ? (
+                <DayDivider at={message.sentAt} />
+              ) : null}
+              <MessageBubble
+                message={message}
+                isMine={isMine}
+                partner={partner}
+                // 상대가 연달아 보내면 첫 줄에만 얼굴을 둔다.
+                showAvatar={!isMine && previous?.senderId !== message.senderId}
+              />
+            </Fragment>
           );
         })}
       </main>
@@ -697,6 +707,58 @@ function isWithinOperatingHours() {
     }).format(new Date()),
   );
   return hour >= CHAT_OPEN_HOUR && hour < CHAT_CLOSE_HOUR;
+}
+
+/**
+ * 날짜가 바뀌는 첫 메시지 위에 날짜를 한 줄 끼운다.
+ *
+ * 부스에서 시작한 대화가 다음 날까지 이어지면, 시각(14:32)만 보고는 그게
+ * 오늘인지 어제인지 알 수 없다. 카카오톡처럼 날짜가 넘어가는 자리에만 표시한다.
+ */
+function DayDivider({ at }: { at: string }) {
+  return (
+    <div className="flex items-center gap-3 py-1">
+      <span className="h-px flex-1 bg-(--color-border)" />
+      <span className="shrink-0 text-[11px] font-medium text-(--color-text-muted)">
+        {formatDay(at)}
+      </span>
+      <span className="h-px flex-1 bg-(--color-border)" />
+    </div>
+  );
+}
+
+/**
+ * 앞 메시지와 날짜가 다른지. 첫 메시지는 항상 새 날로 친다 — 위에 아무것도
+ * 없으면 그 날짜가 언제인지 알려줄 자리가 여기밖에 없다.
+ */
+function startsNewDay(
+  previous: DisplayMessage | undefined,
+  current: DisplayMessage,
+) {
+  if (!previous) return true;
+  const before = new Date(previous.sentAt);
+  const now = new Date(current.sentAt);
+  if (Number.isNaN(before.getTime()) || Number.isNaN(now.getTime())) return false;
+
+  return (
+    before.getFullYear() !== now.getFullYear() ||
+    before.getMonth() !== now.getMonth() ||
+    before.getDate() !== now.getDate()
+  );
+}
+
+/** "9월 20일 토요일". 해가 넘어가면 연도까지 붙인다. */
+function formatDay(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  const sameYear = date.getFullYear() === new Date().getFullYear();
+  return new Intl.DateTimeFormat("ko-KR", {
+    year: sameYear ? undefined : "numeric",
+    month: "long",
+    day: "numeric",
+    weekday: "long",
+  }).format(date);
 }
 
 function formatMatchedAt(value: string) {
