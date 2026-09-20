@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
-import { MBTI_AXES } from "@ui/공통/constants";
+import { MAX_FILTER_AGE, MBTI_AXES, MIN_AGE } from "@ui/공통/constants";
 import type { DepartmentGroup } from "@ui/프로필작성/profileApi";
 import { track } from "@ui/공통/analytics";
 
@@ -25,16 +25,14 @@ export interface ExploreOptions {
   genders: string[];
 }
 
-/**
- * 나이 눈금의 양 끝.
+/*
+ * 눈금의 양 끝. 하한은 가입 검증과 같은 값을 쓴다(공통/constants.ts) —
+ * 갈라두면 하한보다 어린 참가자가 목록에서 통째로 사라진다.
  *
- * 대학 축제 부스라 아래로는 미성년자가 올 일이 없고, 위로는 35세를 넘는
- * 참가자가 사실상 없다. 참가자 데이터에서 뽑지 않고 고정하는 이유는, 그날
- * 누가 왔느냐에 따라 눈금이 늘었다 줄었다 하면 같은 자리를 끌어도 다른
- * 나이가 잡히기 때문이다.
+ * 참가자 데이터에서 뽑지 않고 고정하는 이유는, 그날 누가 왔느냐에 따라
+ * 눈금이 늘었다 줄었다 하면 같은 자리를 끌어도 다른 나이가 잡히기 때문이다.
  */
-export const MIN_AGE = 20;
-export const MAX_AGE = 35;
+const MAX_AGE = MAX_FILTER_AGE;
 
 export const EMPTY_FILTERS: ExploreFilters = {
   departments: [],
