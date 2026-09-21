@@ -578,11 +578,13 @@ function ReceivedKokPanel({
               cook={cook}
               matched={matched}
               status={
-                cook.status === "pending" ? (
-                  <StatusChip tone="waiting" icon={<Clock className="h-3 w-3" />}>
-                    맞콕 기다리는 중
-                  </StatusChip>
-                ) : cook.status === "expired" ? (
+                /*
+                  기다리는 중이라는 칩은 두지 않는다. 바로 아래 [맞콕하기]가
+                  이미 하는 말이고, 화면 위 안내문까지 치면 같은 얘기를 세 번
+                  하는 셈이다. 만료는 버튼이 사라지는 자리라 칩이 유일한
+                  단서이므로 남긴다.
+                */
+                cook.status === "expired" ? (
                   <StatusChip tone="muted">만료됨</StatusChip>
                 ) : undefined
               }
@@ -633,6 +635,7 @@ function KokCard({
   dimmed?: boolean;
   /** 부가 정보 아래에 붙는 상태 칩. */
   status?: React.ReactNode;
+  /** 아래 띠에 놓이는 행동 버튼. */
   children: React.ReactNode;
 }) {
   return (
@@ -665,18 +668,26 @@ function KokCard({
           </span>
           {status ? <div className="mt-1.5">{status}</div> : null}
         </div>
-
-        {children}
       </div>
 
-      <Link
-        href={`/profile/${cook.userId}`}
-        className={`border-t px-4 py-2.5 text-[13px] text-(--color-text-sub) ${
+      {/*
+        신원과 행동을 층으로 나눈다. 한 줄에 같이 두면 이름·학과와 버튼이
+        폭을 두고 다투다가, 버튼이 하나 늘어난 순간 가운데 글자가 줄줄이
+        접힌다. 위층은 누구인지만, 아래층은 무엇을 할지만 맡는다.
+      */}
+      <div
+        className={`flex items-center justify-between gap-2 border-t px-4 py-2 ${
           matched ? "border-(--color-primary-light)" : "border-(--color-border)"
         }`}
       >
-        프로필 보기
-      </Link>
+        <Link
+          href={`/profile/${cook.userId}`}
+          className="shrink-0 py-1.5 text-[13px] text-(--color-text-sub)"
+        >
+          프로필 보기
+        </Link>
+        {children}
+      </div>
     </article>
   );
 }
