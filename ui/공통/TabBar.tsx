@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import { Compass, Heart, House, MessageCircle, User } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useLiveBadges } from "@ui/공통/useLiveBadges";
-import { useRejectedCooks } from "@ui/받은콕/rejectedCooks";
 
 interface TabBarMainProps {
   children: ReactNode;
@@ -45,12 +44,9 @@ export function TabBar() {
   // 나가게 한다 — 여기서 직접 폴링하면 같은 화면에서 두 번씩 나간다.
   // 킬스위치·에러 리포팅은 그 공유 폴링(liveBadgesStore) 안에서 처리한다.
   const { cooks, matches } = useLiveBadges();
-  const rejected = useRejectedCooks();
-  // 거절한 콕은 목록에서 사라지므로 배지에서도 빼야 숫자와 화면이 맞는다.
+  // 거절한 콕은 서버가 받은 목록에서 빼므로 그대로 세면 화면과 숫자가 맞는다.
   const pendingReceivedCount =
-    cooks?.received.filter(
-      (cook) => cook.status === "pending" && !rejected.has(cook.cookId),
-    ).length ?? 0;
+    cooks?.received.filter((cook) => cook.status === "pending").length ?? 0;
   const unreadMessageCount =
     matches?.reduce((sum, match) => sum + (match.unreadCount ?? 0), 0) ?? 0;
 

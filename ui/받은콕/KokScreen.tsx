@@ -11,18 +11,21 @@ import { PhoneFrame } from "@ui/공통/PhoneFrame";
 import { Tag } from "@ui/공통/Tag";
 import { TabBarMain } from "@ui/공통/TabBar";
 import { Toast } from "@ui/공통/Toast";
-import { addRejected, readRejected } from "./rejectedCooks";
+import { clearLegacyRejectedCooks } from "./legacyRejectedCooks";
 import {
   cancelCook,
   cookErrorCode,
   cookErrorMessage,
   getCooks,
   rejectCook,
+  rejectErrorMessage,
   sendCook,
   type CookItemResponse,
   type CookListResponse,
 } from "./cookApi";
 import { track } from "@ui/공통/analytics";
+import { refreshLiveBadgesNow } from "@ui/공통/liveBadgesStore";
+import { createRequestSequence } from "@ui/공통/requestSequence";
 
 type KokTab = "sent" | "received";
 
@@ -36,23 +39,51 @@ export function KokScreen() {
   const [error, setError] = useState<string | null>(null);
   const [sendingUserId, setSendingUserId] = useState<number | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [rejectedIds, setRejectedIds] = useState<Set<number>>(() => new Set());
   /** 거절을 확인받는 중인 콕. 시트에 상대 얼굴과 이름을 띄운다. */
   const [rejectTarget, setRejectTarget] = useState<CookItemResponse | null>(null);
+  const [isRejecting, setIsRejecting] = useState(false);
   const [cancelTarget, setCancelTarget] = useState<CookItemResponse | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
+  /**
+   * 목록 조회의 순번표. 조회가 여러 개 겹치면 가장 최근에 시작한 응답만 화면에 반영한다 — 거절로 지운
+   * 카드를 그보다 먼저 시작한 오래된 응답이 되살리지 못하게 하기 위해서다.
+   */
+  const [listRequests] = useState(createRequestSequence);
 
-  const loadCooks = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      setData(await getCooks());
-    } catch (loadError) {
-      setError(cookErrorMessage(loadError));
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  /**
+   * 콕 목록을 서버에서 다시 불러온다.
+   *
+   * 기본은 화면 전체 로딩을 켜고 실패하면 오류 화면을 보여 준다(처음 진입·다시 시도). `background`이면
+   * 기존 목록을 그대로 두고 새 결과로만 바꾸며, 실패해도 목록을 유지한 채 결과만 돌려준다 — 거절 결과를
+   * 확인하려고 다시 불러오는 동안 카드가 사라지면 안 되기 때문이다.
+   *
+   * 부작용: 이전에 시작한 조회는 응답이 와도 반영되지 않는다.
+   *
+   * @returns 반영했으면 `loaded`, 실패했으면 `failed`, 더 최근 조회가 있어 버려졌으면 `superseded`.
+   */
+  const loadCooks = useCallback(
+    async ({ background = false }: { background?: boolean } = {}) => {
+      const requestId = listRequests.begin();
+      if (!background) {
+        setIsLoading(true);
+        setError(null);
+      }
+      try {
+        const next = await getCooks();
+        if (!listRequests.isLatest(requestId)) return "superseded" as const;
+        setData(next);
+        setError(null);
+        return "loaded" as const;
+      } catch (loadError) {
+        if (!listRequests.isLatest(requestId)) return "superseded" as const;
+        if (!background) setError(cookErrorMessage(loadError));
+        return "failed" as const;
+      } finally {
+        if (listRequests.isLatest(requestId)) setIsLoading(false);
+      }
+    },
+    [listRequests],
+  );
 
   useEffect(() => {
     const stored = sessionStorage.getItem(KOK_TAB_STORAGE_KEY);
@@ -61,30 +92,59 @@ export function KokScreen() {
       setTab(stored);
     }
     void loadCooks();
-  }, [loadCooks]);
+    // 서버에 거절이 생기기 전에 브라우저에 남겼던 거절 기록은 버린다. 거절 여부는 서버 목록으로 판단한다.
+    clearLegacyRejectedCooks();
+    // 화면을 떠난 뒤에 도착한 응답이 상태를 바꾸지 않게 한다.
+    return () => listRequests.invalidate();
+  }, [loadCooks, listRequests]);
 
   const handleTabChange = (next: KokTab) => {
     setTab(next);
     sessionStorage.setItem(KOK_TAB_STORAGE_KEY, next);
   };
 
-  useEffect(() => {
-    // localStorage는 서버 렌더에 없다. 처음 그릴 때는 비워두고 붙은 뒤에 읽는다.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setRejectedIds(readRejected());
-  }, []);
-
-  /*
-   * 감추는 건 브라우저가 하고, 서버에는 알리기만 한다. 서버 응답을 기다리면
-   * 카드가 한 박자 늦게 사라져서 두 번 누르게 되고, 아직 없는 엔드포인트라
-   * 실패가 정상이다(cookApi의 rejectCook 주석 참고).
+  /**
+   * 받은 콕을 거절한다. 서버가 거절을 기록했다고 응답한 뒤에만 카드를 지운다.
+   *
+   * 성공하면 진행 중이던 목록 조회를 무효화하고(그 응답이 방금 지운 카드를 되살리지 못하게) 카드를 지운 뒤
+   * 배지를 서버 기준으로 다시 계산한다. 실패하면 그 실패만으로 카드를 남기거나 지우지 않는다 — 보낸 사람이
+   * 먼저 취소했거나 연결이 끊겨 결과를 모를 수 있으므로 서버 목록을 다시 불러와 맞춘다.
    */
-  const handleReject = () => {
-    if (!rejectTarget) return;
-    setRejectedIds((current) => addRejected(current, rejectTarget.cookId));
-    void rejectCook(rejectTarget.cookId).catch(() => {});
-    setRejectTarget(null);
-    setToastMessage("콕을 거절했어요.");
+  const handleReject = async () => {
+    if (!rejectTarget || isRejecting) return;
+    const target = rejectTarget;
+
+    setIsRejecting(true);
+    let rejectFailed = false;
+    try {
+      await rejectCook(target.cookId);
+      listRequests.invalidate();
+      setIsLoading(false);
+      setData((current) =>
+        current
+          ? { ...current, received: current.received.filter((cook) => cook.cookId !== target.cookId) }
+          : current,
+      );
+      setRejectTarget(null);
+      setToastMessage("콕을 거절했어요.");
+      refreshLiveBadgesNow();
+    } catch (rejectError) {
+      rejectFailed = true;
+      track({
+        name: "cook_failed",
+        props: { code: cookErrorCode(rejectError), from: "kok" },
+      });
+      setRejectTarget(null);
+      setToastMessage(rejectErrorMessage(rejectError));
+      refreshLiveBadgesNow();
+    } finally {
+      setIsRejecting(false);
+    }
+
+    // 실패한 이유가 무엇이든 서버 상태는 화면과 다를 수 있다. 시트를 닫은 뒤 백그라운드로 맞춘다.
+    if (rejectFailed && (await loadCooks({ background: true })) === "failed") {
+      setToastMessage("콕 목록을 확인하지 못했어요. 잠시 후 다시 확인해주세요.");
+    }
   };
 
   const handleSendCook = async (userId: number) => {
@@ -118,6 +178,7 @@ export function KokScreen() {
       await cancelCook(cancelTarget.cookId);
       setCancelTarget(null);
       setToastMessage("콕을 취소했어요.");
+      refreshLiveBadgesNow();
       await loadCooks();
     } catch (cancelError) {
       setToastMessage(cookErrorMessage(cancelError));
@@ -169,7 +230,7 @@ export function KokScreen() {
 
         {!isLoading && !error && data && tab === "received" ? (
           <ReceivedKokPanel
-            cooks={data.received.filter((cook) => !rejectedIds.has(cook.cookId))}
+            cooks={data.received.filter((cook) => cook.status !== "rejected")}
             sendingUserId={sendingUserId}
             onSend={handleSendCook}
             onReject={setRejectTarget}
@@ -179,13 +240,14 @@ export function KokScreen() {
 
       <BottomSheet
         open={rejectTarget !== null}
-        onClose={() => setRejectTarget(null)}
+        onClose={() => !isRejecting && setRejectTarget(null)}
       >
         {rejectTarget ? (
           <RejectKokSheet
             cook={rejectTarget}
+            isSubmitting={isRejecting}
             onKeep={() => setRejectTarget(null)}
-            onReject={handleReject}
+            onReject={() => void handleReject()}
           />
         ) : null}
       </BottomSheet>
@@ -295,6 +357,17 @@ function SentKokPanel({
   );
 }
 
+/**
+ * 보낸 콕의 상태 표시. 거절당한 콕은 "거절됨"으로 보이고 취소 버튼이 없다(서버도 거절된 콕의 취소를
+ * 막는다). 레거시 `expired`는 응답을 기다리는 것처럼 보이지 않게 따로 표시한다.
+ */
+function sentStatusChip(status: CookItemResponse["status"]) {
+  if (status === "pending") return <StatusChip tone="waiting">응답 대기 중</StatusChip>;
+  if (status === "rejected") return <StatusChip tone="muted">거절됨</StatusChip>;
+  if (status === "expired") return <StatusChip tone="muted">만료됨</StatusChip>;
+  return undefined;
+}
+
 function SentKokCard({
   cook,
   onCancel,
@@ -308,11 +381,7 @@ function SentKokCard({
     <KokCard
       cook={cook}
       matched={matched}
-      status={
-        cook.status === "pending" ? (
-          <StatusChip tone="waiting">응답 대기 중</StatusChip>
-        ) : undefined
-      }
+      status={sentStatusChip(cook.status)}
     >
       {matched && cook.matchId !== null ? (
         <ChatPill matchId={cook.matchId} />
@@ -331,17 +400,17 @@ function SentKokCard({
 
 /**
  * 거절도 한 번 확인받는다. 맞콕 버튼 바로 옆이라 손가락으로 잘못 누르기 쉽고,
- * 되돌릴 방법을 두지 않기로 했다.
- *
- * 상대에게 알리지 않는다는 걸 적어둔다 — 거절이 통보되는 줄 알면 마음에 없는
- * 콕을 그냥 남겨두게 된다.
+ * 되돌릴 방법을 두지 않기로 했다. 서버 응답을 기다리는 동안은 두 번 눌러도 요청이 한 번만
+ * 나가도록 버튼을 잠근다.
  */
 function RejectKokSheet({
   cook,
+  isSubmitting,
   onKeep,
   onReject,
 }: {
   cook: CookItemResponse;
+  isSubmitting: boolean;
   onKeep: () => void;
   onReject: () => void;
 }) {
@@ -359,22 +428,21 @@ function RejectKokSheet({
         <p className="text-xl font-bold text-(--color-text-strong)">
           {cook.profile.nickname}님의 콕을 거절할까요?
         </p>
-        <p className="text-sm text-(--color-text-sub)">
-          목록에서 사라지고, 상대는 거절한 걸 알 수 없어요.
-        </p>
       </div>
 
       <button
         type="button"
         onClick={onReject}
-        className="w-full rounded-(--radius-lg) bg-(--color-danger) py-4 text-base font-bold text-(--color-text-on-primary)"
+        disabled={isSubmitting}
+        className="w-full rounded-(--radius-lg) bg-(--color-danger) py-4 text-base font-bold text-(--color-text-on-primary) disabled:opacity-60"
       >
-        거절하기
+        {isSubmitting ? "거절하는 중..." : "거절하기"}
       </button>
       <button
         type="button"
         onClick={onKeep}
-        className="text-sm text-(--color-text-sub)"
+        disabled={isSubmitting}
+        className="text-sm text-(--color-text-sub) disabled:opacity-60"
       >
         그대로 둘게요
       </button>
@@ -496,11 +564,13 @@ function ReceivedKokPanel({
               cook={cook}
               matched={matched}
               status={
-                matched ? undefined : (
+                cook.status === "pending" ? (
                   <StatusChip tone="waiting" icon={<Clock className="h-3 w-3" />}>
                     맞콕 기다리는 중
                   </StatusChip>
-                )
+                ) : cook.status === "expired" ? (
+                  <StatusChip tone="muted">만료됨</StatusChip>
+                ) : undefined
               }
             >
               {matched && cook.matchId !== null ? (
