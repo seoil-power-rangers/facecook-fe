@@ -24,7 +24,7 @@ import {
   type CookListResponse,
 } from "./cookApi";
 import { track } from "@ui/공통/analytics";
-import { refreshLiveBadgesNow } from "@ui/공통/liveBadgesStore";
+import { dropReceivedCookFromLiveBadges, refreshLiveBadgesNow } from "@ui/공통/liveBadgesStore";
 import { createRequestSequence } from "@ui/공통/requestSequence";
 
 type KokTab = "sent" | "received";
@@ -128,6 +128,7 @@ export function KokScreen() {
       setRejectTarget(null);
       setToastMessage("콕을 거절했어요.");
       refreshLiveBadgesNow();
+      dropReceivedCookFromLiveBadges(target.cookId);
     } catch (rejectError) {
       rejectFailed = true;
       track({

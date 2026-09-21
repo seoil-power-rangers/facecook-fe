@@ -91,13 +91,15 @@ export function cookErrorMessage(error: unknown) {
  * 쪽인지 이 응답만으로는 알 수 없어서, 화면이 목록을 다시 불러온 결과로 확인하게 한다.
  */
 export function rejectErrorMessage(error: unknown) {
-  if (!(error instanceof CookApiError)) {
-    return "연결이 불안정해요. 목록을 다시 확인했어요.";
-  }
+  if (!(error instanceof CookApiError)) return NETWORK_REJECT_MESSAGE;
   return REJECT_ERROR_MESSAGES[error.code] ?? "콕을 거절하지 못했어요. 잠시 후 다시 시도해주세요.";
 }
 
+const NETWORK_REJECT_MESSAGE = "연결이 불안정해요. 목록을 다시 확인하고 있어요.";
+
 const REJECT_ERROR_MESSAGES: Record<string, string> = {
+  // requestCook이 fetch 실패를 CookApiError("NETWORK")로 바꿔서 던진다.
+  NETWORK: NETWORK_REJECT_MESSAGE,
   NOT_FOUND: "거절하지 못했어요. 목록을 새로 불러왔어요.",
   ALREADY_MATCHED: "이미 매칭된 콕이에요.",
   ALREADY_EXPIRED: "이미 만료된 콕이에요.",
