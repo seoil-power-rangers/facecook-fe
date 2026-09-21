@@ -1,0 +1,29 @@
+name: Test
+
+# PR마다 타입 검사와 단위 테스트를 실행한다. 린트는 기존 오류(react-hooks 규칙 4건)가 남아 있어서
+# 여기에 넣지 않는다 — 정리되면 추가한다.
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Unit tests
+        run: npm test

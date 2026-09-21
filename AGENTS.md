@@ -44,6 +44,10 @@ npm run dev
 
 빌드 확인: `npm run build`.
 
+테스트: `npm test`. `ui/**/*.test.ts`를 모두 컴파일해서 `node:test`로 실행한다(`scripts/run-tests.mjs`).
+tsc가 `@ui/...` 별칭을 런타임 경로로 바꿔 주지 않으므로, 테스트할 로직은 React·Next·별칭 없이 상대
+경로로만 참조하는 순수 모듈로 분리한다(예: `ui/공통/liveBadgesCore.ts`).
+
 ## 5. Git 커밋 규칙
 
 - 브랜치·커밋 타입·PR 규칙은 [CONTRIBUTING.md](./CONTRIBUTING.md)를 따른다
