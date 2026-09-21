@@ -97,6 +97,14 @@ function subscribe(onChange: () => void) {
   };
 }
 
+/**
+ * 컴포넌트 밖(폴링 스토어 등)에서 스위치 변화를 구독한다. 구독을 끝내는 함수를 돌려준다.
+ * 스위치가 꺼지는 순간 진행 중인 조회를 정리해야 하는 곳에서 쓴다.
+ */
+export function subscribeKillSwitches(onChange: () => void) {
+  return subscribe(onChange);
+}
+
 /** 컴포넌트 밖(폴링 루프 등)에서도 물어볼 수 있게 훅이 아닌 함수로 둔다. */
 export function isEnabled(name: KillSwitch) {
   return !disabled.has(name);

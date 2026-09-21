@@ -15,7 +15,6 @@ import {
 import { CampusScene } from "./CampusScene";
 import { Mascot } from "./Mascot";
 import { reportError } from "@ui/공통/analytics";
-import { useRejectedCooks } from "@ui/받은콕/rejectedCooks";
 import { LIVE_BADGE_POLL_INTERVAL_MS } from "@ui/공통/constants";
 
 /**
@@ -63,14 +62,10 @@ export function MainScreen() {
     };
   }, []);
 
-  const rejected = useRejectedCooks();
-
   const todayUsed = cooks?.usage.todayUsed ?? 0;
   const dailyLimit = cooks?.usage.dailyLimit ?? 0;
-  // 거절한 콕은 콕 화면 목록에서 빠지므로 여기서도 뺀다. 숫자만 남으면
-  // 눌러 들어갔을 때 그만큼이 없다.
-  const receivedKokCount =
-    cooks?.received.filter((cook) => !rejected.has(cook.cookId)).length ?? 0;
+  // 거절한 콕은 서버가 받은 목록에서 빼므로 그대로 세면 콕 화면과 숫자가 맞는다.
+  const receivedKokCount = cooks?.received.length ?? 0;
   const matchCount = matches?.length ?? 0;
 
   // 종 배지: 콕/매칭이 갱신될 때마다 다시 계산한다(별도 폴링 없음, 킬스위치는
