@@ -1,13 +1,7 @@
+import { createApiRequest } from "@ui/공통/apiClient";
 import { parseMissionProgress } from "./missionModel";
 
 export type { MissionProgressResponse } from "./missionModel";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "");
-
-interface ApiErrorResponse {
-  code?: string;
-  message?: string;
-}
 
 export class MissionApiError extends Error {
   constructor(
@@ -44,36 +38,6 @@ export async function getMissionProgress(matchId: number) {
   }
 }
 
-function requireApiBaseUrl() {
-  if (!API_BASE_URL) {
-    throw new MissionApiError(
-      "MISSING_API_BASE_URL",
-      "NEXT_PUBLIC_API_BASE_URL 환경변수가 설정되지 않았습니다.",
-    );
-  }
-  return API_BASE_URL;
-}
-
-async function requestMission<T>(path: string): Promise<T> {
-  let response: Response;
-  try {
-    response = await fetch(`${requireApiBaseUrl()}${path}`, {
-      credentials: "include",
-    });
-  } catch (error) {
-    if (error instanceof MissionApiError) throw error;
-    throw new MissionApiError("NETWORK", "백엔드 서버에 연결할 수 없습니다.");
-  }
-
-  const payload = (await response.json().catch(() => ({}))) as T &
-    ApiErrorResponse;
-
-  if (!response.ok) {
-    throw new MissionApiError(
-      payload.code ?? "UNKNOWN",
-      payload.message ?? "요청을 처리하지 못했습니다.",
-    );
-  }
-
-  return payload;
-}
+const requestMission = createApiRequest({
+  makeError: (code, message) => new MissionApiError(code, message),
+});
