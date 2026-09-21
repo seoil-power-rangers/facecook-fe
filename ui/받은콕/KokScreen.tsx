@@ -24,7 +24,11 @@ import {
   type CookListResponse,
 } from "./cookApi";
 import { track } from "@ui/공통/analytics";
-import { dropReceivedCookFromLiveBadges, refreshLiveBadgesNow } from "@ui/공통/liveBadgesStore";
+import {
+  dropReceivedCookFromLiveBadges,
+  refreshLiveBadgesNow,
+  replaceCooksInLiveBadges,
+} from "@ui/공통/liveBadgesStore";
 import { createRequestSequence } from "@ui/공통/requestSequence";
 
 type KokTab = "sent" | "received";
@@ -57,12 +61,16 @@ export function KokScreen() {
    * 기존 목록을 그대로 두고 새 결과로만 바꾸며, 실패해도 목록을 유지한 채 결과만 돌려준다 — 거절 결과를
    * 확인하려고 다시 불러오는 동안 카드가 사라지면 안 되기 때문이다.
    *
-   * 부작용: 이전에 시작한 조회는 응답이 와도 반영되지 않는다.
+   * 부작용: 이전에 시작한 조회는 응답이 와도 반영되지 않는다. `onLoaded`는 이 조회가 여전히 최신이라
+   * 결과를 반영할 때만 불린다(예: 같은 결과를 배지 스토어에도 넘길 때).
    *
    * @returns 반영했으면 `loaded`, 실패했으면 `failed`, 더 최근 조회가 있어 버려졌으면 `superseded`.
    */
   const loadCooks = useCallback(
-    async ({ background = false }: { background?: boolean } = {}) => {
+    async ({
+      background = false,
+      onLoaded,
+    }: { background?: boolean; onLoaded?: (cooks: CookListResponse) => void } = {}) => {
       const requestId = listRequests.begin();
       if (!background) {
         setIsLoading(true);
@@ -73,6 +81,7 @@ export function KokScreen() {
         if (!listRequests.isLatest(requestId)) return "superseded" as const;
         setData(next);
         setError(null);
+        onLoaded?.(next);
         return "loaded" as const;
       } catch (loadError) {
         if (!listRequests.isLatest(requestId)) return "superseded" as const;
@@ -142,8 +151,12 @@ export function KokScreen() {
       setIsRejecting(false);
     }
 
-    // 실패한 이유가 무엇이든 서버 상태는 화면과 다를 수 있다. 시트를 닫은 뒤 백그라운드로 맞춘다.
-    if (rejectFailed && (await loadCooks({ background: true })) === "failed") {
+    // 실패한 이유가 무엇이든 서버 상태는 화면과 다를 수 있다. 시트를 닫은 뒤 백그라운드로 맞추고, 그
+    // 결과를 배지에도 전달한다(킬스위치가 꺼져 있으면 배지 조회가 나가지 않는다).
+    if (
+      rejectFailed &&
+      (await loadCooks({ background: true, onLoaded: replaceCooksInLiveBadges })) === "failed"
+    ) {
       setToastMessage("콕 목록을 확인하지 못했어요. 잠시 후 다시 확인해주세요.");
     }
   };
