@@ -56,10 +56,22 @@ export class AdminApiError extends Error {
   constructor(
     public readonly code: string,
     message: string,
+    public readonly status?: number,
   ) {
     super(message);
     this.name = "AdminApiError";
   }
+}
+
+/**
+ * BE가 확인받은 STEP과 서버의 현재 STEP이 달라 완료 처리를 거절했는지 확인한다(409).
+ *
+ * BE #88이 이 상황에 어떤 `code` 문자열을 붙일지는 아직 정해지지 않았다(같은 저장소의
+ * 다른 409들도 `ALREADY_REJECTED`처럼 상황마다 다른 이름을 쓴다) — 문자열 코드로 분기하면
+ * BE가 실제로 배포한 코드와 어긋날 위험이 있으므로, 코드와 무관하게 HTTP 상태만으로 판단한다.
+ */
+export function isMissionStepConflict(error: unknown): boolean {
+  return error instanceof AdminApiError && error.status === 409;
 }
 
 export function adminErrorMessage(error: unknown) {
@@ -102,10 +114,20 @@ export async function getAdminMissions() {
   }
 }
 
-export function completeAdminMission(matchId: number) {
+/**
+ * matchId의 현재 STEP을 완료 처리한다. `expectedStep`은 관리자가 확인 시트에서 본
+ * STEP을 그대로 보낸다(요청 시점에 다시 계산하지 않는다) — 서버가 그 사이 다른
+ * 요청으로 이미 다음 STEP으로 넘어갔으면 이 값과 서버의 현재 STEP이 달라 409로
+ * 거절된다({@link isMissionStepConflict}로 구분).
+ */
+export function completeAdminMission(matchId: number, expectedStep: number) {
   return requestAdmin<AdminMissionResponse>(
     `/api/admin/missions/${matchId}/complete`,
-    { method: "POST" },
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ expectedStep }),
+    },
   );
 }
 
@@ -182,6 +204,7 @@ async function requestAdmin<T>(
     throw new AdminApiError(
       payload.code ?? "UNKNOWN",
       payload.message ?? "관리자 요청을 처리하지 못했습니다.",
+      response.status,
     );
   }
   return payload;
