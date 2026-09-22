@@ -1,3 +1,10 @@
+import {
+  normalizeAdminMissionsResponse,
+  type AdminMissionExcludedItem,
+  type AdminMissionListItem,
+  type AdminMissionsListResult,
+} from "./adminMissionsResponse";
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "");
 
 interface ApiErrorResponse {
@@ -19,22 +26,9 @@ export interface AdminStatsResponse {
   pendingReports: number;
 }
 
-export interface AdminMissionResponse {
-  matchId: number;
-  userAId: number;
-  userBId: number;
-  matchedAt: string;
-  currentStep: number;
-  step1Mission: string;
-  step2Mission: string;
-  step3Mission: string;
-  step1CompletedAt: string | null;
-  step1CompletedBy: number | null;
-  step2CompletedAt: string | null;
-  step2CompletedBy: number | null;
-  step3CompletedAt: string | null;
-  step3CompletedBy: number | null;
-}
+export type AdminMissionResponse = AdminMissionListItem;
+export type AdminMissionExcludedResponse = AdminMissionExcludedItem;
+export type AdminMissionsResponse = AdminMissionsListResult;
 
 export type AdminReportStatus = "pending" | "reviewed";
 
@@ -88,8 +82,24 @@ export function getAdminStats() {
   return requestAdmin<AdminStatsResponse>("/api/admin/stats");
 }
 
-export function getAdminMissions() {
-  return requestAdmin<AdminMissionResponse[]>("/api/admin/missions");
+/**
+ * 관리자 미션 목록을 가져온다. 서버가 아직은 배열만 돌려주지만(빠진 매칭은
+ * 서버 로그로만 남는다), 앞으로 `{items, excluded}` 객체로 바뀌면(BE #86) 배정
+ * 실패 등으로 빠진 매칭을 `excluded`로 함께 받아 화면에 보여줄 수 있다.
+ * `includeExcluded=true`를 미리 보내 두면, 서버가 그 값을 아직 모를 때는
+ * 무시하고(지금과 동일한 배열 응답), 지원하기 시작하면 별도 배포 없이
+ * `excluded`를 채워 보내준다.
+ */
+export async function getAdminMissions() {
+  const raw = await requestAdmin<unknown>("/api/admin/missions?includeExcluded=true");
+  try {
+    return normalizeAdminMissionsResponse(raw);
+  } catch {
+    throw new AdminApiError(
+      "INVALID_RESPONSE",
+      "관리자 미션 응답 형식이 예상과 달라요. 서버 배포 상태를 확인해주세요.",
+    );
+  }
 }
 
 export function completeAdminMission(matchId: number) {
