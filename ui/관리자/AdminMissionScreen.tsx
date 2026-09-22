@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { BottomSheet } from "@ui/공통/BottomSheet";
 import { Button } from "@ui/공통/Button";
+import { InfoBox } from "@ui/공통/InfoBox";
 import { Tag } from "@ui/공통/Tag";
 import { TextField } from "@ui/공통/TextField";
 import {
@@ -11,6 +12,7 @@ import {
   completeAdminMission,
   getAdminMissions,
   getAdminUserNames,
+  type AdminMissionExcludedResponse,
   type AdminMissionResponse,
 } from "./adminApi";
 import { AdminLoadState } from "./AdminLoadState";
@@ -22,6 +24,7 @@ const MISSION_LAST_STEP = 3;
 export function AdminMissionScreen() {
   const [keyword, setKeyword] = useState("");
   const [missions, setMissions] = useState<AdminMissionResponse[]>([]);
+  const [excluded, setExcluded] = useState<AdminMissionExcludedResponse[]>([]);
   const [userNames, setUserNames] = useState<Record<number, string>>({});
   const [target, setTarget] = useState<AdminMissionResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -34,10 +37,11 @@ export function AdminMissionScreen() {
     setLoadError(null);
     try {
       const response = await getAdminMissions();
-      setMissions(response);
+      setMissions(response.items);
+      setExcluded(response.excluded);
       setUserNames(
         await getAdminUserNames(
-          response.flatMap((mission) => [mission.userAId, mission.userBId]),
+          response.items.flatMap((mission) => [mission.userAId, mission.userBId]),
         ),
       );
     } catch (error) {
@@ -91,6 +95,8 @@ export function AdminMissionScreen() {
           onChange={(event) => setKeyword(event.target.value)}
           trailing={<Search className="h-5 w-5 shrink-0 text-(--color-text-muted)" />}
         />
+
+        {excluded.length > 0 ? <ExcludedMissionsNotice excluded={excluded} /> : null}
 
         {isLoading || loadError ? (
           <AdminLoadState
@@ -219,6 +225,23 @@ function MissionRow({
         )}
       </div>
     </li>
+  );
+}
+
+/** 서버가 목록에서 제외한 매칭(예: 묶음 배정 실패)을 조용히 빠뜨리지 않고 보여준다. */
+function ExcludedMissionsNotice({ excluded }: { excluded: AdminMissionExcludedResponse[] }) {
+  return (
+    <InfoBox tone="danger">
+      <p className="font-bold">미션이 배정되지 않아 목록에서 빠진 매칭 {excluded.length}건</p>
+      <ul className="mt-1 flex flex-col gap-0.5">
+        {excluded.map((item) => (
+          <li key={item.matchId}>
+            매칭 #{item.matchId}
+            {item.reason ? ` · ${item.reason}` : ""}
+          </li>
+        ))}
+      </ul>
+    </InfoBox>
   );
 }
 
