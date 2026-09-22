@@ -12,6 +12,7 @@ import {
   completeAdminMission,
   getAdminMissions,
   getAdminUserNames,
+  isMissionStepConflict,
   type AdminMissionExcludedResponse,
   type AdminMissionResponse,
 } from "./adminApi";
@@ -31,6 +32,7 @@ export function AdminMissionScreen() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [updatingMatchId, setUpdatingMatchId] = useState<number | null>(null);
+  const [conflictNotice, setConflictNotice] = useState<string | null>(null);
 
   const loadMissions = useCallback(async () => {
     setIsLoading(true);
@@ -72,15 +74,24 @@ export function AdminMissionScreen() {
     setUpdatingMatchId(target.matchId);
     setActionError(null);
     try {
-      const updated = await completeAdminMission(target.matchId);
+      const updated = await completeAdminMission(target.matchId, target.currentStep);
       setMissions((current) =>
         current.map((mission) =>
           mission.matchId === updated.matchId ? updated : mission,
         ),
       );
       setTarget(null);
+      setConflictNotice(null);
     } catch (error) {
-      setActionError(adminErrorMessage(error));
+      if (isMissionStepConflict(error)) {
+        // 확인받은 STEP이 이미 처리됐다 — 다른 관리자가 먼저 처리했거나 재시도로
+        // 중복 요청된 경우. 사이트를 닫고 화면을 최신 상태로 다시 불러온다.
+        setTarget(null);
+        setConflictNotice("이미 처리된 단계예요. 최신 상태로 다시 불러왔어요.");
+        void loadMissions();
+      } else {
+        setActionError(adminErrorMessage(error));
+      }
     } finally {
       setUpdatingMatchId(null);
     }
@@ -99,6 +110,8 @@ export function AdminMissionScreen() {
         {!isLoading && !loadError && excluded.length > 0 ? (
           <ExcludedMissionsNotice excluded={excluded} />
         ) : null}
+
+        {conflictNotice ? <InfoBox tone="info">{conflictNotice}</InfoBox> : null}
 
         {isLoading || loadError ? (
           <AdminLoadState
@@ -121,6 +134,7 @@ export function AdminMissionScreen() {
                 disabled={updatingMatchId !== null}
                 onComplete={() => {
                   setActionError(null);
+                  setConflictNotice(null);
                   setTarget(mission);
                 }}
               />
