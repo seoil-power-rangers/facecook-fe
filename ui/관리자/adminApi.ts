@@ -90,10 +90,16 @@ export function getAdminStats() {
  * 무시하고(지금과 동일한 배열 응답), 지원하기 시작하면 별도 배포 없이
  * `excluded`를 채워 보내준다.
  */
-export function getAdminMissions() {
-  return requestAdmin<unknown>(
-    "/api/admin/missions?includeExcluded=true",
-  ).then(normalizeAdminMissionsResponse);
+export async function getAdminMissions() {
+  const raw = await requestAdmin<unknown>("/api/admin/missions?includeExcluded=true");
+  try {
+    return normalizeAdminMissionsResponse(raw);
+  } catch {
+    throw new AdminApiError(
+      "INVALID_RESPONSE",
+      "관리자 미션 응답 형식이 예상과 달라요. 서버 배포 상태를 확인해주세요.",
+    );
+  }
 }
 
 export function completeAdminMission(matchId: number) {

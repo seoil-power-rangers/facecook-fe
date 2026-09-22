@@ -96,7 +96,9 @@ export function AdminMissionScreen() {
           trailing={<Search className="h-5 w-5 shrink-0 text-(--color-text-muted)" />}
         />
 
-        {excluded.length > 0 ? <ExcludedMissionsNotice excluded={excluded} /> : null}
+        {!isLoading && !loadError && excluded.length > 0 ? (
+          <ExcludedMissionsNotice excluded={excluded} />
+        ) : null}
 
         {isLoading || loadError ? (
           <AdminLoadState
@@ -228,6 +230,19 @@ function MissionRow({
   );
 }
 
+// BE #86 계약: NO_TEMPLATE(묶음 배정 실패), UNKNOWN(그 밖의 예상 외 오류). 코드 그대로
+// 보여주면 관리자가 뜻을 알 수 없으니 한국어 문구로 바꾼다. 계약에 없는 새 코드가 와도
+// 화면이 깨지지 않도록 기본 문구를 둔다.
+const EXCLUDED_REASON_LABELS: Record<string, string> = {
+  NO_TEMPLATE: "배정할 미션 묶음을 찾지 못함",
+  UNKNOWN: "원인을 알 수 없는 오류",
+};
+
+function excludedReasonLabel(reason: string | null | undefined) {
+  if (!reason) return "사유 미상";
+  return EXCLUDED_REASON_LABELS[reason] ?? "원인을 알 수 없는 오류";
+}
+
 /** 서버가 목록에서 제외한 매칭(예: 묶음 배정 실패)을 조용히 빠뜨리지 않고 보여준다. */
 function ExcludedMissionsNotice({ excluded }: { excluded: AdminMissionExcludedResponse[] }) {
   return (
@@ -236,8 +251,7 @@ function ExcludedMissionsNotice({ excluded }: { excluded: AdminMissionExcludedRe
       <ul className="mt-1 flex flex-col gap-0.5">
         {excluded.map((item) => (
           <li key={item.matchId}>
-            매칭 #{item.matchId}
-            {item.reason ? ` · ${item.reason}` : ""}
+            매칭 #{item.matchId} · {excludedReasonLabel(item.reason)}
           </li>
         ))}
       </ul>
