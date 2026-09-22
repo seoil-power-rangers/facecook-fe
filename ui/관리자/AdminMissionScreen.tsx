@@ -34,6 +34,7 @@ export function AdminMissionScreen() {
   const [updatingMatchId, setUpdatingMatchId] = useState<number | null>(null);
   const [conflictNotice, setConflictNotice] = useState<string | null>(null);
 
+  /** 목록을 다시 불러온다. 호출부가 성공 여부로 분기할 수 있도록 boolean을 돌려준다. */
   const loadMissions = useCallback(async () => {
     setIsLoading(true);
     setLoadError(null);
@@ -46,8 +47,10 @@ export function AdminMissionScreen() {
           response.items.flatMap((mission) => [mission.userAId, mission.userBId]),
         ),
       );
+      return true;
     } catch (error) {
       setLoadError(adminErrorMessage(error));
+      return false;
     } finally {
       setIsLoading(false);
     }
@@ -86,9 +89,11 @@ export function AdminMissionScreen() {
       if (isMissionStepConflict(error)) {
         // 확인받은 STEP이 이미 처리됐다 — 다른 관리자가 먼저 처리했거나 재시도로
         // 중복 요청된 경우. 사이트를 닫고 화면을 최신 상태로 다시 불러온다.
+        // 재조회가 성공했을 때만 안내를 띄운다 — 실패하면 loadError가 대신 뜬다.
         setTarget(null);
-        setConflictNotice("이미 처리된 단계예요. 최신 상태로 다시 불러왔어요.");
-        void loadMissions();
+        if (await loadMissions()) {
+          setConflictNotice("이미 처리된 단계예요. 최신 상태로 다시 불러왔어요.");
+        }
       } else {
         setActionError(adminErrorMessage(error));
       }
