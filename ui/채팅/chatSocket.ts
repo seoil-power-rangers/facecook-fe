@@ -53,7 +53,6 @@ export function connectChatSocket({
   let topicSubscription: StompSubscription | undefined;
   let ackSubscription: StompSubscription | undefined;
   let missionSubscription: StompSubscription | undefined;
-  let connectFallbackTimeout: number | undefined;
 
   const client = new Client({
     brokerURL: requireWebSocketUrl(),
@@ -64,61 +63,31 @@ export function connectChatSocket({
     onConnect: () => {
       /*
        * "connected"를 구독 전에 알리면, 화면(ChatScreen)이 그 신호로 시작하는
-       * 이력 대조가 브로커에 SUBSCRIBE가 아직 반영되기 전에 끝날 수 있다 —
-       * 그 틈에 저장·발행된 메시지는 실시간 구독에도, 그 대조에도 안 걸려
-       * facecook-fe#87이 없애려던 공백이 그대로 남는다. 그래서 채팅 topic·ACK
-       * 구독 둘 다 브로커의 RECEIPT로 반영을 확인한 뒤에야 "connected"를 알린다.
-       * (미션 구독은 이 복구 보장과 무관해 기다리지 않는다.)
+       * 이력 대조가 구독 프레임이 소켓에 나가기도 전에 끝날 수 있다 — 그 틈에
+       * 저장·발행된 메시지는 실시간 구독에도, 그 대조에도 안 걸린다
+       * (facecook-fe#87). 그래서 구독부터 걸고 나서 "connected"를 알린다.
        *
-       * RECEIPT가 못 오는 드문 경우(프록시 등)까지 대비해, 일정 시간 뒤에는
-       * 확인 없이도 강제로 연결됨을 알린다 — 그러면 화면이 "연결 중"에 영영
-       * 머무르지 않는다. 이 경로에서는 초기 공백 보장이 성립하지 않지만, 20초
-       * 주기 대조가 뒤이어 채운다.
+       * STOMP RECEIPT로 브로커의 구독 반영 완료까지 확인하는 방법을 먼저
+       * 시도했지만, 로컬로 실제 소켓을 붙여서 확인해보니 이 앱이 쓰는 Spring
+       * 내장 SimpleBroker(WebSocketConfig의 enableSimpleBroker)는 DISCONNECT에만
+       * RECEIPT를 자동으로 보내고 SUBSCRIBE에는 안 보낸다(spring-websocket
+       * StompSubProtocolHandler 확인 — receipt 헤더 처리가 getDisconnectReceipt
+       * 하나뿐이다) — SUBSCRIBE에 receipt를 달아도 응답이 오지 않아 그 방식은
+       * 뺐다. 지금은 구독 프레임을 먼저 보낸 뒤에만 연결됨을 알리는 정도로 —
+       * 브로커가 그 등록을 완전히 끝냈다는 절대 보장은 아니지만(등록 자체는
+       * 비동기), 적어도 대조 요청이 구독 프레임보다 먼저 나가는 일은 없앤다.
+       * 남는 아주 좁은 창은 20초 주기 대조가 채운다.
        */
-      const topicReceiptId = `chat-topic-${crypto.randomUUID()}`;
-      const ackReceiptId = `chat-ack-${crypto.randomUUID()}`;
-      let topicReady = false;
-      let ackReady = false;
-      let signaled = false;
-
-      const signalConnected = () => {
-        if (signaled || intentionalDisconnect) return;
-        signaled = true;
-        if (connectFallbackTimeout !== undefined) {
-          window.clearTimeout(connectFallbackTimeout);
-          connectFallbackTimeout = undefined;
-        }
-        onStatusChange("connected");
-      };
-
-      connectFallbackTimeout = window.setTimeout(signalConnected, 5_000);
-
-      client.watchForReceipt(topicReceiptId, () => {
-        topicReady = true;
-        if (topicReady && ackReady) signalConnected();
+      topicSubscription = client.subscribe(`/topic/chat/${matchId}`, (frame) => {
+        parseMessage(frame, onMessage, onError);
       });
-      client.watchForReceipt(ackReceiptId, () => {
-        ackReady = true;
-        if (topicReady && ackReady) signalConnected();
+      ackSubscription = client.subscribe("/user/queue/chat-acks", (frame) => {
+        parseMessage(frame, onAck, onError);
       });
-
-      topicSubscription = client.subscribe(
-        `/topic/chat/${matchId}`,
-        (frame) => {
-          parseMessage(frame, onMessage, onError);
-        },
-        { receipt: topicReceiptId },
-      );
-      ackSubscription = client.subscribe(
-        "/user/queue/chat-acks",
-        (frame) => {
-          parseMessage(frame, onAck, onError);
-        },
-        { receipt: ackReceiptId },
-      );
       missionSubscription = client.subscribe(`/topic/mission/${matchId}`, (frame) => {
         parseMissionFrame(frame, onMission, onMissionError);
       });
+      onStatusChange("connected");
     },
     onStompError: (frame) => {
       onStatusChange("error");
@@ -153,10 +122,6 @@ export function connectChatSocket({
     },
     async disconnect() {
       intentionalDisconnect = true;
-      if (connectFallbackTimeout !== undefined) {
-        window.clearTimeout(connectFallbackTimeout);
-        connectFallbackTimeout = undefined;
-      }
       if (client.connected) {
         topicSubscription?.unsubscribe();
         ackSubscription?.unsubscribe();
