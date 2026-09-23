@@ -1,3 +1,4 @@
+import { mapWithConcurrencyLimit } from "../공통/concurrencyLimit";
 import {
   normalizeAdminMissionsResponse,
   type AdminMissionExcludedItem,
@@ -156,20 +157,22 @@ export function getAdminReportChat(reportId: number) {
   );
 }
 
+// 매칭·신고가 늘어날수록 고유 사용자 수도 늘어서, 전부 한꺼번에 쏘면 가장 느린
+// 요청 하나가 전체 이름 조회를 물고 늘어진다. 동시에 이 개수만큼만 나간다.
+const CONCURRENT_NAME_LOOKUPS = 5;
+
 export async function getAdminUserNames(userIds: number[]) {
   const uniqueIds = [...new Set(userIds)];
-  const entries = await Promise.all(
-    uniqueIds.map(async (userId) => {
-      try {
-        const profile = await requestAdmin<ProfileNameResponse>(
-          `/api/profiles/${userId}`,
-        );
-        return [userId, profile.nickname] as const;
-      } catch {
-        return [userId, `참가자 #${userId}`] as const;
-      }
-    }),
-  );
+  const entries = await mapWithConcurrencyLimit(uniqueIds, CONCURRENT_NAME_LOOKUPS, async (userId) => {
+    try {
+      const profile = await requestAdmin<ProfileNameResponse>(
+        `/api/profiles/${userId}`,
+      );
+      return [userId, profile.nickname] as const;
+    } catch {
+      return [userId, `참가자 #${userId}`] as const;
+    }
+  });
   return Object.fromEntries(entries) as Record<number, string>;
 }
 

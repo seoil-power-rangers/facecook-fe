@@ -34,7 +34,13 @@ export function AdminMissionScreen() {
   const [updatingMatchId, setUpdatingMatchId] = useState<number | null>(null);
   const [conflictNotice, setConflictNotice] = useState<string | null>(null);
 
-  /** 목록을 다시 불러온다. 호출부가 성공 여부로 분기할 수 있도록 boolean을 돌려준다. */
+  /**
+   * 목록을 다시 불러온다. 호출부가 성공 여부로 분기할 수 있도록 boolean을 돌려준다.
+   *
+   * 이름 조회는 기다리지 않는다 — 매칭이 늘수록 고유 사용자도 늘어 가장 느린 이름
+   * 조회 하나가 목록 표시 자체를 막았다. 목록을 먼저 보여주고, 이름은 도착하는
+   * 대로 채운다(먼저 알고 있던 이름을 지우지 않도록 병합한다).
+   */
   const loadMissions = useCallback(async () => {
     setIsLoading(true);
     setLoadError(null);
@@ -42,11 +48,11 @@ export function AdminMissionScreen() {
       const response = await getAdminMissions();
       setMissions(response.items);
       setExcluded(response.excluded);
-      setUserNames(
-        await getAdminUserNames(
-          response.items.flatMap((mission) => [mission.userAId, mission.userBId]),
-        ),
-      );
+      void getAdminUserNames(
+        response.items.flatMap((mission) => [mission.userAId, mission.userBId]),
+      )
+        .then((names) => setUserNames((current) => ({ ...current, ...names })))
+        .catch(() => {});
       return true;
     } catch (error) {
       setLoadError(adminErrorMessage(error));

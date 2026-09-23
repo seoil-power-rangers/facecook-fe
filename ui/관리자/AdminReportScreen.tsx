@@ -6,6 +6,7 @@ import { ChevronRight, MessagesSquare } from "lucide-react";
 import { BottomSheet } from "@ui/공통/BottomSheet";
 import { Button } from "@ui/공통/Button";
 import { InfoBox } from "@ui/공통/InfoBox";
+import { createRequestSequence } from "@ui/공통/requestSequence";
 import { Tag } from "@ui/공통/Tag";
 import {
   adminErrorMessage,
@@ -39,18 +40,26 @@ export function AdminReportScreen() {
   const [detailError, setDetailError] = useState<string | null>(null);
   const [isResolving, setIsResolving] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  // 신고 A를 열었다가 B로 넘어간 뒤 A의 응답이 늦게 도착해도 B 화면을 건드리지 않게
+  // 한다 — 가장 최근에 시작한 조회만 성공·실패·로딩 종료를 반영한다.
+  const [detailRequests] = useState(createRequestSequence);
 
+  /**
+   * 이름 조회는 기다리지 않는다 — 신고가 늘수록 고유 사용자도 늘어 가장 느린 이름
+   * 조회 하나가 목록 표시 자체를 막았다. 목록을 먼저 보여주고, 이름은 도착하는
+   * 대로 채운다(먼저 알고 있던 이름을 지우지 않도록 병합한다).
+   */
   const loadReports = useCallback(async () => {
     setIsLoading(true);
     setLoadError(null);
     try {
       const response = await getAdminReports();
       setReports(response);
-      setUserNames(
-        await getAdminUserNames(
-          response.flatMap((report) => [report.reporterId, report.reportedUserId]),
-        ),
-      );
+      void getAdminUserNames(
+        response.flatMap((report) => [report.reporterId, report.reportedUserId]),
+      )
+        .then((names) => setUserNames((current) => ({ ...current, ...names })))
+        .catch(() => {});
     } catch (error) {
       setLoadError(adminErrorMessage(error));
     } finally {
@@ -64,6 +73,7 @@ export function AdminReportScreen() {
   }, [loadReports]);
 
   const openReport = async (report: AdminReportResponse) => {
+    const requestId = detailRequests.begin();
     setOpened(report);
     setConfirming(null);
     setActionError(null);
@@ -71,13 +81,13 @@ export function AdminReportScreen() {
     setDetailError(null);
     try {
       const detail = await getAdminReport(report.reportId);
-      setOpened((current) =>
-        current?.reportId === report.reportId ? detail : current,
-      );
+      if (!detailRequests.isLatest(requestId)) return;
+      setOpened(detail);
     } catch (error) {
+      if (!detailRequests.isLatest(requestId)) return;
       setDetailError(adminErrorMessage(error));
     } finally {
-      setIsDetailLoading(false);
+      if (detailRequests.isLatest(requestId)) setIsDetailLoading(false);
     }
   };
 
@@ -176,6 +186,7 @@ export function AdminReportScreen() {
         open={opened !== null}
         onClose={() => {
           if (isResolving) return;
+          detailRequests.invalidate();
           setOpened(null);
           setConfirming(null);
           setDetailError(null);
