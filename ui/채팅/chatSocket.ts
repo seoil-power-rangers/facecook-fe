@@ -53,6 +53,7 @@ export function connectChatSocket({
   let topicSubscription: StompSubscription | undefined;
   let ackSubscription: StompSubscription | undefined;
   let missionSubscription: StompSubscription | undefined;
+  let connectFallbackTimeout: number | undefined;
 
   const client = new Client({
     brokerURL: requireWebSocketUrl(),
@@ -61,13 +62,60 @@ export function connectChatSocket({
     heartbeatIncoming: 10_000,
     heartbeatOutgoing: 10_000,
     onConnect: () => {
-      onStatusChange("connected");
-      topicSubscription = client.subscribe(`/topic/chat/${matchId}`, (frame) => {
-        parseMessage(frame, onMessage, onError);
+      /*
+       * "connected"를 구독 전에 알리면, 화면(ChatScreen)이 그 신호로 시작하는
+       * 이력 대조가 브로커에 SUBSCRIBE가 아직 반영되기 전에 끝날 수 있다 —
+       * 그 틈에 저장·발행된 메시지는 실시간 구독에도, 그 대조에도 안 걸려
+       * facecook-fe#87이 없애려던 공백이 그대로 남는다. 그래서 채팅 topic·ACK
+       * 구독 둘 다 브로커의 RECEIPT로 반영을 확인한 뒤에야 "connected"를 알린다.
+       * (미션 구독은 이 복구 보장과 무관해 기다리지 않는다.)
+       *
+       * RECEIPT가 못 오는 드문 경우(프록시 등)까지 대비해, 일정 시간 뒤에는
+       * 확인 없이도 강제로 연결됨을 알린다 — 그러면 화면이 "연결 중"에 영영
+       * 머무르지 않는다. 이 경로에서는 초기 공백 보장이 성립하지 않지만, 20초
+       * 주기 대조가 뒤이어 채운다.
+       */
+      const topicReceiptId = `chat-topic-${crypto.randomUUID()}`;
+      const ackReceiptId = `chat-ack-${crypto.randomUUID()}`;
+      let topicReady = false;
+      let ackReady = false;
+      let signaled = false;
+
+      const signalConnected = () => {
+        if (signaled || intentionalDisconnect) return;
+        signaled = true;
+        if (connectFallbackTimeout !== undefined) {
+          window.clearTimeout(connectFallbackTimeout);
+          connectFallbackTimeout = undefined;
+        }
+        onStatusChange("connected");
+      };
+
+      connectFallbackTimeout = window.setTimeout(signalConnected, 5_000);
+
+      client.watchForReceipt(topicReceiptId, () => {
+        topicReady = true;
+        if (topicReady && ackReady) signalConnected();
       });
-      ackSubscription = client.subscribe("/user/queue/chat-acks", (frame) => {
-        parseMessage(frame, onAck, onError);
+      client.watchForReceipt(ackReceiptId, () => {
+        ackReady = true;
+        if (topicReady && ackReady) signalConnected();
       });
+
+      topicSubscription = client.subscribe(
+        `/topic/chat/${matchId}`,
+        (frame) => {
+          parseMessage(frame, onMessage, onError);
+        },
+        { receipt: topicReceiptId },
+      );
+      ackSubscription = client.subscribe(
+        "/user/queue/chat-acks",
+        (frame) => {
+          parseMessage(frame, onAck, onError);
+        },
+        { receipt: ackReceiptId },
+      );
       missionSubscription = client.subscribe(`/topic/mission/${matchId}`, (frame) => {
         parseMissionFrame(frame, onMission, onMissionError);
       });
@@ -105,6 +153,10 @@ export function connectChatSocket({
     },
     async disconnect() {
       intentionalDisconnect = true;
+      if (connectFallbackTimeout !== undefined) {
+        window.clearTimeout(connectFallbackTimeout);
+        connectFallbackTimeout = undefined;
+      }
       if (client.connected) {
         topicSubscription?.unsubscribe();
         ackSubscription?.unsubscribe();

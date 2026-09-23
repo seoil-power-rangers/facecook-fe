@@ -164,17 +164,30 @@ export function ChatScreen({ matchId }: { matchId: string }) {
     return () => window.clearInterval(timer);
   }, []);
 
-  const mergeIncomingMessage = useCallback((incoming: ChatMessageResponse) => {
-    const pendingTimeout = pendingTimeoutsRef.current.get(incoming.clientMessageId);
+  // 이력 대조(reconcileHistory)로 되찾은 메시지도 실시간 ACK와 똑같이 취급해야 한다 —
+  // 안 그러면 이미 sent로 바뀐 메시지를 기존 ACK 타이머가 뒤늦게 failed로 되돌린다.
+  const clearPendingTimeout = useCallback((clientMessageId: string) => {
+    const pendingTimeout = pendingTimeoutsRef.current.get(clientMessageId);
     if (pendingTimeout !== undefined) {
       window.clearTimeout(pendingTimeout);
-      pendingTimeoutsRef.current.delete(incoming.clientMessageId);
+      pendingTimeoutsRef.current.delete(clientMessageId);
     }
+  }, []);
+
+  const updateAutoScrollIntent = useCallback(() => {
     const list = messageListRef.current;
     shouldAutoScrollRef.current =
       !list || list.scrollHeight - list.scrollTop - list.clientHeight < 80;
-    setMessages((current) => mergeServerMessage(current, incoming));
   }, []);
+
+  const mergeIncomingMessage = useCallback(
+    (incoming: ChatMessageResponse) => {
+      clearPendingTimeout(incoming.clientMessageId);
+      updateAutoScrollIntent();
+      setMessages((current) => mergeServerMessage(current, incoming));
+    },
+    [clearPendingTimeout, updateAutoScrollIntent],
+  );
 
   useEffect(() => {
     const pendingTimeouts = pendingTimeoutsRef.current;
@@ -210,6 +223,10 @@ export function ChatScreen({ matchId }: { matchId: string }) {
           isCancelled: () => !active,
         });
         if (active && recovered.length > 0) {
+          // 대조로 찾은 메시지 중 우리가 보낸 것도 있을 수 있다(ACK만 유실).
+          // 실시간 ACK와 똑같이 남은 타이머를 지워야 나중에 failed로 되돌리지 않는다.
+          for (const item of recovered) clearPendingTimeout(item.clientMessageId);
+          updateAutoScrollIntent();
           setMessages((current) => mergeHistory(current, recovered));
         }
       } catch {
@@ -282,7 +299,7 @@ export function ChatScreen({ matchId }: { matchId: string }) {
       socketRef.current = null;
       if (connection) void connection.disconnect();
     };
-  }, [connectionAttempt, match, mergeIncomingMessage]);
+  }, [connectionAttempt, match, mergeIncomingMessage, clearPendingTimeout, updateAutoScrollIntent]);
 
   useEffect(() => {
     const list = messageListRef.current;
@@ -404,6 +421,10 @@ export function ChatScreen({ matchId }: { matchId: string }) {
    */
   const retryMessage = useCallback(
     (message: DisplayMessage) => {
+      if (!isOpen) {
+        setToastMessage("채팅 운영시간이 끝났어요. 내일 09:00에 다시 이용해주세요.");
+        return;
+      }
       if (connectionStatus !== "connected" || !socketRef.current) {
         setToastMessage("실시간 채팅 연결을 확인해주세요.");
         return;
@@ -418,7 +439,7 @@ export function ChatScreen({ matchId }: { matchId: string }) {
       );
       sendViaSocket(message.content, message.clientMessageId);
     },
-    [connectionStatus, sendViaSocket],
+    [connectionStatus, isOpen, sendViaSocket],
   );
 
   if (isHistoryLoading || historyError || !match) {
@@ -566,7 +587,11 @@ export function ChatScreen({ matchId }: { matchId: string }) {
                 partner={partner}
                 // 상대가 연달아 보내면 첫 줄에만 얼굴을 둔다.
                 showAvatar={!isMine && previous?.senderId !== message.senderId}
-                onRetry={isMine && message.delivery === "failed" ? () => retryMessage(message) : undefined}
+                onRetry={
+                  isMine && message.delivery === "failed" && isOpen
+                    ? () => retryMessage(message)
+                    : undefined
+                }
               />
             </Fragment>
           );
@@ -644,14 +669,18 @@ function MessageBubble({
         >
           {message.content}
         </div>
-        {message.delivery === "failed" && onRetry ? (
-          <button
-            type="button"
-            onClick={onRetry}
-            className="text-[11px] font-semibold text-(--color-danger) underline"
-          >
-            전송 실패 · 다시 보내기
-          </button>
+        {message.delivery === "failed" ? (
+          onRetry ? (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="text-[11px] font-semibold text-(--color-danger) underline"
+            >
+              전송 실패 · 다시 보내기
+            </button>
+          ) : (
+            <span className="text-[11px] text-(--color-danger)">전송 실패</span>
+          )
         ) : (
           <span className="text-[11px] text-(--color-text-muted)">
             {message.delivery === "pending" ? "전송 중..." : formatMessageTime(message.sentAt)}
