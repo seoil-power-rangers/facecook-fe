@@ -44,20 +44,19 @@ export interface ProfileResponse {
   bio: string | null;
   idealType: string | null;
   photo: string | null;
+  /** 마지막 활동 시각. 기능명세 2절의 "현재 활동 중 표시" 참고용으로 함께 내려온다(항상 온다 — 활동 기록이 없으면 null). */
+  lastActiveAt: string | null;
   /**
-   * 마지막 활동 시각. 기능명세 2절의 "현재 활동 중 표시"에 쓰는 값인데
-   * 아직 서버가 내려주지 않는다. 없으면 활동 중 표시를 띄우지 않는다.
+   * 서버가 판단한 "지금 활동 중"이다(활동 창 설정, 기본 15분). FE는 별도 기준(예: 5분)으로
+   * 다시 계산하지 않는다 — 관리자 통계의 활동 유저 기준과는 일부러 다르며 그건 이 값이
+   * 대상이 아니다.
    */
-  lastActiveAt?: string | null;
+  isActive: boolean;
 }
 
-/** 5분 안에 움직였으면 지금 보고 있는 것으로 친다. */
-const ACTIVE_WINDOW_MS = 5 * 60 * 1000;
-
+/** 서버가 내려준 활동 중 여부를 그대로 읽는다. */
 export function isActiveNow(profile: ProfileResponse) {
-  if (!profile.lastActiveAt) return false;
-  const at = Date.parse(profile.lastActiveAt);
-  return !Number.isNaN(at) && Date.now() - at < ACTIVE_WINDOW_MS;
+  return profile.isActive;
 }
 
 /** 로그인이 풀렸거나 정지된 계정인지. 화면을 보여주면 안 되는 상태다. */
