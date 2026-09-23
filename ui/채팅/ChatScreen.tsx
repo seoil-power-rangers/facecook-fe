@@ -28,6 +28,7 @@ import {
   type ChatConnectionStatus,
   type ChatSocketConnection,
 } from "./chatSocket";
+import { reconcileHistory } from "./chatRecovery";
 import {
   getMatch,
   markMatchRead,
@@ -41,6 +42,10 @@ const CHAT_OPEN_HOUR = Number(process.env.NEXT_PUBLIC_CHAT_OPEN_HOUR ?? "9");
 const CHAT_CLOSE_HOUR = Number(process.env.NEXT_PUBLIC_CHAT_CLOSE_HOUR ?? "18");
 const PAGE_SIZE = 50;
 const ACK_TIMEOUT_MS = 10_000;
+// 실시간 발행 실패나 잠깐의 연결 끊김으로 못 받은 메시지를 화면이 열려 있는 동안
+// 스스로 찾아 채운다(facecook-be#84, facecook-fe#87). 너무 잦으면 대화방마다
+// 불필요한 조회가 쌓이고, 너무 뜸하면 복구가 늦어진다.
+const RECONCILE_INTERVAL_MS = 20_000;
 type DeliveryState = "pending" | "sent" | "failed";
 
 interface DisplayMessage {
@@ -75,6 +80,13 @@ export function ChatScreen({ matchId }: { matchId: string }) {
   const pendingTimeoutsRef = useRef(new Map<string, number>());
   const preserveScrollHeightRef = useRef<number | null>(null);
   const shouldAutoScrollRef = useRef(true);
+  // 대조(reconcileHistory)가 매번 최신 상태를 봐야 하는데, 소켓 이펙트를 messages가
+  // 바뀔 때마다 다시 돌리고 싶지는 않다(그러면 메시지가 올 때마다 재연결된다). 그래서
+  // 최신 messages를 여기 따로 미러링해 두고 이펙트 의존성에서는 뺀다.
+  const messagesRef = useRef<DisplayMessage[]>([]);
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
 
   const loadConversation = useCallback(async () => {
     if (!Number.isInteger(numericMatchId) || numericMatchId <= 0) {
@@ -152,17 +164,30 @@ export function ChatScreen({ matchId }: { matchId: string }) {
     return () => window.clearInterval(timer);
   }, []);
 
-  const mergeIncomingMessage = useCallback((incoming: ChatMessageResponse) => {
-    const pendingTimeout = pendingTimeoutsRef.current.get(incoming.clientMessageId);
+  // 이력 대조(reconcileHistory)로 되찾은 메시지도 실시간 ACK와 똑같이 취급해야 한다 —
+  // 안 그러면 이미 sent로 바뀐 메시지를 기존 ACK 타이머가 뒤늦게 failed로 되돌린다.
+  const clearPendingTimeout = useCallback((clientMessageId: string) => {
+    const pendingTimeout = pendingTimeoutsRef.current.get(clientMessageId);
     if (pendingTimeout !== undefined) {
       window.clearTimeout(pendingTimeout);
-      pendingTimeoutsRef.current.delete(incoming.clientMessageId);
+      pendingTimeoutsRef.current.delete(clientMessageId);
     }
+  }, []);
+
+  const updateAutoScrollIntent = useCallback(() => {
     const list = messageListRef.current;
     shouldAutoScrollRef.current =
       !list || list.scrollHeight - list.scrollTop - list.clientHeight < 80;
-    setMessages((current) => mergeServerMessage(current, incoming));
   }, []);
+
+  const mergeIncomingMessage = useCallback(
+    (incoming: ChatMessageResponse) => {
+      clearPendingTimeout(incoming.clientMessageId);
+      updateAutoScrollIntent();
+      setMessages((current) => mergeServerMessage(current, incoming));
+    },
+    [clearPendingTimeout, updateAutoScrollIntent],
+  );
 
   useEffect(() => {
     const pendingTimeouts = pendingTimeoutsRef.current;
@@ -176,7 +201,40 @@ export function ChatScreen({ matchId }: { matchId: string }) {
     if (!match) return;
 
     let active = true;
+    let isReconciling = false;
     let connection: ChatSocketConnection | null = null;
+
+    /*
+     * 저장 후 발행이 실패하거나(facecook-be#84) 연결이 잠깐 끊기면, 연결이
+     * 안 끊기고 화면도 계속 보이는 상태에서는 복구 계기가 없다. 그래서 연결이
+     * (재)수립될 때, 화면 가시성이 돌아올 때, 화면이 열려 있는 동안 주기적으로
+     * 이력을 다시 대조한다. 초기 이력 조회와 구독 시작 사이에 온 메시지도 이
+     * 대조가 잡아준다 — 구독이 이미 걸린 뒤(onConnect 안)에 실행되기 때문이다.
+     */
+    const reconcile = async () => {
+      if (!active || isReconciling) return;
+      isReconciling = true;
+      try {
+        const recovered = await reconcileHistory({
+          fetchPage: (before) =>
+            getChatMessages(match.matchId, before === undefined ? { limit: PAGE_SIZE } : { before, limit: PAGE_SIZE }),
+          oldestLoadedId: oldestMessageId(messagesRef.current),
+          pageSize: PAGE_SIZE,
+          isCancelled: () => !active,
+        });
+        if (active && recovered.length > 0) {
+          // 대조로 찾은 메시지 중 우리가 보낸 것도 있을 수 있다(ACK만 유실).
+          // 실시간 ACK와 똑같이 남은 타이머를 지워야 나중에 failed로 되돌리지 않는다.
+          for (const item of recovered) clearPendingTimeout(item.clientMessageId);
+          updateAutoScrollIntent();
+          setMessages((current) => mergeHistory(current, recovered));
+        }
+      } catch {
+        // 대조는 최선형 시도다 — 실패해도 다음 재연결·가시성 복귀·주기에 다시 한다.
+      } finally {
+        isReconciling = false;
+      }
+    };
 
     try {
       connection = connectChatSocket({
@@ -208,7 +266,9 @@ export function ChatScreen({ matchId }: { matchId: string }) {
           setMessages((current) => markPendingMessagesFailed(current));
         },
         onStatusChange: (status) => {
-          if (active) setConnectionStatus(status);
+          if (!active) return;
+          setConnectionStatus(status);
+          if (status === "connected") void reconcile();
         },
       });
       socketRef.current = connection;
@@ -223,12 +283,23 @@ export function ChatScreen({ matchId }: { matchId: string }) {
       );
     }
 
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") void reconcile();
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState === "visible") void reconcile();
+    }, RECONCILE_INTERVAL_MS);
+
     return () => {
       active = false;
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.clearInterval(intervalId);
       socketRef.current = null;
       if (connection) void connection.disconnect();
     };
-  }, [connectionAttempt, match, mergeIncomingMessage]);
+  }, [connectionAttempt, match, mergeIncomingMessage, clearPendingTimeout, updateAutoScrollIntent]);
 
   useEffect(() => {
     const list = messageListRef.current;
@@ -295,6 +366,28 @@ export function ChatScreen({ matchId }: { matchId: string }) {
     setIsAwayFromBottom(false);
   };
 
+  const sendViaSocket = useCallback((content: string, clientMessageId: string) => {
+    if (!socketRef.current) return;
+    try {
+      socketRef.current.send(content, clientMessageId);
+      track({ name: "chat_message_sent" });
+      const timeout = window.setTimeout(() => {
+        // 보낸 메시지가 서버에 저장됐는지 확인하지 못한 경우. 이 비율이
+        // 채팅 신뢰성 지표가 된다.
+        track({ name: "chat_ack_timeout" });
+        pendingTimeoutsRef.current.delete(clientMessageId);
+        setMessages((current) => markMessageFailed(current, clientMessageId));
+        setToastMessage("메시지 저장을 확인하지 못했어요. 다시 시도해주세요.");
+      }, ACK_TIMEOUT_MS);
+      pendingTimeoutsRef.current.set(clientMessageId, timeout);
+    } catch (sendError) {
+      setMessages((current) => markMessageFailed(current, clientMessageId));
+      setToastMessage(
+        sendError instanceof Error ? sendError.message : "메시지를 보내지 못했어요.",
+      );
+    }
+  }, []);
+
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const content = input.trim();
@@ -318,26 +411,36 @@ export function ChatScreen({ matchId }: { matchId: string }) {
     shouldAutoScrollRef.current = true;
     setMessages((current) => sortMessages([...current, pendingMessage]));
     setInput("");
-
-    try {
-      socketRef.current.send(content, clientMessageId);
-      track({ name: "chat_message_sent" });
-      const timeout = window.setTimeout(() => {
-        // 보낸 메시지가 서버에 저장됐는지 확인하지 못한 경우. 이 비율이
-        // 채팅 신뢰성 지표가 된다.
-        track({ name: "chat_ack_timeout" });
-        pendingTimeoutsRef.current.delete(clientMessageId);
-        setMessages((current) => markMessageFailed(current, clientMessageId));
-        setToastMessage("메시지 저장을 확인하지 못했어요. 다시 시도해주세요.");
-      }, ACK_TIMEOUT_MS);
-      pendingTimeoutsRef.current.set(clientMessageId, timeout);
-    } catch (sendError) {
-      setMessages((current) => markMessageFailed(current, clientMessageId));
-      setToastMessage(
-        sendError instanceof Error ? sendError.message : "메시지를 보내지 못했어요.",
-      );
-    }
+    sendViaSocket(content, clientMessageId);
   };
+
+  /*
+   * 실패한 메시지를 다시 보낼 때 새 clientMessageId를 만들면 서버가 완전히 다른
+   * 메시지로 본다. 저장은 됐는데 ACK만 유실된 경우(facecook-be#84) 서버의 기존
+   * clientMessageId 멱등 처리가 그대로 동작하게, 같은 ID를 그대로 재사용한다.
+   */
+  const retryMessage = useCallback(
+    (message: DisplayMessage) => {
+      if (!isOpen) {
+        setToastMessage("채팅 운영시간이 끝났어요. 내일 09:00에 다시 이용해주세요.");
+        return;
+      }
+      if (connectionStatus !== "connected" || !socketRef.current) {
+        setToastMessage("실시간 채팅 연결을 확인해주세요.");
+        return;
+      }
+      shouldAutoScrollRef.current = true;
+      setMessages((current) =>
+        current.map((item) =>
+          item.clientMessageId === message.clientMessageId
+            ? { ...item, delivery: "pending" as const }
+            : item,
+        ),
+      );
+      sendViaSocket(message.content, message.clientMessageId);
+    },
+    [connectionStatus, isOpen, sendViaSocket],
+  );
 
   if (isHistoryLoading || historyError || !match) {
     return (
@@ -484,6 +587,11 @@ export function ChatScreen({ matchId }: { matchId: string }) {
                 partner={partner}
                 // 상대가 연달아 보내면 첫 줄에만 얼굴을 둔다.
                 showAvatar={!isMine && previous?.senderId !== message.senderId}
+                onRetry={
+                  isMine && message.delivery === "failed" && isOpen
+                    ? () => retryMessage(message)
+                    : undefined
+                }
               />
             </Fragment>
           );
@@ -521,11 +629,13 @@ function MessageBubble({
   isMine,
   partner,
   showAvatar,
+  onRetry,
 }: {
   message: DisplayMessage;
   isMine: boolean;
   partner: ProfileResponse;
   showAvatar: boolean;
+  onRetry?: () => void;
 }) {
   return (
     <div className={`flex items-end gap-2 ${isMine ? "justify-end" : "justify-start"}`}>
@@ -559,19 +669,23 @@ function MessageBubble({
         >
           {message.content}
         </div>
-        <span
-          className={`text-[11px] ${
-            message.delivery === "failed"
-              ? "text-(--color-danger)"
-              : "text-(--color-text-muted)"
-          }`}
-        >
-          {message.delivery === "pending"
-            ? "전송 중..."
-            : message.delivery === "failed"
-              ? "전송 실패"
-              : formatMessageTime(message.sentAt)}
-        </span>
+        {message.delivery === "failed" ? (
+          onRetry ? (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="text-[11px] font-semibold text-(--color-danger) underline"
+            >
+              전송 실패 · 다시 보내기
+            </button>
+          ) : (
+            <span className="text-[11px] text-(--color-danger)">전송 실패</span>
+          )
+        ) : (
+          <span className="text-[11px] text-(--color-text-muted)">
+            {message.delivery === "pending" ? "전송 중..." : formatMessageTime(message.sentAt)}
+          </span>
+        )}
       </div>
     </div>
   );

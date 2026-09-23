@@ -61,7 +61,23 @@ export function connectChatSocket({
     heartbeatIncoming: 10_000,
     heartbeatOutgoing: 10_000,
     onConnect: () => {
-      onStatusChange("connected");
+      /*
+       * "connected"를 구독 전에 알리면, 화면(ChatScreen)이 그 신호로 시작하는
+       * 이력 대조가 구독 프레임이 소켓에 나가기도 전에 끝날 수 있다 — 그 틈에
+       * 저장·발행된 메시지는 실시간 구독에도, 그 대조에도 안 걸린다
+       * (facecook-fe#87). 그래서 구독부터 걸고 나서 "connected"를 알린다.
+       *
+       * STOMP RECEIPT로 브로커의 구독 반영 완료까지 확인하는 방법을 먼저
+       * 시도했지만, 로컬로 실제 소켓을 붙여서 확인해보니 이 앱이 쓰는 Spring
+       * 내장 SimpleBroker(WebSocketConfig의 enableSimpleBroker)는 DISCONNECT에만
+       * RECEIPT를 자동으로 보내고 SUBSCRIBE에는 안 보낸다(spring-websocket
+       * StompSubProtocolHandler 확인 — receipt 헤더 처리가 getDisconnectReceipt
+       * 하나뿐이다) — SUBSCRIBE에 receipt를 달아도 응답이 오지 않아 그 방식은
+       * 뺐다. 지금은 구독 프레임을 먼저 보낸 뒤에만 연결됨을 알리는 정도로 —
+       * 브로커가 그 등록을 완전히 끝냈다는 절대 보장은 아니지만(등록 자체는
+       * 비동기), 적어도 대조 요청이 구독 프레임보다 먼저 나가는 일은 없앤다.
+       * 남는 아주 좁은 창은 20초 주기 대조가 채운다.
+       */
       topicSubscription = client.subscribe(`/topic/chat/${matchId}`, (frame) => {
         parseMessage(frame, onMessage, onError);
       });
@@ -71,6 +87,7 @@ export function connectChatSocket({
       missionSubscription = client.subscribe(`/topic/mission/${matchId}`, (frame) => {
         parseMissionFrame(frame, onMission, onMissionError);
       });
+      onStatusChange("connected");
     },
     onStompError: (frame) => {
       onStatusChange("error");
