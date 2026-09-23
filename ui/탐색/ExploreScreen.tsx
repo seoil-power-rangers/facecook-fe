@@ -36,6 +36,8 @@ import {
   type ExploreFilters,
   type ExploreOptions,
 } from "./FilterSheet";
+import { sortMembersForSession } from "./exploreSort";
+import { resolveSessionSeed } from "./sessionSeed";
 import { track } from "@ui/공통/analytics";
 
 /**
@@ -114,12 +116,18 @@ export function ExploreScreen() {
   }, [applyCookState]);
 
   const options = useMemo(() => buildOptions(members), [members]);
+  // 씨앗을 구하는 저장소 접근은 정렬과 분리된 명시적 단계다 — sortMembersForSession
+  // 자체는 순수 함수라 이 값 없이는 아무것도 못 한다.
+  const sessionSeed = useMemo(
+    () => resolveSessionSeed(myProfile?.userId ?? 0),
+    [myProfile?.userId],
+  );
   const filtered = useMemo(
     () =>
-      sortForSession(members, myProfile?.userId ?? 0).filter((member) =>
+      sortMembersForSession(members, sessionSeed).filter((member) =>
         matches(member, filters),
       ),
-    [members, filters, myProfile?.userId],
+    [members, filters, sessionSeed],
   );
   const visibleMembers = filtered.slice(0, visibleCount);
   const hasMore = filtered.length > visibleMembers.length;
@@ -374,7 +382,6 @@ function MemberCard({
 }
 
 const PAGE_SIZE = 20;
-const SEED_KEY = "facecook:explore:seed";
 
 /**
  * 사람마다 다른 순서로 보여준다.
@@ -383,50 +390,16 @@ const SEED_KEY = "facecook:explore:seed";
  * 몇 개뿐이라 목록 아래쪽까지 내려가는 사람이 거의 없기 때문이다.
  *
  * 다만 매번 새로 섞으면 아까 본 사람을 다시 못 찾는다. 그래서 앱을 열 때
- * 뽑은 씨앗을 세션에 저장해 두고, 그 세션 동안에는 순서가 고정되게 한다.
- */
-/**
- * 목록 순서. 활동 중인 사람을 앞으로 올리고, 그 안에서는 섞는다.
+ * 뽑은 씨앗을 세션에 저장해 두고({@link resolveSessionSeed}), 그 세션 동안에는
+ * 순서가 고정되게 한다.
  *
- * 전원을 다 보여주되(기능명세 3절: 본인 제외 전체), 지금 접속해 있는 사람이
- * 뒤에 묻히면 콕을 보내도 답이 안 온다. 부스에서 그 자리에 있는 사람끼리
- * 이어지는 게 이 서비스의 목적이라 활동 여부를 첫 기준으로 둔다.
- *
- * 같은 무리 안에서 섞는 이유는 그대로다 — 순서를 고정하면 앞줄만 콕을 받는다.
+ * 정렬 자체({@link sortMembersForSession})는 활동 중인 사람을 앞으로 올리고
+ * 그 안에서는 씨앗으로 섞는 순수 함수다 — 씨앗을 구하는 저장소 접근과
+ * 분리해 뒀다. 전원을 다 보여주되(기능명세 3절: 본인 제외 전체), 지금
+ * 접속해 있는 사람이 뒤에 묻히면 콕을 보내도 답이 안 온다. 부스에서 그
+ * 자리에 있는 사람끼리 이어지는 게 이 서비스의 목적이라 활동 여부를 첫
+ * 기준으로 둔다.
  */
-function sortForSession(members: ProfileResponse[], fallbackSeed: number) {
-  const seed = sessionSeed(fallbackSeed);
-
-  return [...members].sort((a, b) => {
-    const activeGap = Number(isActiveNow(b)) - Number(isActiveNow(a));
-    if (activeGap !== 0) return activeGap;
-    return mix(a.userId, seed) - mix(b.userId, seed);
-  });
-}
-
-function sessionSeed(fallbackSeed: number) {
-  try {
-    const saved = sessionStorage.getItem(SEED_KEY);
-    if (saved) return Number(saved);
-    const seed = Math.floor(Math.random() * 2 ** 31);
-    sessionStorage.setItem(SEED_KEY, String(seed));
-    return seed;
-  } catch {
-    // 저장이 막히면(시크릿 모드, iOS 저장공간 정리 등) 세션 내내 순서를
-    // 고정할 수는 없다. 다만 모두에게 똑같은 값을 쓰면 그 사람들 사이에서
-    // 다시 "앞줄만 콕을 받는" 쏠림이 재발하므로, 최소한 사람마다는 다른
-    // 값이 되도록 보는 사람 자신의 userId를 대신 쓴다.
-    return fallbackSeed;
-  }
-}
-
-/** userId를 씨앗과 섞어 고르게 흩어진 수를 만든다. 같은 입력이면 같은 값이다. */
-function mix(userId: number, seed: number) {
-  let h = (userId ^ seed) >>> 0;
-  h = Math.imul(h ^ (h >>> 16), 2246822507);
-  h = Math.imul(h ^ (h >>> 13), 3266489909);
-  return (h ^ (h >>> 16)) >>> 0;
-}
 
 /** 참가자 목록에 실제로 있는 값만 선택지로 만든다. 아무도 없는 조건은 고를 수 없다. */
 function buildOptions(members: ProfileResponse[]): ExploreOptions {
