@@ -4,6 +4,7 @@ import { getCooks } from "@ui/받은콕/cookApi";
 import { getMatches } from "@ui/매칭/matchApi";
 import { getMyProfile } from "@ui/프로필작성/profileApi";
 import { buildFeedFromData, type FeedItem } from "./feedBuilder";
+import { parseServerTime, serverTimeToDate } from "@ui/공통/serverTime";
 
 export { buildFeedFromData } from "./feedBuilder";
 export type { FeedItem, FeedKind } from "./feedBuilder";
@@ -44,12 +45,12 @@ export function markAllSeen() {
 }
 
 export function countUnseen(items: FeedItem[], lastSeen: number) {
-  return items.filter((item) => Date.parse(item.at) > lastSeen).length;
+  return items.filter((item) => parseServerTime(item.at) > lastSeen).length;
 }
 
 /** "방금 · 12분 전 · 3시간 전 · 어제 · 9월 30일" */
 export function formatRelative(at: string, now = Date.now()) {
-  const diff = now - Date.parse(at);
+  const diff = now - parseServerTime(at);
   if (Number.isNaN(diff)) return "";
 
   const minutes = Math.floor(diff / 60000);
@@ -60,6 +61,6 @@ export function formatRelative(at: string, now = Date.now()) {
   if (hours < 24) return `${hours}시간 전`;
   if (hours < 48) return "어제";
 
-  const date = new Date(at);
+  const date = serverTimeToDate(at);
   return `${date.getMonth() + 1}월 ${date.getDate()}일`;
 }

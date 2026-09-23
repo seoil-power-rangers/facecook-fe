@@ -19,6 +19,7 @@ import {
 } from "./adminApi";
 import { AdminLoadState } from "./AdminLoadState";
 import { AdminShell } from "./AdminShell";
+import { formatServerTimeShort } from "@ui/공통/serverTime";
 
 type ActionKind = "suspended" | "dismissed";
 
@@ -183,7 +184,7 @@ export function AdminReportScreen() {
                     </div>
                     <p className="mt-0.5 truncate text-xs text-(--color-text-sub)">{report.reason}</p>
                     <p className="mt-0.5 text-xs text-(--color-text-muted)">
-                      {formatDateTime(report.createdAt)} 접수
+                      {formatServerTimeShort(report.createdAt)} 접수
                     </p>
                   </div>
                   <ChevronRight className="h-4 w-4 shrink-0 text-(--color-text-muted)" />
@@ -259,7 +260,7 @@ function ReportDetail({
     <>
       <h2 className="text-[17px] font-bold text-(--color-text-strong)">{reportedName} 님에 대한 신고</h2>
       <p className="mt-1 text-xs text-(--color-text-muted)">
-        신고자 {reporterName} · {formatDateTime(report.createdAt)} 접수
+        신고자 {reporterName} · {formatServerTimeShort(report.createdAt)} 접수
       </p>
 
       <div className="mt-4 rounded-(--radius-lg) bg-(--color-surface-alt) p-3.5">
@@ -282,7 +283,7 @@ function ReportDetail({
         <div className="mt-5">
           <InfoBox>
             {report.reviewedAt
-              ? `${formatDateTime(report.reviewedAt)}에 처리한 신고입니다.`
+              ? `${formatServerTimeShort(report.reviewedAt)}에 처리한 신고입니다.`
               : "이미 처리한 신고입니다."}
           </InfoBox>
         </div>
@@ -339,8 +340,4 @@ function ActionConfirm({
 
 function displayName(names: Record<number, string>, userId: number) {
   return names[userId] ?? `참가자 #${userId}`;
-}
-
-function formatDateTime(value: string) {
-  return value.replace("T", " ").slice(5, 16);
 }

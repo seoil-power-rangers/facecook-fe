@@ -1,6 +1,7 @@
 "use client";
 
 import type { MatchResponse } from "./matchApi";
+import { parseServerTime } from "../공통/serverTime";
 
 /**
  * 채팅방을 마지막으로 연 시각.
@@ -52,7 +53,7 @@ export function unreadCountOf(match: MatchResponse, myUserId: number | null) {
     return 0;
   }
 
-  const sentAt = Date.parse(recent.sentAt);
+  const sentAt = parseServerTime(recent.sentAt);
   if (Number.isNaN(sentAt)) {
     return 0;
   }
@@ -62,7 +63,7 @@ export function unreadCountOf(match: MatchResponse, myUserId: number | null) {
 
 /** 최근 대화가 있었던 방이 위로. 카카오톡과 같은 순서다. */
 export function byRecentActivity(a: MatchResponse, b: MatchResponse) {
-  const at = Date.parse(a.recentMessage?.sentAt ?? a.matchedAt);
-  const bt = Date.parse(b.recentMessage?.sentAt ?? b.matchedAt);
+  const at = parseServerTime(a.recentMessage?.sentAt ?? a.matchedAt);
+  const bt = parseServerTime(b.recentMessage?.sentAt ?? b.matchedAt);
   return (Number.isNaN(bt) ? 0 : bt) - (Number.isNaN(at) ? 0 : at);
 }

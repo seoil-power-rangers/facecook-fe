@@ -35,6 +35,7 @@ import {
   type MatchResponse,
 } from "@ui/매칭/matchApi";
 import { track } from "@ui/공통/analytics";
+import { parseServerTime, serverTimeToDate } from "@ui/공통/serverTime";
 
 const CHAT_OPEN_HOUR = Number(process.env.NEXT_PUBLIC_CHAT_OPEN_HOUR ?? "9");
 const CHAT_CLOSE_HOUR = Number(process.env.NEXT_PUBLIC_CHAT_CLOSE_HOUR ?? "18");
@@ -671,7 +672,7 @@ function mergeHistory(current: DisplayMessage[], history: ChatMessageResponse[])
 
 function sortMessages(messages: DisplayMessage[]) {
   return [...messages].sort((left, right) => {
-    const timeDifference = new Date(left.sentAt).getTime() - new Date(right.sentAt).getTime();
+    const timeDifference = parseServerTime(left.sentAt) - parseServerTime(right.sentAt);
     if (timeDifference !== 0) return timeDifference;
     return (left.messageId ?? Number.MAX_SAFE_INTEGER) - (right.messageId ?? Number.MAX_SAFE_INTEGER);
   });
@@ -736,8 +737,8 @@ function startsNewDay(
   current: DisplayMessage,
 ) {
   if (!previous) return true;
-  const before = new Date(previous.sentAt);
-  const now = new Date(current.sentAt);
+  const before = serverTimeToDate(previous.sentAt);
+  const now = serverTimeToDate(current.sentAt);
   if (Number.isNaN(before.getTime()) || Number.isNaN(now.getTime())) return false;
 
   return (
@@ -749,7 +750,7 @@ function startsNewDay(
 
 /** "9월 20일 토요일". 해가 넘어가면 연도까지 붙인다. */
 function formatDay(value: string) {
-  const date = new Date(value);
+  const date = serverTimeToDate(value);
   if (Number.isNaN(date.getTime())) return "";
 
   const sameYear = date.getFullYear() === new Date().getFullYear();
@@ -762,7 +763,7 @@ function formatDay(value: string) {
 }
 
 function formatMatchedAt(value: string) {
-  const date = new Date(value);
+  const date = serverTimeToDate(value);
   if (Number.isNaN(date.getTime())) return "매칭";
   return new Intl.DateTimeFormat("ko-KR", {
     month: "long",
@@ -773,7 +774,7 @@ function formatMatchedAt(value: string) {
 }
 
 function formatMessageTime(value: string) {
-  const date = new Date(value);
+  const date = serverTimeToDate(value);
   if (Number.isNaN(date.getTime())) return "";
   return new Intl.DateTimeFormat("ko-KR", {
     hour: "2-digit",

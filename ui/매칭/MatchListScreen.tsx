@@ -11,6 +11,7 @@ import { TabBarMain } from "@ui/공통/TabBar";
 import { getMyProfile } from "@ui/프로필작성/profileApi";
 import { getMatches, matchErrorMessage, type MatchResponse } from "./matchApi";
 import { byRecentActivity, unreadCountOf } from "./readState";
+import { serverTimeToDate } from "@ui/공통/serverTime";
 
 export function MatchListScreen() {
   const [matches, setMatches] = useState<MatchResponse[]>([]);
@@ -212,7 +213,7 @@ function EmptyMatches() {
 
 /** 카카오톡과 같은 표기 — 오늘은 시각, 어제는 "어제", 그 전은 날짜. */
 function formatWhen(value: string) {
-  const date = new Date(value);
+  const date = serverTimeToDate(value);
   if (Number.isNaN(date.getTime())) return "";
 
   const now = new Date();
