@@ -22,6 +22,7 @@ import {
 } from "./missionApi";
 import { track } from "@ui/공통/analytics";
 import { useKillSwitch } from "@ui/공통/killSwitch";
+import { serverTimeToDate } from "@ui/공통/serverTime";
 
 type StepStatus = "done" | "progress" | "locked";
 
@@ -349,7 +350,7 @@ function createMissionSteps(progress: MissionProgressResponse): MissionStep[] {
 }
 
 function formatCompletedAt(value: string) {
-  const date = new Date(value);
+  const date = serverTimeToDate(value);
   if (Number.isNaN(date.getTime())) return "완료 시각 확인 불가";
   return new Intl.DateTimeFormat("ko-KR", {
     month: "numeric",

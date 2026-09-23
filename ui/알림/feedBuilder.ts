@@ -3,6 +3,7 @@
  * 단위 테스트할 수 있다(scripts/run-tests.mjs 참고). 실제 응답 타입(CookListResponse,
  * MatchResponse)은 아래 최소 모양을 구조적으로 만족한다.
  */
+import { parseServerTime } from "../공통/serverTime";
 /**
  * 알림 보관함에 쌓이는 항목.
  *
@@ -93,5 +94,5 @@ export function buildFeedFromData(
     }
   }
 
-  return items.sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
+  return items.sort((a, b) => parseServerTime(b.at) - parseServerTime(a.at));
 }

@@ -19,6 +19,7 @@ import {
 } from "./adminApi";
 import { AdminLoadState } from "./AdminLoadState";
 import { AdminShell } from "./AdminShell";
+import { formatServerTimeShort } from "@ui/공통/serverTime";
 
 const MISSION_LAST_STEP = 3;
 
@@ -248,15 +249,15 @@ function MissionRow({
 
       <p className="mt-1 truncate text-xs text-(--color-text-sub)">
         {cleared
-          ? `${formatDateTime(mission.matchedAt)} 매칭 · 전체 미션 완료`
+          ? `${formatServerTimeShort(mission.matchedAt)} 매칭 · 전체 미션 완료`
           : currentMissionTitle(mission)}
       </p>
 
       <div className="mt-1 flex items-center gap-2">
         <p className="flex-1 text-xs text-(--color-text-muted)">
           {lastCompletedAt
-            ? `마지막 인증 ${formatDateTime(lastCompletedAt)}`
-            : `${formatDateTime(mission.matchedAt)} 매칭 · 인증 없음`}
+            ? `마지막 인증 ${formatServerTimeShort(lastCompletedAt)}`
+            : `${formatServerTimeShort(mission.matchedAt)} 매칭 · 인증 없음`}
         </p>
         {cleared ? null : (
           <Button size="sm" disabled={disabled} onClick={onComplete}>
@@ -310,6 +311,3 @@ function currentMissionTitle(mission: AdminMissionResponse) {
   return missions[mission.currentStep - 1] ?? `STEP ${mission.currentStep} 랜덤 미션`;
 }
 
-function formatDateTime(value: string) {
-  return value.replace("T", " ").slice(5, 16);
-}

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { BellOff, ChevronLeft, Heart, MessageCircle, Users } from "lucide-react";
 import { PhoneFrame } from "@ui/공통/PhoneFrame";
+import { parseServerTime } from "@ui/공통/serverTime";
 import {
   buildFeed,
   formatRelative,
@@ -98,7 +99,7 @@ export function NotificationScreen() {
         <ul className="flex flex-col gap-2">
           {items.map((item) => {
             const Icon = ICONS[item.kind];
-            const isNew = Date.parse(item.at) > lastSeen;
+            const isNew = parseServerTime(item.at) > lastSeen;
 
             return (
               <li key={item.id}>
