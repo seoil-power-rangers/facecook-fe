@@ -43,11 +43,17 @@ export function AdminReportScreen() {
   // 신고 A를 열었다가 B로 넘어간 뒤 A의 응답이 늦게 도착해도 B 화면을 건드리지 않게
   // 한다 — 가장 최근에 시작한 조회만 성공·실패·로딩 종료를 반영한다.
   const [detailRequests] = useState(createRequestSequence);
+  // 이름 조회도 별도 순번을 둔다 — "다시 시도"로 loadReports가 다시 불리면 이름
+  // 조회도 다시 진행 중일 수 있다. 순번이 없으면, 먼저 시작했지만 늦게 끝난 조회의
+  // (예: 일시적 실패로 인한 "참가자 #ID" 폴백) 결과가 나중에 시작해 먼저 끝난
+  // 조회의 정상 이름을 덮어쓴다.
+  const [nameRequests] = useState(createRequestSequence);
 
   /**
    * 이름 조회는 기다리지 않는다 — 신고가 늘수록 고유 사용자도 늘어 가장 느린 이름
    * 조회 하나가 목록 표시 자체를 막았다. 목록을 먼저 보여주고, 이름은 도착하는
-   * 대로 채운다(먼저 알고 있던 이름을 지우지 않도록 병합한다).
+   * 대로 채운다(먼저 알고 있던 이름을 지우지 않도록 병합하되, 가장 최근에 시작한
+   * 이름 조회만 반영한다).
    */
   const loadReports = useCallback(async () => {
     setIsLoading(true);
@@ -55,22 +61,28 @@ export function AdminReportScreen() {
     try {
       const response = await getAdminReports();
       setReports(response);
+      const nameRequestId = nameRequests.begin();
       void getAdminUserNames(
         response.flatMap((report) => [report.reporterId, report.reportedUserId]),
       )
-        .then((names) => setUserNames((current) => ({ ...current, ...names })))
+        .then((names) => {
+          if (!nameRequests.isLatest(nameRequestId)) return;
+          setUserNames((current) => ({ ...current, ...names }));
+        })
         .catch(() => {});
     } catch (error) {
       setLoadError(adminErrorMessage(error));
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [nameRequests]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadReports();
-  }, [loadReports]);
+    // 화면을 떠난 뒤에 도착한 이름 조회가 상태를 바꾸지 않게 한다.
+    return () => nameRequests.invalidate();
+  }, [loadReports, nameRequests]);
 
   const openReport = async (report: AdminReportResponse) => {
     const requestId = detailRequests.begin();
