@@ -5,6 +5,7 @@ import { Search } from "lucide-react";
 import { BottomSheet } from "@ui/공통/BottomSheet";
 import { Button } from "@ui/공통/Button";
 import { InfoBox } from "@ui/공통/InfoBox";
+import { createRequestSequence } from "@ui/공통/requestSequence";
 import { Tag } from "@ui/공통/Tag";
 import { TextField } from "@ui/공통/TextField";
 import {
@@ -33,8 +34,20 @@ export function AdminMissionScreen() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [updatingMatchId, setUpdatingMatchId] = useState<number | null>(null);
   const [conflictNotice, setConflictNotice] = useState<string | null>(null);
+  // 이름 조회는 목록 로딩과 별개로 백그라운드에서 돈다 — 완료 처리가 409로 실패해
+  // loadMissions가 연달아 불리면 이름 조회도 여러 번 진행 중일 수 있다. 자기 순번을
+  // 따로 두지 않으면, 먼저 시작했지만 늦게 끝난 조회의(예: 일시적 실패로 인한
+  // "참가자 #ID" 폴백) 결과가 나중에 시작해 먼저 끝난 조회의 정상 이름을 덮어쓴다.
+  const [nameRequests] = useState(createRequestSequence);
 
-  /** 목록을 다시 불러온다. 호출부가 성공 여부로 분기할 수 있도록 boolean을 돌려준다. */
+  /**
+   * 목록을 다시 불러온다. 호출부가 성공 여부로 분기할 수 있도록 boolean을 돌려준다.
+   *
+   * 이름 조회는 기다리지 않는다 — 매칭이 늘수록 고유 사용자도 늘어 가장 느린 이름
+   * 조회 하나가 목록 표시 자체를 막았다. 목록을 먼저 보여주고, 이름은 도착하는
+   * 대로 채운다(먼저 알고 있던 이름을 지우지 않도록 병합하되, 가장 최근에 시작한
+   * 이름 조회만 반영한다).
+   */
   const loadMissions = useCallback(async () => {
     setIsLoading(true);
     setLoadError(null);
@@ -42,11 +55,15 @@ export function AdminMissionScreen() {
       const response = await getAdminMissions();
       setMissions(response.items);
       setExcluded(response.excluded);
-      setUserNames(
-        await getAdminUserNames(
-          response.items.flatMap((mission) => [mission.userAId, mission.userBId]),
-        ),
-      );
+      const nameRequestId = nameRequests.begin();
+      void getAdminUserNames(
+        response.items.flatMap((mission) => [mission.userAId, mission.userBId]),
+      )
+        .then((names) => {
+          if (!nameRequests.isLatest(nameRequestId)) return;
+          setUserNames((current) => ({ ...current, ...names }));
+        })
+        .catch(() => {});
       return true;
     } catch (error) {
       setLoadError(adminErrorMessage(error));
@@ -54,12 +71,14 @@ export function AdminMissionScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [nameRequests]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadMissions();
-  }, [loadMissions]);
+    // 화면을 떠난 뒤에 도착한 이름 조회가 상태를 바꾸지 않게 한다.
+    return () => nameRequests.invalidate();
+  }, [loadMissions, nameRequests]);
 
   const filtered = useMemo(() => {
     const trimmed = keyword.trim();

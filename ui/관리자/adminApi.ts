@@ -1,3 +1,4 @@
+import { createConcurrencyGate } from "../공통/concurrencyLimit";
 import {
   normalizeAdminMissionsResponse,
   type AdminMissionExcludedItem,
@@ -156,19 +157,28 @@ export function getAdminReportChat(reportId: number) {
   );
 }
 
+// 매칭·신고가 늘어날수록 고유 사용자 수도 늘어서, 전부 한꺼번에 쏘면 가장 느린
+// 요청 하나가 전체 이름 조회를 물고 늘어진다. 동시에 이 개수만큼만 나간다.
+// 모듈 스코프에 하나만 둬서 모든 호출이 공유한다 — 이름 조회 함수 자체(호출 한 번)만
+// 제한하면, 목록을 다시 불러와 이름 조회가 겹칠 때(예: 완료 처리가 409로 실패한 뒤
+// 재조회) 실제 동시 요청 수는 이 값의 배수가 된다.
+const nameLookupGate = createConcurrencyGate(5);
+
 export async function getAdminUserNames(userIds: number[]) {
   const uniqueIds = [...new Set(userIds)];
   const entries = await Promise.all(
-    uniqueIds.map(async (userId) => {
-      try {
-        const profile = await requestAdmin<ProfileNameResponse>(
-          `/api/profiles/${userId}`,
-        );
-        return [userId, profile.nickname] as const;
-      } catch {
-        return [userId, `참가자 #${userId}`] as const;
-      }
-    }),
+    uniqueIds.map((userId) =>
+      nameLookupGate.run(async () => {
+        try {
+          const profile = await requestAdmin<ProfileNameResponse>(
+            `/api/profiles/${userId}`,
+          );
+          return [userId, profile.nickname] as const;
+        } catch {
+          return [userId, `참가자 #${userId}`] as const;
+        }
+      }),
+    ),
   );
   return Object.fromEntries(entries) as Record<number, string>;
 }
