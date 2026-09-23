@@ -310,4 +310,3 @@ function currentMissionTitle(mission: AdminMissionResponse) {
   ];
   return missions[mission.currentStep - 1] ?? `STEP ${mission.currentStep} 랜덤 미션`;
 }
-

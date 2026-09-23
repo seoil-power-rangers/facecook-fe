@@ -341,4 +341,3 @@ function ActionConfirm({
 function displayName(names: Record<number, string>, userId: number) {
   return names[userId] ?? `참가자 #${userId}`;
 }
-
