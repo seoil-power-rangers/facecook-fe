@@ -132,10 +132,6 @@ export function ExploreScreen() {
   const visibleMembers = filtered.slice(0, visibleCount);
   const hasMore = filtered.length > visibleMembers.length;
   const activeCount = useMemo(() => members.filter(isActiveNow).length, [members]);
-  const knowsActivity = useMemo(
-    () => members.some((member) => member.lastActiveAt),
-    [members],
-  );
 
   const handleKokConfirm = async () => {
     if (!kokTarget) return;
@@ -191,18 +187,14 @@ export function ExploreScreen() {
             목록에는 전원이 나오므로 전체 인원을 먼저 쓴다. 활동 중 인원만
             적어두면 그만큼만 보이는 줄 알게 된다.
 
-            활동 중은 lastActiveAt이 있어야 셀 수 있는데 서버가 아직 안 줄 수
-            있다. 그동안 "활동 중 0명"이라고 쓰면 거짓말이라 아예 감춘다.
+            활동 중 인원은 서버의 isActive를 그대로 센 값이라 항상 정확하다
+            (아무도 활동 중이 아니면 정직하게 0명을 보여준다).
           */}
           <p className="text-sm text-(--color-text-sub)">
             참가자{" "}
             <span className="font-bold text-(--color-accent)">{members.length}명</span>
-            {knowsActivity ? (
-              <>
-                {" · 활동 중 "}
-                <span className="font-bold text-(--color-online)">{activeCount}명</span>
-              </>
-            ) : null}
+            {" · 활동 중 "}
+            <span className="font-bold text-(--color-online)">{activeCount}명</span>
           </p>
 
           <button

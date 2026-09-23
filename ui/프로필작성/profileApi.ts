@@ -44,8 +44,8 @@ export interface ProfileResponse {
   bio: string | null;
   idealType: string | null;
   photo: string | null;
-  /** 마지막 활동 시각. 기능명세 2절의 "현재 활동 중 표시" 참고용으로 함께 내려온다. */
-  lastActiveAt?: string | null;
+  /** 마지막 활동 시각. 기능명세 2절의 "현재 활동 중 표시" 참고용으로 함께 내려온다(항상 온다 — 활동 기록이 없으면 null). */
+  lastActiveAt: string | null;
   /**
    * 서버가 판단한 "지금 활동 중"이다(활동 창 설정, 기본 15분). FE는 별도 기준(예: 5분)으로
    * 다시 계산하지 않는다 — 관리자 통계의 활동 유저 기준과는 일부러 다르며 그건 이 값이
