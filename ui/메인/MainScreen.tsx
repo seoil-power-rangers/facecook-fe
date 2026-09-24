@@ -16,6 +16,10 @@ import { CampusScene } from "./CampusScene";
 import { Mascot } from "./Mascot";
 import { reportError } from "@ui/공통/analytics";
 import { LIVE_BADGE_POLL_INTERVAL_MS } from "@ui/공통/constants";
+import { createLatestOnlyFetcher } from "@ui/공통/liveBadgesCore";
+
+// 진행 중인 요청을 이 시간 넘게 기다렸으면 멈춘 것으로 보고 새로 시작한다(배지 폴링과 같은 기준).
+const STALE_REQUEST_MS = LIVE_BADGE_POLL_INTERVAL_MS * 3;
 
 /**
  * 홈. 참가자 목록 대신 마스코트와 오늘의 콕을 보여주고, 나머지 화면으로
@@ -43,22 +47,27 @@ export function MainScreen() {
     // 한 번 실패하면 화면을 나갔다 돌아오기 전까지 종 배지가 계속 0으로
     // 남는다 — 성공할 때까지(내 userId를 한 번 알아낼 때까지만) 재시도한다.
     // 그 뒤엔 값이 안 바뀌니 계속 조회할 필요 없다.
-    const loadMyProfile = () => {
-      getMyProfile()
-        .then((profile) => {
-          if (!active) return;
-          setMyUserId(profile.userId);
-          if (retryInterval) clearInterval(retryInterval);
-        })
-        .catch(reportError);
-    };
+    //
+    // 재시도는 배지 폴링과 같은 규칙(liveBadgesCore)을 따른다 — 이전 요청이
+    // 아직 진행 중이면 새로 보내지 않는다. 서버가 느릴 때 주기마다 요청을
+    // 겹쳐 보내면 느려진 서버에 부하를 더 얹는다.
+    const myProfileFetcher = createLatestOnlyFetcher({
+      fetch: getMyProfile,
+      onValue: (profile) => {
+        setMyUserId(profile.userId);
+        clearInterval(retryInterval);
+      },
+      onError: reportError,
+      staleAfterMs: STALE_REQUEST_MS,
+    });
 
-    loadMyProfile();
-    const retryInterval = setInterval(loadMyProfile, LIVE_BADGE_POLL_INTERVAL_MS);
+    myProfileFetcher.poll();
+    const retryInterval = setInterval(myProfileFetcher.poll, LIVE_BADGE_POLL_INTERVAL_MS);
 
     return () => {
       active = false;
       clearInterval(retryInterval);
+      myProfileFetcher.invalidate();
     };
   }, []);
 
