@@ -6,7 +6,7 @@ import { Bell, ChevronRight, Heart, MessageCircle, Search } from "lucide-react";
 import { PhoneFrame } from "@ui/공통/PhoneFrame";
 import { TabBarMain } from "@ui/공통/TabBar";
 import { useLiveBadges } from "@ui/공통/useLiveBadges";
-import { getMyProfile, getProfiles } from "@ui/프로필작성/profileApi";
+import { getMyProfile, getProfileStats } from "@ui/프로필작성/profileApi";
 import {
   buildFeedFromData,
   countUnseen,
@@ -38,9 +38,10 @@ export function MainScreen() {
   useEffect(() => {
     let active = true;
 
-    getProfiles()
-      .then((profiles) => {
-        if (active) setTotalUsers(profiles.length);
+    // 참가자 수만 필요하다. 전체 목록(/api/profiles)은 나를 빼고 수백 명분을 내려줘서 쓰지 않는다.
+    getProfileStats()
+      .then((stats) => {
+        if (active) setTotalUsers(stats.total);
       })
       .catch(reportError);
 
