@@ -128,6 +128,17 @@ export function getProfiles() {
   return requestProfile<ProfileResponse[]>("/api/profiles");
 }
 
+/** `GET /api/stats` 응답. total은 프로필이 있는 참가자 전체 수(나 포함), activeNow는 최근 활동 중인 수다. */
+export interface ProfileStatsResponse {
+  total: number;
+  activeNow: number;
+}
+
+/** 참가자 수만 필요할 때 쓴다 — 전체 목록(`getProfiles`)을 받아 세지 않는다. */
+export function getProfileStats() {
+  return requestProfile<ProfileStatsResponse>("/api/stats");
+}
+
 export function getProfile(userId: number) {
   return requestProfile<ProfileResponse>(`/api/profiles/${userId}`);
 }
