@@ -12,8 +12,7 @@ import { Toast } from "@ui/공통/Toast";
 import { usePwaInstall } from "@ui/공통/pwaInstall";
 import { useSession } from "@ui/공통/session";
 import { authErrorMessage, logout } from "@ui/로그인/authApi";
-import { getCooks } from "@ui/받은콕/cookApi";
-import { getMatches } from "@ui/매칭/matchApi";
+import { getCooksPreferringRecent, getMatchesPreferringRecent } from "@ui/공통/liveBadgesStore";
 import {
   getMyProfile,
   profileErrorMessage,
@@ -77,7 +76,8 @@ export function MyPageScreen() {
   useEffect(() => {
     let active = true;
 
-    Promise.all([getCooks(), getMatches()])
+    // 배지 폴링이 방금 받은 값이 있으면 그대로 쓴다(facecook-fe#107).
+    Promise.all([getCooksPreferringRecent(), getMatchesPreferringRecent()])
       .then(([cooks, matches]) => {
         if (!active) return;
         setSentCookCount(cooks.usage.totalUsed);

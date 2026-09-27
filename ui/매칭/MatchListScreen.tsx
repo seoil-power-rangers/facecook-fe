@@ -8,6 +8,7 @@ import { Button } from "@ui/공통/Button";
 import { PhoneFrame } from "@ui/공통/PhoneFrame";
 import { Tag } from "@ui/공통/Tag";
 import { TabBarMain } from "@ui/공통/TabBar";
+import { getMatchesPreferringRecent } from "@ui/공통/liveBadgesStore";
 import { getMyProfile } from "@ui/프로필작성/profileApi";
 import { getMatches, matchErrorMessage, type MatchResponse } from "./matchApi";
 import { byRecentActivity, unreadCountOf } from "./readState";
@@ -19,12 +20,19 @@ export function MatchListScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadMatches = useCallback(async () => {
+  /**
+   * 채팅방 목록을 불러온다. `preferRecent`이면(처음 들어올 때) 배지 폴링이 방금 받은 매칭 목록을 요청 없이
+   * 쓴다(facecook-fe#107). 다시 시도 버튼은 서버에서 새로 받는다.
+   */
+  const loadMatches = useCallback(async ({ preferRecent = false }: { preferRecent?: boolean } = {}) => {
     setIsLoading(true);
     setError(null);
     try {
       // 마지막 메시지를 내가 보냈는지 알아야 안 읽음을 셀 수 있다.
-      const [list, me] = await Promise.all([getMatches(), getMyProfile()]);
+      const [list, me] = await Promise.all([
+        preferRecent ? getMatchesPreferringRecent() : getMatches(),
+        getMyProfile(),
+      ]);
       setMatches([...list].sort(byRecentActivity));
       setMyUserId(me.userId);
     } catch (loadError) {
@@ -37,7 +45,7 @@ export function MatchListScreen() {
   useEffect(() => {
     // 최초 진입 시 서버 목록을 React 상태에 동기화한다.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    void loadMatches();
+    void loadMatches({ preferRecent: true });
   }, [loadMatches]);
 
   const unreadRooms = matches.filter(

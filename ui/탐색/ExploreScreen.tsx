@@ -13,10 +13,10 @@ import { Tag } from "@ui/공통/Tag";
 import { TabBarMain } from "@ui/공통/TabBar";
 import { Toast } from "@ui/공통/Toast";
 import { GENDERS, MBTI_AXES } from "@ui/공통/constants";
+import { getCooksPreferringRecent, refreshLiveBadgesNow } from "@ui/공통/liveBadgesStore";
 import {
   cookErrorCode,
   cookErrorMessage,
-  getCooks,
   sendCook,
   type CookListResponse,
 } from "@ui/받은콕/cookApi";
@@ -105,7 +105,8 @@ export function ExploreScreen() {
     // 콕 잔여횟수·이미 보낸 목록은 부가 정보라, 조회에 실패해도 참가자
     // 목록까지 에러로 막지 않는다(MyPageScreen의 활동 통계와 같은 원칙).
     let active = true;
-    getCooks()
+    // 배지 폴링이 방금 받은 값이 있으면 그대로 쓴다(facecook-fe#107).
+    getCooksPreferringRecent()
       .then((cooks) => {
         if (active) applyCookState(cooks);
       })
@@ -139,6 +140,8 @@ export function ExploreScreen() {
     setIsSendingKok(true);
     try {
       const result = await sendCook(target.userId);
+      // 오늘 남은 콕·매칭이 바뀌었다 — 배지와 다음 화면이 쓸 폴링 값을 바로 맞춘다.
+      refreshLiveBadgesNow();
       track({ name: "cook_sent", props: { from: "explore" } });
       if (result.matched) track({ name: "match_created" });
       setKokTarget(null);

@@ -5,7 +5,7 @@ import { getMatches, type MatchResponse } from "@ui/매칭/matchApi";
 import { LIVE_BADGE_POLL_INTERVAL_MS } from "@ui/공통/constants";
 import { reportError } from "@ui/공통/analytics";
 import { isEnabled, subscribeKillSwitches } from "@ui/공통/killSwitch";
-import { createLatestOnlyFetcher } from "./liveBadgesCore";
+import { createLatestOnlyFetcher, pickRecent } from "./liveBadgesCore";
 import { createGracefulLifecycle } from "./gracefulLifecycleCore";
 
 /**
@@ -35,10 +35,21 @@ let stopWatchingKillSwitch: (() => void) | null = null;
  */
 const STALE_REQUEST_MS = LIVE_BADGE_POLL_INTERVAL_MS * 3;
 
+/**
+ * 폴링이 콕·매칭을 마지막으로 받은 시각. 화면이 처음 들어올 때 이 값이 최근이면 직접 조회하지 않고 폴링 값을
+ * 쓴다(getCooksPreferringRecent). 서버 상태를 바꾼 직후(refreshLiveBadgesNow)와 계정이 바뀔 때는 비운다.
+ */
+let cooksReceivedAt: number | null = null;
+let matchesReceivedAt: number | null = null;
+
+/** 폴링 값을 화면의 첫 값으로 쓸 수 있는 시간. 두 주기 — 폴링이 한 번 늦어도 쓸 수 있게. */
+const RECENT_MS = LIVE_BADGE_POLL_INTERVAL_MS * 2;
+
 const cooksFetcher = createLatestOnlyFetcher({
   fetch: getCooks,
   onValue: (cooks) => {
     state = { ...state, cooks };
+    cooksReceivedAt = Date.now();
     notify();
   },
   onError: reportError,
@@ -49,6 +60,7 @@ const matchesFetcher = createLatestOnlyFetcher({
   fetch: getMatches,
   onValue: (matches) => {
     state = { ...state, matches };
+    matchesReceivedAt = Date.now();
     notify();
   },
   onError: reportError,
@@ -73,6 +85,8 @@ function invalidateInFlight() {
 export function resetLiveBadges() {
   invalidateInFlight();
   state = EMPTY_STATE;
+  cooksReceivedAt = null;
+  matchesReceivedAt = null;
   notify();
 }
 
@@ -103,6 +117,9 @@ function poll() {
  * {@link dropReceivedCookFromLiveBadges}로 결과를 직접 반영한다.
  */
 export function refreshLiveBadgesNow() {
+  // 서버 상태가 방금 바뀌었다 — 새 응답이 오기 전까지 지금 값을 화면의 첫 값으로 쓰지 않게 한다.
+  cooksReceivedAt = null;
+  matchesReceivedAt = null;
   if (!canFetch()) {
     invalidateInFlight();
     return;
@@ -124,6 +141,7 @@ export function refreshLiveBadgesNow() {
 export function replaceCooksInLiveBadges(cooks: CookListResponse) {
   cooksFetcher.invalidate();
   state = { ...state, cooks };
+  cooksReceivedAt = Date.now();
   notify();
 }
 
@@ -192,6 +210,24 @@ export function subscribeLiveBadges(listener: () => void): () => void {
     listeners.delete(listener);
     release();
   };
+}
+
+/**
+ * 화면이 처음 들어올 때 쓸 콕 목록. 폴링이 최근에 받은 값이 있으면 요청 없이 그 값을, 없으면(새로고침 직후,
+ * 폴링 킬스위치로 값이 오래됨, 서버 상태를 바꾼 직후) 서버에서 직접 받는다. 여러 화면이 폴링과 같은 값을 들어올
+ * 때마다 한 번 더 받던 중복을 없앤다(facecook-fe#107).
+ *
+ * 보내기·취소·거절 뒤처럼 서버의 최신 값이 꼭 필요할 때는 쓰지 않고 getCooks()를 직접 부른다.
+ */
+export function getCooksPreferringRecent(): Promise<CookListResponse> {
+  const recent = pickRecent(state.cooks, cooksReceivedAt, Date.now(), RECENT_MS);
+  return recent ? Promise.resolve(recent) : getCooks();
+}
+
+/** 매칭 목록판 getCooksPreferringRecent. */
+export function getMatchesPreferringRecent(): Promise<MatchResponse[]> {
+  const recent = pickRecent(state.matches, matchesReceivedAt, Date.now(), RECENT_MS);
+  return recent ? Promise.resolve(recent) : getMatches();
 }
 
 export function getLiveBadgesSnapshot(): LiveBadgesState {

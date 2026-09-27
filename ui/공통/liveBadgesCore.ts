@@ -82,3 +82,12 @@ export function createLatestOnlyFetcher<T>(options: LatestOnlyFetcherOptions<T>)
     },
   };
 }
+
+/**
+ * 폴링이 받아 둔 값을 화면이 "지금 값"으로 써도 되는지. 받은 지 `maxAgeMs`가 안 지났으면 그 값을, 아니면(값이
+ * 없거나, 받은 시각을 모르거나, 오래됐으면) null을 돌려준다 — null이면 화면이 서버에 직접 조회한다.
+ */
+export function pickRecent<T>(value: T | null, receivedAt: number | null, now: number, maxAgeMs: number): T | null {
+  if (value === null || receivedAt === null) return null;
+  return now - receivedAt < maxAgeMs ? value : null;
+}
