@@ -1,4 +1,5 @@
 import type { ProfileResponse } from "@ui/프로필작성/profileApi";
+import { createSharedRequest, type SharedRequest } from "@ui/공통/sharedRequestCore";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "");
 
@@ -44,8 +45,38 @@ export function getMatches() {
   return requestMatch<MatchResponse[]>("/api/matches");
 }
 
+/**
+ * 매칭 정보를 보관하는 시간. 채팅 → 미션 → 뒤로(채팅)처럼 같은 매칭 화면을 오갈 때마다 다시 받던 것을
+ * 없앤다(facecook-fe#111). 매칭 정보(상대 프로필 등)는 거의 바뀌지 않아 이 정도 늦어도 문제없다.
+ */
+const MATCH_DETAIL_MAX_AGE_MS = 30_000;
+
+/** 매칭별 "한 번 받아 나눠 쓰기". 방문한 매칭 수만큼만 쌓인다. */
+const matchDetails = new Map<number, SharedRequest<MatchResponse>>();
+
+/**
+ * 매칭 하나의 정보. 같은 매칭을 같은 순간 여러 곳이 불러도 요청은 하나이고, 받은 값은 잠깐 보관해 다시 받지
+ * 않는다. 실패는 보관하지 않는다.
+ *
+ * 미션 진행(getMissionProgress)과 채팅 메시지는 여기에 넣지 않는다 — 화면을 떠난 사이 바뀔 수 있고 채팅
+ * 화면은 미션 진행을 실시간으로 받지 않아서, 보관하면 옛 값이 보인다.
+ */
 export function getMatch(matchId: number) {
-  return requestMatch<MatchResponse>(`/api/matches/${matchId}`);
+  let detail = matchDetails.get(matchId);
+  if (!detail) {
+    detail = createSharedRequest<MatchResponse>({
+      fetch: () => requestMatch<MatchResponse>(`/api/matches/${matchId}`),
+      maxAgeMs: MATCH_DETAIL_MAX_AGE_MS,
+    });
+    matchDetails.set(matchId, detail);
+  }
+  return detail.get();
+}
+
+/** 보관한 매칭 정보를 모두 버린다. 계정이 바뀔 때 부른다(session.ts). */
+export function clearMatchDetailCache() {
+  for (const detail of matchDetails.values()) detail.clear();
+  matchDetails.clear();
 }
 
 /** 채팅방을 읽었다고 서버에 알린다. 들어올 때와 나갈 때 모두 호출한다. */

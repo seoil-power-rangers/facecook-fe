@@ -4,6 +4,7 @@ import { useCallback, useSyncExternalStore } from "react";
 import { resetAnalytics } from "./analytics";
 import { resetLiveBadges } from "./liveBadgesStore";
 import { clearMyProfileCache } from "@ui/프로필작성/profileApi";
+import { clearMatchDetailCache } from "@ui/매칭/matchApi";
 
 const STORAGE_KEY = "facecook:session";
 
@@ -92,8 +93,9 @@ export function clearSession() {
   // 콕/매칭 배지도 같이 지운다 — 안 지우면 다음 사람 화면에 이전 사람의
   // 콕·매칭 개수가 잠깐(또는 조회가 실패하면 계속) 남는다.
   resetLiveBadges();
-  // 보관한 내 프로필도 버린다 — 다음 사람 화면에 이전 사람의 프로필이 나오지 않게.
+  // 보관한 내 프로필·매칭 정보도 버린다 — 다음 사람 화면에 이전 사람의 것이 나오지 않게.
   clearMyProfileCache();
+  clearMatchDetailCache();
   try {
     localStorage.removeItem(STORAGE_KEY);
   } catch {
@@ -109,6 +111,7 @@ export function useSession() {
     session = next;
     resetLiveBadges();
     clearMyProfileCache();
+    clearMatchDetailCache();
     save();
     publish();
   }, []);
@@ -118,6 +121,7 @@ export function useSession() {
     resetAnalytics();
     resetLiveBadges();
     clearMyProfileCache();
+    clearMatchDetailCache();
     try {
       localStorage.removeItem(STORAGE_KEY);
     } catch {
