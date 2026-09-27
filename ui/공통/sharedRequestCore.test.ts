@@ -104,3 +104,15 @@ test("비운 뒤에는 이전 계정의 진행 중 응답을 보관하지 않고
   requests[1].resolve("새 계정");
   assert.equal(await newAccount, "새 계정");
 });
+
+test("보관 시간을 무한으로 두면 한 번 받은 값을 계속 쓴다(학과 목록처럼 바뀌지 않는 값)", async () => {
+  const { shared, requests, advance } = setup(Number.POSITIVE_INFINITY);
+
+  const first = shared.get();
+  requests[0].resolve("학과 목록");
+  await first;
+  advance(24 * 60 * 60 * 1000);
+
+  assert.equal(await shared.get(), "학과 목록");
+  assert.equal(requests.length, 1);
+});
