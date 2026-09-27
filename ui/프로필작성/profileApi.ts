@@ -1,4 +1,5 @@
 import { redirectToLoginOnSignOut } from "@ui/공통/authSession";
+import { createSharedRequest } from "@ui/공통/sharedRequestCore";
 import type { OnboardingDraft } from "@ui/공통/types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "");
@@ -106,22 +107,52 @@ export function createProfileRequestFromDraft(
   };
 }
 
-export function createProfile(request: CreateProfileRequest) {
-  return requestProfile<ProfileResponse>("/api/profile", {
+export async function createProfile(request: CreateProfileRequest) {
+  const profile = await requestProfile<ProfileResponse>("/api/profile", {
     method: "POST",
     body: JSON.stringify(request),
   });
+  myProfile.set(profile);
+  return profile;
 }
 
+/**
+ * 내 프로필을 보관하는 시간. 화면을 옮길 때마다 진입 가드(RequireProfile)와 화면 본문이 같은 값을 부르는데,
+ * 그 사이에 바뀌는 값은 내가 직접 고친 것뿐이고 그건 수정 응답으로 바로 바뀐다(updateMyProfile).
+ */
+const MY_PROFILE_MAX_AGE_MS = 30_000;
+
+/**
+ * 내 프로필은 참가자 화면마다 진입 가드와 화면이 함께 부른다. 따로 부르면 화면을 옮길 때마다 같은 요청이
+ * 두 번씩 나간다(facecook-fe#103: 홈·알림·탐색·채팅방·마이). 같은 순간의 요청은 하나로 합치고, 받은 값은
+ * 잠깐 보관해 탭을 오가도 다시 받지 않는다. 실패는 보관하지 않는다 — 로그인이 풀린 경우는 지금처럼 각 API
+ * 래퍼가 로그인 화면으로 보낸다(authSession).
+ */
+const myProfile = createSharedRequest<ProfileResponse>({
+  fetch: () => requestProfile<ProfileResponse>("/api/profile"),
+  maxAgeMs: MY_PROFILE_MAX_AGE_MS,
+});
+
+/** 내 프로필. 보관한 값이 새것이면 요청하지 않고, 이미 나간 요청이 있으면 그 응답을 함께 쓴다. */
 export function getMyProfile() {
-  return requestProfile<ProfileResponse>("/api/profile");
+  return myProfile.get();
 }
 
-export function updateMyProfile(request: UpdateProfileRequest) {
-  return requestProfile<ProfileResponse>("/api/profile", {
+/**
+ * 보관한 내 프로필을 버린다. 로그인·로그아웃·세션 만료처럼 계정이 바뀔 때 부른다(session.ts) — 버리지 않으면
+ * 같은 폰으로 들어온 다음 사람의 화면에 이전 사람의 프로필이 보관 시간 동안 나온다.
+ */
+export function clearMyProfileCache() {
+  myProfile.clear();
+}
+
+export async function updateMyProfile(request: UpdateProfileRequest) {
+  const profile = await requestProfile<ProfileResponse>("/api/profile", {
     method: "PATCH",
     body: JSON.stringify(request),
   });
+  myProfile.set(profile);
+  return profile;
 }
 
 export function getProfiles() {
