@@ -19,6 +19,9 @@ type Status = "checking" | "ready" | "redirecting";
  * 돌려보낸다. 로그인 화면을 거쳤는지와 무관하게(뒤로가기, 북마크 등 어떤
  * 경로로 들어와도) 화면 진입 시점에 직접 확인해야 해서 각 화면이 아니라
  * 이 공용 레이아웃 한 곳에서 처리한다.
+ *
+ * 레이아웃이 경로마다 따로 있어 화면을 옮길 때마다 새로 확인하지만, getMyProfile()이 받은 값을 잠깐
+ * 보관하고 화면 본문과 나눠 쓰므로 요청은 거의 새로 나가지 않는다(facecook-fe#103).
  */
 export function RequireProfile({ children }: { children: React.ReactNode }) {
   const router = useRouter();
