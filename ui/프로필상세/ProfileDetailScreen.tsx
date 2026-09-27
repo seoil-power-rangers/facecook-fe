@@ -22,10 +22,10 @@ import {
 import {
   cookErrorCode,
   cookErrorMessage,
-  getCooks,
   sendCook,
 } from "@ui/받은콕/cookApi";
 import { track } from "@ui/공통/analytics";
+import { getCooksPreferringRecent, refreshLiveBadgesNow } from "@ui/공통/liveBadgesStore";
 
 const HOBBY_ICONS: LucideIcon[] = [Utensils, Footprints, Send];
 
@@ -74,7 +74,8 @@ export function ProfileDetailScreen({
       // 콕 확인 시트가 "오늘 남은 콕"을 보여준다. 실패해도 프로필은 그대로
       // 보여준다 — 부가 정보 하나 때문에 화면 전체를 못 보게 할 일은 아니다.
       try {
-        const cooks = await getCooks();
+        // 배지 폴링이 방금 받은 값이 있으면 그대로 쓴다(facecook-fe#107).
+        const cooks = await getCooksPreferringRecent();
         setKokRemaining(
           Math.max(cooks.usage.dailyLimit - cooks.usage.todayUsed, 0),
         );
@@ -101,6 +102,8 @@ export function ProfileDetailScreen({
     setIsSending(true);
     try {
       const result = await sendCook(profile.userId);
+      // 오늘 남은 콕·매칭이 바뀌었다 — 배지와 다음 화면이 쓸 폴링 값을 바로 맞춘다.
+      refreshLiveBadgesNow();
       track({ name: "cook_sent", props: { from: "profile_detail" } });
       if (result.matched) track({ name: "match_created" });
       setKokSheetOpen(false);

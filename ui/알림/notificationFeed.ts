@@ -1,7 +1,6 @@
 "use client";
 
-import { getCooks } from "@ui/받은콕/cookApi";
-import { getMatches } from "@ui/매칭/matchApi";
+import { getCooksPreferringRecent, getMatchesPreferringRecent } from "@ui/공통/liveBadgesStore";
 import { getMyProfile } from "@ui/프로필작성/profileApi";
 import { buildFeedFromData, type FeedItem } from "./feedBuilder";
 import { parseServerTime, serverTimeToDate } from "@ui/공통/serverTime";
@@ -17,9 +16,10 @@ const LAST_SEEN_KEY = "facecook:notifications:lastSeen";
  * 나가지 않게 하려는 것이다).
  */
 export async function buildFeed(): Promise<FeedItem[]> {
+  // 콕·매칭은 배지 폴링이 방금 받은 값이 있으면 그대로 쓴다(facecook-fe#107).
   const [cooks, matches, me] = await Promise.all([
-    getCooks(),
-    getMatches(),
+    getCooksPreferringRecent(),
+    getMatchesPreferringRecent(),
     getMyProfile(),
   ]);
 

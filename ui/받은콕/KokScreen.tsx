@@ -26,6 +26,7 @@ import {
 import { track } from "@ui/공통/analytics";
 import {
   dropReceivedCookFromLiveBadges,
+  getCooksPreferringRecent,
   refreshLiveBadgesNow,
   replaceCooksInLiveBadges,
 } from "@ui/공통/liveBadgesStore";
@@ -61,6 +62,9 @@ export function KokScreen() {
    * 기존 목록을 그대로 두고 새 결과로만 바꾸며, 실패해도 목록을 유지한 채 결과만 돌려준다 — 거절 결과를
    * 확인하려고 다시 불러오는 동안 카드가 사라지면 안 되기 때문이다.
    *
+   * `preferRecent`이면 배지 폴링이 방금 받은 값이 있을 때 요청 없이 그 값을 쓴다(처음 들어올 때만 —
+   * 보내기·취소·거절 뒤에는 서버의 최신 값이 필요해서 쓰지 않는다, facecook-fe#107).
+   *
    * 부작용: 이전에 시작한 조회는 응답이 와도 반영되지 않는다. `onLoaded`는 이 조회가 여전히 최신이라
    * 결과를 반영할 때만 불린다(예: 같은 결과를 배지 스토어에도 넘길 때).
    *
@@ -69,15 +73,20 @@ export function KokScreen() {
   const loadCooks = useCallback(
     async ({
       background = false,
+      preferRecent = false,
       onLoaded,
-    }: { background?: boolean; onLoaded?: (cooks: CookListResponse) => void } = {}) => {
+    }: {
+      background?: boolean;
+      preferRecent?: boolean;
+      onLoaded?: (cooks: CookListResponse) => void;
+    } = {}) => {
       const requestId = listRequests.begin();
       if (!background) {
         setIsLoading(true);
         setError(null);
       }
       try {
-        const next = await getCooks();
+        const next = await (preferRecent ? getCooksPreferringRecent() : getCooks());
         if (!listRequests.isLatest(requestId)) return "superseded" as const;
         setData(next);
         setError(null);
@@ -100,7 +109,7 @@ export function KokScreen() {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setTab(stored);
     }
-    void loadCooks();
+    void loadCooks({ preferRecent: true });
     // 서버에 거절이 생기기 전에 브라우저에 남겼던 거절 기록은 버린다. 거절 여부는 서버 목록으로 판단한다.
     clearLegacyRejectedCooks();
     // 화면을 떠난 뒤에 도착한 응답이 상태를 바꾸지 않게 한다.
@@ -165,6 +174,8 @@ export function KokScreen() {
     setSendingUserId(userId);
     try {
       const result = await sendCook(userId);
+      // 오늘 남은 콕·매칭이 바뀌었다 — 배지(홈의 남은 콕 수 등)를 바로 맞춘다.
+      refreshLiveBadgesNow();
       track({ name: "cook_sent", props: { from: "kok" } });
       if (result.matched) track({ name: "match_created" });
       if (result.matched && result.matchId !== null) {

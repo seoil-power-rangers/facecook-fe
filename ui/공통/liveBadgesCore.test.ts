@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { createLatestOnlyFetcher } from "./liveBadgesCore";
+import { createLatestOnlyFetcher, pickRecent } from "./liveBadgesCore";
 
 /** 응답 시점을 테스트가 직접 정하는 요청. */
 function deferred<T>() {
@@ -184,4 +184,14 @@ test("fetch가 동기 예외를 던져도 오류로 보고하고 진행 상태�
 
   assert.equal(errors.length, 1);
   assert.equal(calls, 2);
+});
+
+test("폴링 값은 받은 지 정해진 시간이 안 지났을 때만 화면의 첫 값으로 쓴다", () => {
+  assert.equal(pickRecent("콕 목록", 1_000, 10_999, 10_000), "콕 목록");
+  assert.equal(pickRecent("콕 목록", 1_000, 11_000, 10_000), null);
+});
+
+test("값이 없거나 받은 시각을 모르면 쓰지 않는다 — 화면이 직접 조회한다", () => {
+  assert.equal(pickRecent(null, 1_000, 1_000, 10_000), null);
+  assert.equal(pickRecent("콕 목록", null, 1_000, 10_000), null);
 });
