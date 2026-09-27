@@ -179,9 +179,20 @@ export interface DepartmentGroup {
   majors: string[];
 }
 
-/** 학과 목록의 정본은 백엔드다 — FE는 하드코딩하지 않고 매번 받아온다. */
+/**
+ * 학과 목록. 정본은 백엔드다 — FE는 하드코딩하지 않고 받아온다.
+ *
+ * 목록은 백엔드 코드에 고정돼 있어(DepartmentCatalog) 백엔드를 다시 배포하기 전에는 바뀌지 않는다. 그래서 한 번
+ * 받으면 페이지를 새로고침하기 전까지 계속 쓴다 — 탐색에 들어갈 때마다, 학과 선택기를 열 때마다 다시 받던 것을
+ * 없앤다(facecook-fe#109). 실패는 보관하지 않아 다음에 다시 받는다.
+ */
+const departments = createSharedRequest<DepartmentGroup[]>({
+  fetch: () => requestProfile<DepartmentGroup[]>("/api/departments"),
+  maxAgeMs: Number.POSITIVE_INFINITY,
+});
+
 export function getDepartments() {
-  return requestProfile<DepartmentGroup[]>("/api/departments");
+  return departments.get();
 }
 
 interface PhotoUploadUrlResponse {
