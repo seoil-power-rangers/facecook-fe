@@ -6,12 +6,13 @@ import { LIVE_BADGE_POLL_INTERVAL_MS } from "@ui/공통/constants";
 import { reportError } from "@ui/공통/analytics";
 import { isEnabled, subscribeKillSwitches } from "@ui/공통/killSwitch";
 import { createLatestOnlyFetcher } from "./liveBadgesCore";
+import { createGracefulLifecycle } from "./gracefulLifecycleCore";
 
 /**
  * TabBar와 홈 화면이 각자 5초마다 콕/매칭을 따로 조회하면, 둘 다 떠있는
  * 화면(홈)에서는 같은 API가 매번 두 번씩 나간다 — 여기서 구독자 수와
  * 무관하게 딱 한 번만 폴링해서 공유한다. 구독자가 없으면(아무 화면도 안
- * 보고 있으면) 타이머 자체를 멈춘다.
+ * 보고 있으면) 한 주기 기다린 뒤 타이머 자체를 멈춘다(pollingLifecycle).
  */
 export interface LiveBadgesState {
   cooks: CookListResponse | null;
@@ -171,13 +172,25 @@ function stop() {
   invalidateInFlight();
 }
 
+/**
+ * 폴링을 켜고 끄는 시점. 탭바는 화면마다 따로 붙어 있어서, 탭을 옮기면 이전 화면의 구독이 끝나자마자 새 화면이
+ * 다시 구독한다. 그 틈에 멈췄다 다시 시작하면 시작할 때마다 즉시 조회가 한 번 더 나간다(facecook-fe#105) —
+ * 그래서 마지막 구독이 끝나도 폴링 주기만큼 기다렸다가 멈춘다. 그 사이 다시 구독하면 타이머를 그대로 이어 쓴다.
+ * 탭바 없는 화면으로 가면 최대 한 주기 동안 폴링이 한 번 더 돌 수 있다.
+ */
+const pollingLifecycle = createGracefulLifecycle({
+  start,
+  stop,
+  graceMs: LIVE_BADGE_POLL_INTERVAL_MS,
+});
+
 export function subscribeLiveBadges(listener: () => void): () => void {
   listeners.add(listener);
-  if (listeners.size === 1) start();
+  const release = pollingLifecycle.acquire();
 
   return () => {
     listeners.delete(listener);
-    if (listeners.size === 0) stop();
+    release();
   };
 }
 
