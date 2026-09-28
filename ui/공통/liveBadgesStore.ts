@@ -9,7 +9,7 @@ import { createLatestOnlyFetcher, pickRecent } from "./liveBadgesCore";
 import { createGracefulLifecycle } from "./gracefulLifecycleCore";
 
 /**
- * TabBar와 홈 화면이 각자 5초마다 콕/매칭을 따로 조회하면, 둘 다 떠있는
+ * TabBar와 홈 화면이 각자 폴링 주기마다 콕/매칭을 따로 조회하면, 둘 다 떠있는
  * 화면(홈)에서는 같은 API가 매번 두 번씩 나간다 — 여기서 구독자 수와
  * 무관하게 딱 한 번만 폴링해서 공유한다. 구독자가 없으면(아무 화면도 안
  * 보고 있으면) 한 주기 기다린 뒤 타이머 자체를 멈춘다(pollingLifecycle).
