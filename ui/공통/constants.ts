@@ -100,5 +100,9 @@ export const EVENT = {
 /**
  * 콕/알림 배지를 다시 조회하는 주기. 화면을 벗어나지 않고 가만히 있어도
  * 이 주기로 갱신된다(탭이 보일 때만 — 백그라운드에서는 멈춘다).
+ *
+ * 5초에서 10초로 늘렸다(facecook-fe#113). 600명 부하테스트에서 평상시 DB 요청 대부분이 이 폴링이었다.
+ * 탭 이동 때는 폴링 값을 재사용하므로(liveBadgesStore RECENT_MS) 요청이 늘지 않고, 내가 한 행동 뒤에는
+ * refreshLiveBadgesNow로 바로 다시 조회한다. 늦어지는 건 상대의 콕·메시지가 배지에 뜨기까지의 시간이다.
  */
-export const LIVE_BADGE_POLL_INTERVAL_MS = 5_000;
+export const LIVE_BADGE_POLL_INTERVAL_MS = 10_000;

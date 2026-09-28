@@ -31,7 +31,7 @@ const STALE_REQUEST_MS = LIVE_BADGE_POLL_INTERVAL_MS * 3;
 export function MainScreen() {
   const [totalUsers, setTotalUsers] = useState(0);
   const [myUserId, setMyUserId] = useState<number | null>(null);
-  // 콕/매칭은 useLiveBadges가 TabBar와 공유해서 5초마다 한 번만 조회한다 —
+  // 콕/매칭은 useLiveBadges가 TabBar와 공유해서 폴링 주기마다 한 번만 조회한다 —
   // 여기서 따로 또 조회하면 같은 화면에서 두 번씩 나간다.
   const { cooks, matches } = useLiveBadges();
 
