@@ -37,6 +37,7 @@ import {
 } from "@ui/매칭/matchApi";
 import { track } from "@ui/공통/analytics";
 import { parseServerTime, serverTimeToDate } from "@ui/공통/serverTime";
+import { endsTimeGroup } from "./messageGroup";
 
 const CHAT_OPEN_HOUR = Number(process.env.NEXT_PUBLIC_CHAT_OPEN_HOUR ?? "9");
 const CHAT_CLOSE_HOUR = Number(process.env.NEXT_PUBLIC_CHAT_CLOSE_HOUR ?? "18");
@@ -575,6 +576,7 @@ export function ChatScreen({ matchId }: { matchId: string }) {
         {messages.map((message, index) => {
           const isMine = message.senderId !== partner.userId;
           const previous = messages[index - 1];
+          const next = messages[index + 1];
 
           return (
             <Fragment key={message.clientMessageId}>
@@ -587,6 +589,8 @@ export function ChatScreen({ matchId }: { matchId: string }) {
                 partner={partner}
                 // 상대가 연달아 보내면 첫 줄에만 얼굴을 둔다.
                 showAvatar={!isMine && previous?.senderId !== message.senderId}
+                // 같은 분에 이어 보낸 묶음은 마지막에만 시각을 남긴다.
+                showTime={endsTimeGroup(message, next)}
                 onRetry={
                   isMine && message.delivery === "failed" && isOpen
                     ? () => retryMessage(message)
@@ -629,12 +633,14 @@ function MessageBubble({
   isMine,
   partner,
   showAvatar,
+  showTime,
   onRetry,
 }: {
   message: DisplayMessage;
   isMine: boolean;
   partner: ProfileResponse;
   showAvatar: boolean;
+  showTime: boolean;
   onRetry?: () => void;
 }) {
   return (
@@ -659,7 +665,7 @@ function MessageBubble({
           className={
             isMine
               ? "rounded-[1.25rem] rounded-br-md bg-(--color-chat-mine) px-4 py-2.5 text-[15px] leading-relaxed text-(--color-chat-mine-text)"
-              : "rounded-[1.25rem] rounded-bl-md bg-(--color-chat-other) px-4 py-2.5 text-[15px] leading-relaxed text-(--color-chat-other-text) shadow-(--shadow-card)"
+              : "rounded-[1.25rem] rounded-bl-md bg-(--color-chat-other) px-4 py-2.5 text-[15px] leading-relaxed text-(--color-chat-other-text)"
           }
           /*
            * 세션 리플레이에서 가린다. 녹화 동의는 테스터 본인에게만 받았고,
@@ -681,11 +687,14 @@ function MessageBubble({
           ) : (
             <span className="text-[11px] text-(--color-danger)">전송 실패</span>
           )
-        ) : (
+        ) : message.delivery === "pending" ? (
+          /* 보내는 중은 묶음과 무관하게 알려야 한다 — 시각이 아니라 상태다. */
+          <span className="text-[11px] text-(--color-text-muted)">전송 중...</span>
+        ) : showTime ? (
           <span className="text-[11px] text-(--color-text-muted)">
-            {message.delivery === "pending" ? "전송 중..." : formatMessageTime(message.sentAt)}
+            {formatMessageTime(message.sentAt)}
           </span>
-        )}
+        ) : null}
       </div>
     </div>
   );
