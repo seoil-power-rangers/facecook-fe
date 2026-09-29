@@ -37,6 +37,7 @@ import {
 } from "@ui/매칭/matchApi";
 import { track } from "@ui/공통/analytics";
 import { parseServerTime, serverTimeToDate } from "@ui/공통/serverTime";
+import { endsTimeGroup } from "./messageGroup";
 
 const CHAT_OPEN_HOUR = Number(process.env.NEXT_PUBLIC_CHAT_OPEN_HOUR ?? "9");
 const CHAT_CLOSE_HOUR = Number(process.env.NEXT_PUBLIC_CHAT_CLOSE_HOUR ?? "18");
@@ -575,6 +576,7 @@ export function ChatScreen({ matchId }: { matchId: string }) {
         {messages.map((message, index) => {
           const isMine = message.senderId !== partner.userId;
           const previous = messages[index - 1];
+          const next = messages[index + 1];
 
           return (
             <Fragment key={message.clientMessageId}>
@@ -587,6 +589,8 @@ export function ChatScreen({ matchId }: { matchId: string }) {
                 partner={partner}
                 // 상대가 연달아 보내면 첫 줄에만 얼굴을 둔다.
                 showAvatar={!isMine && previous?.senderId !== message.senderId}
+                // 같은 분에 이어 보낸 묶음은 마지막에만 시각을 남긴다.
+                showTime={endsTimeGroup(message, next)}
                 onRetry={
                   isMine && message.delivery === "failed" && isOpen
                     ? () => retryMessage(message)
@@ -629,12 +633,14 @@ function MessageBubble({
   isMine,
   partner,
   showAvatar,
+  showTime,
   onRetry,
 }: {
   message: DisplayMessage;
   isMine: boolean;
   partner: ProfileResponse;
   showAvatar: boolean;
+  showTime: boolean;
   onRetry?: () => void;
 }) {
   return (
@@ -654,13 +660,35 @@ function MessageBubble({
         </span>
       ) : null}
 
-      <div className={`flex max-w-[72%] flex-col gap-1 ${isMine ? "items-end" : "items-start"}`}>
+      {/*
+        시각은 말풍선 아래가 아니라 옆에 둔다.
+        
+        아래에 두면 묶음의 마지막이 바뀔 때마다 줄 높이가 달라진다 — 메시지를
+        하나 보내면 바로 앞 말풍선의 시각이 사라지면서 목록이 줄고, 그 상태로
+        맨 아래까지 튕겨 내려가서 화면이 뚝 끊겨 보인다. 옆에 두면 나타났다
+        사라져도 세로로는 아무것도 움직이지 않는다.
+      */}
+      {isMine ? <MessageMeta message={message} showTime={showTime} /> : null}
+
+      {/*
+        min-w-0가 없으면 "ㅋㅋㅋㅋ..."처럼 띄어쓰기 없는 덩어리에서 말풍선이
+        화면을 뚫고 나간다. flex 아이템의 최소 폭이 min-content로 잡히는데,
+        globals.css가 준 overflow-wrap: break-word는 그 계산에 반영되지 않아서
+        끊기지 않는 덩어리 길이가 그대로 최소 폭이 된다. max-w로는 못 막는다.
+      */}
+      <div
+        className={`flex min-w-0 max-w-[72%] flex-col gap-1 ${
+          isMine ? "items-end" : "items-start"
+        }`}
+      >
         <div
           className={
             isMine
               ? "rounded-[1.25rem] rounded-br-md bg-(--color-chat-mine) px-4 py-2.5 text-[15px] leading-relaxed text-(--color-chat-mine-text)"
-              : "rounded-[1.25rem] rounded-bl-md bg-(--color-chat-other) px-4 py-2.5 text-[15px] leading-relaxed text-(--color-chat-other-text) shadow-(--shadow-card)"
+              : "rounded-[1.25rem] rounded-bl-md bg-(--color-chat-other) px-4 py-2.5 text-[15px] leading-relaxed text-(--color-chat-other-text)"
           }
+          /* 띄어쓰기가 없어도 칸 안에서 끊는다. 말풍선은 문장 모양보다 칸을 지키는 게 먼저다. */
+          style={{ overflowWrap: "anywhere" }}
           /*
            * 세션 리플레이에서 가린다. 녹화 동의는 테스터 본인에게만 받았고,
            * 대화 상대는 동의한 적이 없다.
@@ -669,6 +697,10 @@ function MessageBubble({
         >
           {message.content}
         </div>
+        {/*
+          전송 실패만 말풍선 아래에 남긴다. 다시 보내기까지 붙어 글이 길고,
+          드물게 일어나는 일이라 그때 한 줄이 늘어나는 건 괜찮다.
+        */}
         {message.delivery === "failed" ? (
           onRetry ? (
             <button
@@ -681,13 +713,43 @@ function MessageBubble({
           ) : (
             <span className="text-[11px] text-(--color-danger)">전송 실패</span>
           )
-        ) : (
-          <span className="text-[11px] text-(--color-text-muted)">
-            {message.delivery === "pending" ? "전송 중..." : formatMessageTime(message.sentAt)}
-          </span>
-        )}
+        ) : null}
       </div>
+
+      {!isMine ? <MessageMeta message={message} showTime={showTime} /> : null}
     </div>
+  );
+}
+
+/**
+ * 말풍선 옆에 붙는 시각. 보내는 중에는 상태를 대신 보여준다.
+ *
+ * 실패는 여기서 다루지 않는다 — 다시 보내기 버튼이 함께 가야 해서 말풍선
+ * 아래에 남는다.
+ */
+function MessageMeta({
+  message,
+  showTime,
+}: {
+  message: DisplayMessage;
+  showTime: boolean;
+}) {
+  if (message.delivery === "failed") return null;
+
+  // 보내는 중은 묶음과 무관하게 알린다 — 시각이 아니라 상태다.
+  const label =
+    message.delivery === "pending"
+      ? "보내는 중"
+      : showTime
+        ? formatMessageTime(message.sentAt)
+        : null;
+
+  if (!label) return null;
+
+  return (
+    <span className="shrink-0 pb-0.5 text-[11px] text-(--color-text-muted) tabular-nums">
+      {label}
+    </span>
   );
 }
 

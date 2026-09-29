@@ -31,6 +31,7 @@ import {
   replaceCooksInLiveBadges,
 } from "@ui/공통/liveBadgesStore";
 import { createRequestSequence } from "@ui/공통/requestSequence";
+import { sortReceivedCooks } from "./cookOrder";
 
 type KokTab = "sent" | "received";
 
@@ -580,7 +581,12 @@ function ReceivedKokPanel({
           hint="먼저 콕을 보내면 답이 올 확률이 높아요"
         />
       ) : (
-        cooks.map((cook) => {
+        /*
+          맞콕할 수 있는 카드를 맨 위에 둔다. 이미 매칭된 카드가 위에 쌓여
+          있으면 정작 지금 할 수 있는 일이 스크롤 아래에 묻힌다 — 부스에서
+          콕을 확인하는 시간은 길지 않다.
+        */
+        sortReceivedCooks(cooks).map((cook) => {
           const matched = cook.status === "matched" && cook.matchId !== null;
 
           return (
