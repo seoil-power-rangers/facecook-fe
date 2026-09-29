@@ -11,7 +11,12 @@ import { InfoBox } from "@ui/공통/InfoBox";
 import { StepFooter } from "@ui/공통/StepFooter";
 import { StepHeader, Accent } from "@ui/공통/StepHeader";
 import { TextField } from "@ui/공통/TextField";
-import { CODE_LENGTH, EVENT, MIN_PASSWORD_LENGTH, TERMS } from "@ui/공통/constants";
+import {
+  CODE_LENGTH,
+  EVENT,
+  MIN_PASSWORD_LENGTH,
+  TERMS,
+} from "@ui/공통/constants";
 import { useOnboarding } from "@ui/공통/onboarding";
 import {
   AuthApiError,
@@ -20,6 +25,7 @@ import {
   verifySignup,
 } from "./authApi";
 import { useVerificationCode } from "./verificationCode";
+import { TERMS_CONTENT } from "./termsContent";
 import { track } from "@ui/공통/analytics";
 
 const REQUIRED_TERM_IDS: string[] = TERMS.filter((term) => term.required).map(
@@ -36,6 +42,14 @@ export function EmailVerifyScreen() {
   const { code, change, start, reset, sent, expired, filled, remaining } =
     useVerificationCode();
   const [termsOpen, setTermsOpen] = useState(false);
+  // 약관 동의 창 안에서 원문을 보고 있는 항목. null이면 동의 목록을 보여 준다.
+  const [viewingTerm, setViewingTerm] = useState<(typeof TERMS)[number] | null>(
+    null,
+  );
+  const closeTerms = () => {
+    setTermsOpen(false);
+    setViewingTerm(null);
+  };
   const [isRequesting, setIsRequesting] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -137,12 +151,7 @@ export function EmailVerifyScreen() {
     setIsSubmitting(true);
     setError(null);
     try {
-      await verifySignup(
-        draft.email,
-        code,
-        draft.password,
-        draft.agreedTerms,
-      );
+      await verifySignup(draft.email, code, draft.password, draft.agreedTerms);
       // 호출 뒤에 남긴다. 앞에 두면 코드를 틀려 실패한 시도까지 "인증됨"으로
       // 세어져서, 퍼널에서 코드 때문에 막힌 사람이 보이지 않는다.
       track({ name: "signup_verified" });
@@ -150,7 +159,8 @@ export function EmailVerifyScreen() {
     } catch (submitError) {
       setError(authErrorMessage(submitError));
       setCodeRejected(
-        submitError instanceof AuthApiError && submitError.code.includes("CODE"),
+        submitError instanceof AuthApiError &&
+          submitError.code.includes("CODE"),
       );
     } finally {
       setIsSubmitting(false);
@@ -234,6 +244,11 @@ export function EmailVerifyScreen() {
                 ? "인증번호가 만료됐어요. 다시 받아주세요."
                 : `메일함에서 ${CODE_LENGTH}자리 인증번호를 확인하세요`}
           </p>
+          {sent && !expired ? (
+            <p className="mt-0.5 text-[12px] text-(--color-text-sub)">
+              메일이 안 오면 스팸메일함을 확인해 주세요.
+            </p>
+          ) : null}
         </div>
 
         <TextField
@@ -290,76 +305,104 @@ export function EmailVerifyScreen() {
         </Button>
       </StepFooter>
 
-      <BottomSheet open={termsOpen} onClose={() => setTermsOpen(false)}>
-        <div className="px-5 pt-3">
-          <h2 className="text-[17px] font-bold text-(--color-text-strong)">
-            약관에 동의해주세요
-          </h2>
-
-          <div className="mt-4 rounded-(--radius-md) bg-(--color-primary-light) px-3.5 py-1">
-            <CheckRow
-              checked={allAgreed}
-              onToggle={toggleAllTerms}
-              label="전체 동의"
-            >
-              <b
-                className={`font-bold ${
-                  allAgreed
-                    ? "text-(--color-primary)"
-                    : "text-(--color-text-sub)"
-                }`}
+      <BottomSheet open={termsOpen} onClose={closeTerms}>
+        {viewingTerm ? (
+          <div className="px-5 pt-3">
+            <h2 className="text-[17px] font-bold text-(--color-text-strong)">
+              [{viewingTerm.required ? "필수" : "선택"}] {viewingTerm.label}
+            </h2>
+            <div className="mt-4 max-h-[50vh] space-y-4 overflow-y-auto pr-1 text-sm leading-relaxed text-(--color-text-sub)">
+              {TERMS_CONTENT[viewingTerm.id].map((section) => (
+                <section key={section.heading}>
+                  <h3 className="mb-1 font-bold text-(--color-text-strong)">
+                    {section.heading}
+                  </h3>
+                  <ul className="list-disc space-y-0.5 pl-4">
+                    {section.items.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </section>
+              ))}
+            </div>
+            <div className="mt-5">
+              <Button
+                fullWidth
+                variant="outline"
+                onClick={() => setViewingTerm(null)}
               >
-                전체 동의
-              </b>
-            </CheckRow>
+                돌아가기
+              </Button>
+            </div>
           </div>
+        ) : (
+          <div className="px-5 pt-3">
+            <h2 className="text-[17px] font-bold text-(--color-text-strong)">
+              약관에 동의해주세요
+            </h2>
 
-          <div className="mt-3 space-y-0.5 px-1">
-            {TERMS.map((term) => (
+            <div className="mt-4 rounded-(--radius-md) bg-(--color-primary-light) px-3.5 py-1">
               <CheckRow
-                key={term.id}
-                checked={agreed.includes(term.id)}
-                onToggle={() => toggleTerm(term.id)}
-                label={`${term.required ? "필수" : "선택"} ${term.label} 동의`}
-                trailing={
-                  <button
-                    type="button"
-                    aria-label={`${term.label} 전문 보기`}
-                    className="shrink-0 text-(--color-border-strong)"
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </button>
-                }
+                checked={allAgreed}
+                onToggle={toggleAllTerms}
+                label="전체 동의"
               >
-                <b className="font-bold text-(--color-primary)">
-                  [{term.required ? "필수" : "선택"}]
-                </b>{" "}
-                {term.label}
+                <b
+                  className={`font-bold ${
+                    allAgreed
+                      ? "text-(--color-primary)"
+                      : "text-(--color-text-sub)"
+                  }`}
+                >
+                  전체 동의
+                </b>
               </CheckRow>
-            ))}
-          </div>
+            </div>
 
-          <div className="mt-5">
-            <InfoBox icon={null}>
-              <b className="mb-1 block font-bold text-(--color-text-strong)">
-                데이터 보관 안내
-              </b>
-              프로필·콕 기록은 매일 초기화돼요.
-              <br />
-              모든 데이터는 {EVENT.purgeAt}에 삭제됩니다.
-            </InfoBox>
-          </div>
+            <div className="mt-3 space-y-0.5 px-1">
+              {TERMS.map((term) => (
+                <CheckRow
+                  key={term.id}
+                  checked={agreed.includes(term.id)}
+                  onToggle={() => toggleTerm(term.id)}
+                  label={`${term.required ? "필수" : "선택"} ${term.label} 동의`}
+                  trailing={
+                    <button
+                      type="button"
+                      aria-label={`${term.label} 전문 보기`}
+                      onClick={() => setViewingTerm(term)}
+                      className="shrink-0 text-(--color-border-strong)"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  }
+                >
+                  <b className="font-bold text-(--color-primary)">
+                    [{term.required ? "필수" : "선택"}]
+                  </b>{" "}
+                  {term.label}
+                </CheckRow>
+              ))}
+            </div>
 
-          <div className="mt-5">
-            <Button
-              fullWidth
-              disabled={!requiredAgreed}
-              onClick={() => setTermsOpen(false)}
-            >
-              확인
-            </Button>
+            <div className="mt-5">
+              <InfoBox icon={null}>
+                <b className="mb-1 block font-bold text-(--color-text-strong)">
+                  데이터 보관 안내
+                </b>
+                하루 콕 횟수는 매일 초기화돼요.
+                <br />
+                모든 데이터는 행사 종료 후 {EVENT.purgeDay}에 삭제됩니다.
+              </InfoBox>
+            </div>
+
+            <div className="mt-5">
+              <Button fullWidth disabled={!requiredAgreed} onClick={closeTerms}>
+                확인
+              </Button>
+            </div>
           </div>
-        </div>
+        )}
       </BottomSheet>
     </div>
   );

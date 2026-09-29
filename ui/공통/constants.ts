@@ -95,6 +95,8 @@ export const EVENT = {
   name: "콕찔러보기",
   period: "9/30 ~ 10/2",
   purgeAt: "10/3 00:00",
+  /** 약관·보관 안내에 쓰는 삭제 날짜(시각 없이). */
+  purgeDay: "10/3",
 } as const;
 
 /**
