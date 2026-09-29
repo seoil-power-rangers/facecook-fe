@@ -1,3 +1,5 @@
+import { parseServerTime } from "../공통/serverTime";
+
 /**
  * 말풍선에 시각을 붙일지 정한다.
  *
@@ -19,6 +21,10 @@ export interface GroupableMessage {
  *
  * 분 단위로 묶는 이유는 화면이 분까지만 보여주기 때문이다 — 14:32:10과 14:32:50은
  * 어차피 같은 글자로 나오므로 둘 다 달아둘 이유가 없다.
+ *
+ * 시각은 parseServerTime으로 읽는다. 서버는 오프셋 없는 KST로 보내고 방금 보낸
+ * 메시지는 브라우저가 만든 "...Z"라, 둘을 Date.parse로 섞어 읽으면 기기 시간대에
+ * 따라 아홉 시간이 어긋나 엉뚱하게 묶인다.
  *
  * 시각을 읽을 수 없는 값이면 묶지 않는다. 묶었다가 엉뚱한 메시지의 시각이 사라지는
  * 것보다, 한 번 더 보이는 쪽이 덜 나쁘다.
@@ -42,7 +48,7 @@ export function endsTimeGroup(
 }
 
 function minuteOf(value: string): number | null {
-  const at = Date.parse(value);
+  const at = parseServerTime(value);
   if (Number.isNaN(at)) return null;
   return Math.floor(at / 60_000);
 }

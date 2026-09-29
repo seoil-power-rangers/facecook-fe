@@ -40,3 +40,11 @@ test("시각을 읽을 수 없으면 묶지 않는다", () => {
   assert.equal(endsTimeGroup(at(1, "이상한 값"), at(1, "2026-09-29T05:32:10Z")), true);
   assert.equal(endsTimeGroup(at(1, "2026-09-29T05:32:10Z"), at(1, "이상한 값")), true);
 });
+
+test("서버의 오프셋 없는 시각과 방금 보낸 메시지의 Z 시각을 같은 기준으로 읽는다", () => {
+  // 서버는 KST를 오프셋 없이 보낸다. 같은 순간을 UTC로 쓰면 09:32Z다.
+  const fromServer = at(1, "2026-09-29T18:32:10");
+  const justSent = at(1, "2026-09-29T09:32:40Z");
+
+  assert.equal(endsTimeGroup(fromServer, justSent), false);
+});

@@ -660,6 +660,16 @@ function MessageBubble({
         </span>
       ) : null}
 
+      {/*
+        시각은 말풍선 아래가 아니라 옆에 둔다.
+        
+        아래에 두면 묶음의 마지막이 바뀔 때마다 줄 높이가 달라진다 — 메시지를
+        하나 보내면 바로 앞 말풍선의 시각이 사라지면서 목록이 줄고, 그 상태로
+        맨 아래까지 튕겨 내려가서 화면이 뚝 끊겨 보인다. 옆에 두면 나타났다
+        사라져도 세로로는 아무것도 움직이지 않는다.
+      */}
+      {isMine ? <MessageMeta message={message} showTime={showTime} /> : null}
+
       <div className={`flex max-w-[72%] flex-col gap-1 ${isMine ? "items-end" : "items-start"}`}>
         <div
           className={
@@ -675,6 +685,10 @@ function MessageBubble({
         >
           {message.content}
         </div>
+        {/*
+          전송 실패만 말풍선 아래에 남긴다. 다시 보내기까지 붙어 글이 길고,
+          드물게 일어나는 일이라 그때 한 줄이 늘어나는 건 괜찮다.
+        */}
         {message.delivery === "failed" ? (
           onRetry ? (
             <button
@@ -687,16 +701,43 @@ function MessageBubble({
           ) : (
             <span className="text-[11px] text-(--color-danger)">전송 실패</span>
           )
-        ) : message.delivery === "pending" ? (
-          /* 보내는 중은 묶음과 무관하게 알려야 한다 — 시각이 아니라 상태다. */
-          <span className="text-[11px] text-(--color-text-muted)">전송 중...</span>
-        ) : showTime ? (
-          <span className="text-[11px] text-(--color-text-muted)">
-            {formatMessageTime(message.sentAt)}
-          </span>
         ) : null}
       </div>
+
+      {!isMine ? <MessageMeta message={message} showTime={showTime} /> : null}
     </div>
+  );
+}
+
+/**
+ * 말풍선 옆에 붙는 시각. 보내는 중에는 상태를 대신 보여준다.
+ *
+ * 실패는 여기서 다루지 않는다 — 다시 보내기 버튼이 함께 가야 해서 말풍선
+ * 아래에 남는다.
+ */
+function MessageMeta({
+  message,
+  showTime,
+}: {
+  message: DisplayMessage;
+  showTime: boolean;
+}) {
+  if (message.delivery === "failed") return null;
+
+  // 보내는 중은 묶음과 무관하게 알린다 — 시각이 아니라 상태다.
+  const label =
+    message.delivery === "pending"
+      ? "보내는 중"
+      : showTime
+        ? formatMessageTime(message.sentAt)
+        : null;
+
+  if (!label) return null;
+
+  return (
+    <span className="shrink-0 pb-0.5 text-[11px] text-(--color-text-muted) tabular-nums">
+      {label}
+    </span>
   );
 }
 
