@@ -670,13 +670,25 @@ function MessageBubble({
       */}
       {isMine ? <MessageMeta message={message} showTime={showTime} /> : null}
 
-      <div className={`flex max-w-[72%] flex-col gap-1 ${isMine ? "items-end" : "items-start"}`}>
+      {/*
+        min-w-0가 없으면 "ㅋㅋㅋㅋ..."처럼 띄어쓰기 없는 덩어리에서 말풍선이
+        화면을 뚫고 나간다. flex 아이템의 최소 폭이 min-content로 잡히는데,
+        globals.css가 준 overflow-wrap: break-word는 그 계산에 반영되지 않아서
+        끊기지 않는 덩어리 길이가 그대로 최소 폭이 된다. max-w로는 못 막는다.
+      */}
+      <div
+        className={`flex min-w-0 max-w-[72%] flex-col gap-1 ${
+          isMine ? "items-end" : "items-start"
+        }`}
+      >
         <div
           className={
             isMine
               ? "rounded-[1.25rem] rounded-br-md bg-(--color-chat-mine) px-4 py-2.5 text-[15px] leading-relaxed text-(--color-chat-mine-text)"
               : "rounded-[1.25rem] rounded-bl-md bg-(--color-chat-other) px-4 py-2.5 text-[15px] leading-relaxed text-(--color-chat-other-text)"
           }
+          /* 띄어쓰기가 없어도 칸 안에서 끊는다. 말풍선은 문장 모양보다 칸을 지키는 게 먼저다. */
+          style={{ overflowWrap: "anywhere" }}
           /*
            * 세션 리플레이에서 가린다. 녹화 동의는 테스터 본인에게만 받았고,
            * 대화 상대는 동의한 적이 없다.
