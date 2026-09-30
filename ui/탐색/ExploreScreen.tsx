@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Check, ChevronLeft, SlidersHorizontal } from "lucide-react";
@@ -38,6 +38,11 @@ import {
 } from "./FilterSheet";
 import { sortMembersForSession } from "./exploreSort";
 import { resolveSessionSeed } from "./sessionSeed";
+import {
+  saveExploreReturnState,
+  takeExploreReturnState,
+  type ExploreReturnState,
+} from "./exploreReturnStore";
 import { track } from "@ui/공통/analytics";
 
 /**
@@ -62,6 +67,8 @@ export function ExploreScreen() {
   const [kokLimit, setKokLimit] = useState<number | null>(null);
   const [departmentGroups, setDepartmentGroups] = useState<DepartmentGroup[] | null>(null);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const scrollRef = useRef<HTMLElement | null>(null);
+  const pendingRestore = useRef<ExploreReturnState | null>(null);
 
   const applyCookState = useCallback((cooks: CookListResponse) => {
     setKokRemaining(Math.max(cooks.usage.dailyLimit - cooks.usage.todayUsed, 0));
@@ -78,6 +85,12 @@ export function ExploreScreen() {
       try {
         const [profiles, mine] = await Promise.all([getProfiles(), getMyProfile()]);
         if (!active) return;
+        const saved = takeExploreReturnState();
+        if (saved?.viewerId === mine.userId) {
+          pendingRestore.current = saved;
+          setFilters(saved.filters);
+          setVisibleCount(saved.visibleCount);
+        }
         setMembers(profiles);
         setMyProfile(mine);
       } catch (loadError) {
@@ -134,6 +147,48 @@ export function ExploreScreen() {
   const hasMore = filtered.length > visibleMembers.length;
   const activeCount = useMemo(() => members.filter(isActiveNow).length, [members]);
 
+  useLayoutEffect(() => {
+    const saved = pendingRestore.current;
+    const scroller = scrollRef.current;
+    if (!saved || !scroller || isLoading || error) return;
+
+    // 접속 상태가 달라져 카드 순서가 바뀌었어도 선택했던 카드를 먼저 펼친다.
+    const anchorIndex = filtered.findIndex((member) => member.userId === saved.anchorUserId);
+    if (anchorIndex >= visibleCount) {
+      setVisibleCount(Math.ceil((anchorIndex + 1) / PAGE_SIZE) * PAGE_SIZE);
+      return;
+    }
+
+    const anchor = scroller.querySelector<HTMLElement>(
+      `[data-explore-user-id="${saved.anchorUserId}"]`,
+    );
+    if (anchor) {
+      scroller.scrollTop +=
+        anchor.getBoundingClientRect().top -
+        scroller.getBoundingClientRect().top -
+        saved.anchorTop;
+    } else {
+      scroller.scrollTop = saved.scrollTop;
+    }
+    pendingRestore.current = null;
+  }, [error, filtered, isLoading, visibleCount]);
+
+  const rememberProfilePosition = (member: ProfileResponse, link: HTMLAnchorElement) => {
+    const scroller = scrollRef.current;
+    if (!scroller || !myProfile) return;
+    const card = link.closest("li");
+    if (!card) return;
+
+    saveExploreReturnState({
+      viewerId: myProfile.userId,
+      filters,
+      visibleCount,
+      anchorUserId: member.userId,
+      anchorTop: card.getBoundingClientRect().top - scroller.getBoundingClientRect().top,
+      scrollTop: scroller.scrollTop,
+    });
+  };
+
   const handleKokConfirm = async () => {
     if (!kokTarget) return;
     const target = kokTarget;
@@ -184,7 +239,7 @@ export function ExploreScreen() {
         )}
       </header>
 
-      <TabBarMain className="gap-3 px-4 pb-4">
+      <TabBarMain className="gap-3 px-4 pb-4" scrollRef={scrollRef}>
         <div className="flex shrink-0 items-center justify-between">
           {/*
             목록에는 전원이 나오므로 전체 인원을 먼저 쓴다. 활동 중 인원만
@@ -248,12 +303,13 @@ export function ExploreScreen() {
 
         <ul className="flex flex-col gap-3">
           {visibleMembers.map((member) => (
-            <li key={member.userId}>
+            <li key={member.userId} data-explore-user-id={member.userId}>
               <MemberCard
                 member={member}
                 commonCount={myProfile ? commonHobbies(member, myProfile) : 0}
                 alreadySent={sentUserIds.has(member.userId)}
                 onKok={() => setKokTarget(member)}
+                onOpenProfile={(link) => rememberProfilePosition(member, link)}
               />
             </li>
           ))}
@@ -314,11 +370,13 @@ function MemberCard({
   commonCount,
   alreadySent,
   onKok,
+  onOpenProfile,
 }: {
   member: ProfileResponse;
   commonCount: number;
   alreadySent: boolean;
   onKok: () => void;
+  onOpenProfile: (link: HTMLAnchorElement) => void;
 }) {
   return (
     <div className="relative flex items-center gap-3 rounded-[1.25rem] bg-(--color-surface) p-4 shadow-(--shadow-card)">
@@ -326,6 +384,17 @@ function MemberCard({
         href={`/profile/${member.userId}`}
         className="absolute inset-0 z-0 rounded-[1.25rem]"
         aria-label={`${member.nickname} 프로필 보기`}
+        onClick={(event) => {
+          if (
+            event.button === 0 &&
+            !event.metaKey &&
+            !event.ctrlKey &&
+            !event.shiftKey &&
+            !event.altKey
+          ) {
+            onOpenProfile(event.currentTarget);
+          }
+        }}
       />
 
       <div className="pointer-events-none relative z-10 flex flex-1 items-center gap-3 overflow-hidden">
