@@ -15,10 +15,18 @@
  * 대신한다. focus-within이 아니라 input·textarea로 좁힌 이유는, 안드로이드는
  * 버튼을 눌러도 포커스가 남아서 탭바가 인디케이터 밑으로 내려가기 때문이다.
  */
-export function PhoneFrame({ children }: { children: React.ReactNode }) {
+export function PhoneFrame({
+  children,
+  frameRef,
+  frameClassName = "",
+}: {
+  children: React.ReactNode;
+  frameRef?: React.Ref<HTMLDivElement>;
+  frameClassName?: string;
+}) {
   return (
     <div className="min-h-dvh bg-(--color-bg) md:flex md:items-center md:justify-center md:py-8">
-      <div className="phone-frame relative mx-auto flex h-dvh w-full max-w-[430px] flex-col overflow-hidden bg-(--color-surface) pb-[calc(env(safe-area-inset-bottom)/2)] pt-[env(safe-area-inset-top)] has-[input:focus]:pb-0 has-[textarea:focus]:pb-0 md:h-[900px] md:w-[430px] md:rounded-[2.5rem] md:shadow-xl md:ring-1 md:ring-(--color-border)">
+      <div ref={frameRef} className={`phone-frame relative mx-auto flex h-dvh w-full max-w-[430px] flex-col overflow-hidden bg-(--color-surface) pb-[calc(env(safe-area-inset-bottom)/2)] pt-[env(safe-area-inset-top)] has-[input:focus]:pb-0 has-[textarea:focus]:pb-0 md:h-[900px] md:w-[430px] md:rounded-[2.5rem] md:shadow-xl md:ring-1 md:ring-(--color-border) ${frameClassName}`.trim()}>
         {children}
       </div>
     </div>
