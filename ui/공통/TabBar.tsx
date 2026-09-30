@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import type { ReactNode, Ref } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Compass, Heart, House, MessageCircle, User } from "lucide-react";
@@ -10,6 +10,7 @@ import { useLiveBadges } from "@ui/공통/useLiveBadges";
 interface TabBarMainProps {
   children: ReactNode;
   className?: string;
+  scrollRef?: Ref<HTMLElement>;
 }
 
 /**
@@ -20,10 +21,10 @@ interface TabBarMainProps {
  * 콘텐츠 길이와 상관없이 바닥에 붙는다. 탭바를 main 안에 넣으면 본문과
  * 같이 밀려 내려가 스크롤해야 보인다.
  */
-export function TabBarMain({ children, className = "" }: TabBarMainProps) {
+export function TabBarMain({ children, className = "", scrollRef }: TabBarMainProps) {
   return (
     <>
-      <main className="flex flex-1 flex-col overflow-y-auto">
+      <main ref={scrollRef} className="flex flex-1 flex-col overflow-y-auto">
         <div className={`flex flex-1 flex-col ${className}`.trim()}>{children}</div>
       </main>
       <TabBar />
