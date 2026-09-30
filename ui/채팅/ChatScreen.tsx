@@ -445,7 +445,7 @@ export function ChatScreen({ matchId }: { matchId: string }) {
 
   if (isHistoryLoading || historyError || !match) {
     return (
-      <PhoneFrame>
+      <ChatFrame>
         <header className="flex h-14 shrink-0 items-center border-b border-(--color-border) bg-(--color-surface) px-3">
           <button type="button" aria-label="뒤로가기" className="p-1" onClick={() => router.back()}>
             <ChevronLeft className="h-5 w-5" />
@@ -464,7 +464,7 @@ export function ChatScreen({ matchId }: { matchId: string }) {
             </Button>
           ) : null}
         </div>
-      </PhoneFrame>
+      </ChatFrame>
     );
   }
 
@@ -472,7 +472,7 @@ export function ChatScreen({ matchId }: { matchId: string }) {
   const profileSubInfo = [partner.mbti, partner.department].filter(Boolean).join(" · ");
 
   return (
-    <PhoneFrame>
+    <ChatFrame>
       <Toast
         open={toastMessage !== null}
         message={toastMessage ?? ""}
@@ -624,6 +624,45 @@ export function ChatScreen({ matchId }: { matchId: string }) {
       ) : (
         <ClosedComposer />
       )}
+    </ChatFrame>
+  );
+}
+
+/** 키보드가 보이는 동안에도 채팅 헤더가 화면 위에 남도록 채팅 틀만 맞춘다. */
+function ChatFrame({ children }: { children: React.ReactNode }) {
+  const frameRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+
+    let frame = 0;
+    const sync = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        const element = frameRef.current;
+        if (!element) return;
+        element.style.setProperty("--chat-viewport-top", `${viewport.offsetTop}px`);
+        element.style.setProperty("--chat-viewport-height", `${viewport.height}px`);
+      });
+    };
+
+    sync();
+    viewport.addEventListener("resize", sync);
+    viewport.addEventListener("scroll", sync);
+    return () => {
+      viewport.removeEventListener("resize", sync);
+      viewport.removeEventListener("scroll", sync);
+      window.cancelAnimationFrame(frame);
+    };
+  }, []);
+
+  return (
+    <PhoneFrame
+      frameRef={frameRef}
+      frameClassName="max-md:fixed max-md:inset-x-0 max-md:top-[var(--chat-viewport-top,0px)] max-md:h-[var(--chat-viewport-height,100dvh)]"
+    >
+      {children}
     </PhoneFrame>
   );
 }
