@@ -4,7 +4,7 @@ import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } f
 import type { FormEvent, UIEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowUp, ChevronDown, ChevronLeft, ChevronUp, Clock, Gift, Lock, Siren } from "lucide-react";
+import { ArrowUp, ChevronDown, ChevronLeft, Clock, Lock, Siren } from "lucide-react";
 import { Avatar } from "@ui/공통/Avatar";
 import { Button } from "@ui/공통/Button";
 import { PhoneFrame } from "@ui/공통/PhoneFrame";
@@ -65,10 +65,6 @@ export function ChatScreen({ matchId }: { matchId: string }) {
   const [match, setMatch] = useState<MatchResponse | null>(null);
   const [missionProgress, setMissionProgress] =
     useState<MissionProgressResponse | null>(null);
-  const [missionExpansion, setMissionExpansion] = useState<{
-    matchId: number;
-    expanded: boolean;
-  } | null>(null);
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [input, setInput] = useState("");
   const [isHistoryLoading, setIsHistoryLoading] = useState(true);
@@ -85,9 +81,6 @@ export function ChatScreen({ matchId }: { matchId: string }) {
   const pendingTimeoutsRef = useRef(new Map<string, number>());
   const preserveScrollHeightRef = useRef<number | null>(null);
   const shouldAutoScrollRef = useRef(true);
-  const keepBottomAfterMissionToggleRef = useRef(false);
-  const isMissionExpanded =
-    missionExpansion?.matchId === numericMatchId ? missionExpansion.expanded : true;
   // 대조(reconcileHistory)가 매번 최신 상태를 봐야 하는데, 소켓 이펙트를 messages가
   // 바뀔 때마다 다시 돌리고 싶지는 않다(그러면 메시지가 올 때마다 재연결된다). 그래서
   // 최신 messages를 여기 따로 미러링해 두고 이펙트 의존성에서는 뺀다.
@@ -326,20 +319,6 @@ export function ChatScreen({ matchId }: { matchId: string }) {
     return () => window.cancelAnimationFrame(frame);
   }, [messages]);
 
-  useLayoutEffect(() => {
-    if (!keepBottomAfterMissionToggleRef.current) return;
-    const list = messageListRef.current;
-    if (list) list.scrollTop = list.scrollHeight;
-    keepBottomAfterMissionToggleRef.current = false;
-  }, [isMissionExpanded]);
-
-  const toggleMission = () => {
-    const list = messageListRef.current;
-    keepBottomAfterMissionToggleRef.current =
-      !!list && list.scrollHeight - list.scrollTop - list.clientHeight < 80;
-    setMissionExpansion({ matchId: numericMatchId, expanded: !isMissionExpanded });
-  };
-
   const loadOlderMessages = useCallback(async () => {
     if (!match || !hasOlder || isLoadingOlder) return;
     const oldestId = oldestMessageId(messages);
@@ -564,40 +543,18 @@ export function ChatScreen({ matchId }: { matchId: string }) {
         </div>
       ) : null}
 
+      {/*
+        접기 버튼은 두지 않는다. 미션 문구가 길어서(390px 기준 절반 넘게 한 줄을
+        넘긴다) 한 줄로 줄이면 "…찾아 사진 찍기"처럼 무엇을 하라는 건지가 잘려
+        나간다 — 접힌 모습이 보여줄 게 없으면 접을 이유도 없다.
+      */}
       {missionProgress ? (
         <section aria-label="미션 상태" className="shrink-0 bg-(--color-surface) px-3 py-2">
-          <button
-            type="button"
-            aria-expanded={isMissionExpanded}
-            aria-controls={`chat-mission-${match.matchId}`}
-            onClick={toggleMission}
-            className="flex h-9 w-full items-center gap-2 rounded-(--radius-md) px-1 text-left text-xs font-semibold text-(--color-text-body)"
-          >
-            <Gift className="h-4 w-4 shrink-0 text-(--color-primary)" aria-hidden="true" />
-            <span className="min-w-0 flex-1 truncate">
-              {isMissionExpanded
-                ? "미션"
-                : missionProgress.currentStep > 3
-                  ? "미션 완료"
-                  : `STEP ${missionProgress.currentStep} · ${missionProgress.currentMission?.title ?? "미션 확인"}`}
-            </span>
-            <span className="shrink-0">{isMissionExpanded ? "접기" : "펼치기"}</span>
-            {isMissionExpanded ? (
-              <ChevronUp className="h-4 w-4 shrink-0" aria-hidden="true" />
-            ) : (
-              <ChevronDown className="h-4 w-4 shrink-0" aria-hidden="true" />
-            )}
-          </button>
-          <div
-            id={`chat-mission-${match.matchId}`}
-            className={isMissionExpanded ? "mt-1" : "hidden"}
-          >
-            <MissionStatusCard
-              progress={missionProgress}
-              href={`/match/${match.matchId}/mission`}
-              compact
-            />
-          </div>
+          <MissionStatusCard
+            progress={missionProgress}
+            href={`/match/${match.matchId}/mission`}
+            compact
+          />
         </section>
       ) : null}
 
