@@ -115,6 +115,21 @@
   --shadow-fab: 0 4px 12px rgba(79, 70, 229, 0.3);
 }
 
+/*
+ * 안쪽 스크롤이 끝에 닿아도 그 제스처가 문서로 넘어가지 않게 막는다.
+ *
+ * PhoneFrame은 h-dvh라 문서 자체는 스크롤할 게 없는데, 기본값(auto)이면 목록을
+ * 끝까지 내린 뒤 더 끌었을 때 브라우저가 문서를 고무줄처럼 당기거나 주소창을
+ * 접는다. 채팅은 틀이 position: fixed라 그 움직임이 "대화는 안 움직이고 화면만
+ * 움직이는" 것처럼 보인다.
+ *
+ * body가 아니라 html에 건다 — overscroll-behavior는 뷰포트로 전파될 때 루트
+ * 요소의 값을 쓰므로, body에만 주면 적용되지 않는다.
+ */
+html {
+  overscroll-behavior: none;
+}
+
 body {
   font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
 

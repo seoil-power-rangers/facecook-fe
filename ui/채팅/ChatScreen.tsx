@@ -562,7 +562,7 @@ export function ChatScreen({ matchId }: { matchId: string }) {
       <main
         ref={messageListRef}
         onScroll={handleScroll}
-        className="flex flex-1 flex-col gap-3 overflow-y-auto bg-(--color-chat-bg) p-4"
+        className="flex flex-1 flex-col gap-3 overflow-y-auto overscroll-contain bg-(--color-chat-bg) p-4"
       >
         {isLoadingOlder ? (
           <p className="text-center text-xs text-(--color-text-muted)">이전 메시지를 불러오는 중...</p>
