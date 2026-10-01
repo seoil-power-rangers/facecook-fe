@@ -239,37 +239,42 @@ export function ExploreScreen() {
         )}
       </header>
 
+      {/*
+        헤더 바로 아래, 스크롤 영역 바깥에 둔다. 목록 안에 두면 필터를 누르려고
+        매번 맨 위까지 끌어올려야 한다 — 참가자가 늘수록 그 거리가 길어진다.
+        sticky 대신 TabBarMain 밖으로 꺼낸 이유는 PhoneFrame이 세로 flex라
+        형제로 두는 것만으로 고정되고, 카드가 비쳐 보이는 문제도 없기 때문이다.
+      */}
+      <div className="flex shrink-0 items-center justify-between px-4 pb-3">
+        {/*
+          목록에는 전원이 나오므로 전체 인원을 먼저 쓴다. 활동 중 인원만
+          적어두면 그만큼만 보이는 줄 알게 된다.
+
+          활동 중 인원은 서버의 isActive를 그대로 센 값이라 항상 정확하다
+          (아무도 활동 중이 아니면 정직하게 0명을 보여준다).
+        */}
+        <p className="text-sm text-(--color-text-sub)">
+          참가자 <span className="font-bold text-(--color-accent)">{members.length}명</span>
+          {" · 활동 중 "}
+          <span className="font-bold text-(--color-online)">{activeCount}명</span>
+        </p>
+
+        <button
+          type="button"
+          onClick={() => setIsFilterOpen(true)}
+          className="flex shrink-0 items-center gap-1.5 rounded-full bg-(--color-primary-lighter) px-4 py-2 text-sm font-bold text-(--color-text-body)"
+        >
+          <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+          필터
+          {countFilters(filters) > 0 ? (
+            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-(--color-accent) px-1 text-[11px] text-(--color-text-on-primary)">
+              {countFilters(filters)}
+            </span>
+          ) : null}
+        </button>
+      </div>
+
       <TabBarMain className="gap-3 px-4 pb-4" scrollRef={scrollRef}>
-        <div className="flex shrink-0 items-center justify-between">
-          {/*
-            목록에는 전원이 나오므로 전체 인원을 먼저 쓴다. 활동 중 인원만
-            적어두면 그만큼만 보이는 줄 알게 된다.
-
-            활동 중 인원은 서버의 isActive를 그대로 센 값이라 항상 정확하다
-            (아무도 활동 중이 아니면 정직하게 0명을 보여준다).
-          */}
-          <p className="text-sm text-(--color-text-sub)">
-            참가자{" "}
-            <span className="font-bold text-(--color-accent)">{members.length}명</span>
-            {" · 활동 중 "}
-            <span className="font-bold text-(--color-online)">{activeCount}명</span>
-          </p>
-
-          <button
-            type="button"
-            onClick={() => setIsFilterOpen(true)}
-            className="flex shrink-0 items-center gap-1.5 rounded-full bg-(--color-primary-lighter) px-4 py-2 text-sm font-bold text-(--color-text-body)"
-          >
-            <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
-            필터
-            {countFilters(filters) > 0 ? (
-              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-(--color-accent) px-1 text-[11px] text-(--color-text-on-primary)">
-                {countFilters(filters)}
-              </span>
-            ) : null}
-          </button>
-        </div>
-
         {isLoading ? (
           <p className="py-10 text-center text-sm text-(--color-text-sub)">
             참가자를 불러오는 중...
