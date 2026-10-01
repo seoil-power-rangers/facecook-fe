@@ -24,7 +24,8 @@ interface TabBarMainProps {
 export function TabBarMain({ children, className = "", scrollRef }: TabBarMainProps) {
   return (
     <>
-      <main ref={scrollRef} className="flex flex-1 flex-col overflow-y-auto">
+      {/* 목록 끝에서 더 끌었을 때 그 제스처가 문서로 넘어가지 않게 한다(globals.css의 html 참고). */}
+      <main ref={scrollRef} className="flex flex-1 flex-col overflow-y-auto overscroll-contain">
         <div className={`flex flex-1 flex-col ${className}`.trim()}>{children}</div>
       </main>
       <TabBar />
