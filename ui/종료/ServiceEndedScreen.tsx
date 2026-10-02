@@ -20,7 +20,7 @@ type SubmitState =
 
 /**
  * 서비스 종료 화면(facecook-fe#127). 종료 시각 이후에는 어느 주소로 들어와도 이 화면이 나온다(`src/proxy.ts`).
- * 로그인 화면의 로고와 배경을 그대로 쓰고, 운영진 인사말과 익명 후기 입력창을 보여 준다.
+ * 로그인 화면의 로고와 배경을 그대로 쓰고, 개발진 인사말과 익명 후기 입력창을 보여 준다.
  * 후기 목록은 보여 주지 않는다.
  */
 export function ServiceEndedScreen() {
@@ -91,9 +91,6 @@ export function ServiceEndedScreen() {
                 }}
               >
                 <h2 className="text-[16px] font-bold text-(--color-text-strong)">후기를 남겨 주세요</h2>
-                <p className="mt-1.5 text-[13px] leading-relaxed text-(--color-text-sub)">
-                  익명으로 저장되고 운영진만 읽어요. 이름·연락처 같은 개인정보는 적지 말아 주세요.
-                </p>
                 <div className="mt-4">
                   <Textarea
                     aria-label="후기"

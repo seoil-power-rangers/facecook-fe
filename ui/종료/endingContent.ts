@@ -1,16 +1,15 @@
 import { EVENT } from "@ui/공통/constants";
 
 /**
- * 종료 화면의 운영진 인사말(facecook-fe#127). 문안이 확정되면 이 파일만 고친다.
+ * 종료 화면의 개발진 인사말(facecook-fe#127). 문구를 바꿀 때는 이 파일만 고친다.
  */
 export const ENDING_MESSAGE = {
-  title: `${EVENT.name}가 종료되었어요`,
+  title: "콕 찔러보기가 종료되었습니다.",
   paragraphs: [
-    `제52회 용마대동제 ${EVENT.period}, ${EVENT.name}를 이용해 주셔서 고맙습니다.`,
-    "여러분이 주고받은 콕 하나하나 덕분에 부스가 더 따뜻했어요.",
-    `참가자 정보와 대화 기록은 ${EVENT.purgeDay}에 모두 삭제돼요.`,
+    "지금까지 서비스를 이용해 주셔서 감사합니다.",
+    `참가자 정보와 대화 기록은 ${EVENT.purgeDay}에 모두 삭제됩니다.`,
   ],
-  signature: `${EVENT.name} 운영진 드림`,
+  signature: "콕 찔러보기 개발진 드림",
 } as const;
 
 /** 후기 글자 수 제한. BE `feedback.content` 컬럼 길이와 같다. */
