@@ -1,5 +1,6 @@
 import type { ProfileResponse } from "@ui/프로필작성/profileApi";
 import { createSharedRequest, type SharedRequest } from "@ui/공통/sharedRequestCore";
+import { redirectIfServiceEnded } from "@ui/공통/serviceEnd";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "");
 
@@ -114,6 +115,7 @@ async function requestMatch<T>(path: string, init: RequestInit = {}): Promise<T>
     ApiErrorResponse;
 
   if (!response.ok) {
+    redirectIfServiceEnded(payload.code);
     throw new MatchApiError(
       payload.code ?? "UNKNOWN",
       payload.message ?? "요청을 처리하지 못했습니다.",

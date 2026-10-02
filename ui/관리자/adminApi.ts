@@ -5,6 +5,7 @@ import {
   type AdminMissionListItem,
   type AdminMissionsListResult,
 } from "./adminMissionsResponse";
+import { redirectIfServiceEnded } from "../공통/serviceEnd";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "");
 
@@ -211,6 +212,7 @@ async function requestAdmin<T>(
   const payload = (await response.json().catch(() => ({}))) as T &
     ApiErrorResponse;
   if (!response.ok) {
+    redirectIfServiceEnded(payload.code);
     throw new AdminApiError(
       payload.code ?? "UNKNOWN",
       payload.message ?? "관리자 요청을 처리하지 못했습니다.",

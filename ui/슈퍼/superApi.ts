@@ -1,3 +1,5 @@
+import { redirectIfServiceEnded } from "@ui/공통/serviceEnd";
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "");
 
 interface ApiErrorResponse {
@@ -118,6 +120,7 @@ async function requestSuper<T>(path: string): Promise<T> {
   const payload = (await response.json().catch(() => ({}))) as T &
     ApiErrorResponse;
   if (!response.ok) {
+    redirectIfServiceEnded(payload.code);
     throw new SuperApiError(
       payload.code ?? "UNKNOWN",
       payload.message ?? "요청을 처리하지 못했습니다.",

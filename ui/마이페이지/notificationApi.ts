@@ -1,4 +1,5 @@
 import { track } from "@ui/공통/analytics";
+import { redirectIfServiceEnded } from "@ui/공통/serviceEnd";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "");
 const SERVICE_WORKER_PATH = "/push-sw.js";
@@ -208,6 +209,7 @@ async function requestPush<T>(path: string, init: RequestInit = {}): Promise<T> 
 
   if (!response.ok) {
     const payload = (await response.json().catch(() => ({}))) as ApiErrorResponse;
+    redirectIfServiceEnded(payload.code);
     throw new NotificationApiError(
       payload.code ?? "UNKNOWN",
       payload.message ?? "알림 설정 요청을 처리하지 못했습니다.",

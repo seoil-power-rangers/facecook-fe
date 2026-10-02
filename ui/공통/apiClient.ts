@@ -1,3 +1,5 @@
+import { redirectIfServiceEnded } from "./serviceEnd";
+
 /**
  * 백엔드에 요청을 보내는 공통 뼈대.
  *
@@ -68,7 +70,8 @@ export function createApiRequest<E extends Error>({
     if (!response.ok) {
       const code = payload.code ?? "UNKNOWN";
       const message = payload.message ?? fallbackMessage;
-      onSignedOut?.(code, message, response.status);
+      // 서비스 종료 뒤에는 어느 화면이든 종료 화면으로 옮긴다(#127).
+      if (!redirectIfServiceEnded(code)) onSignedOut?.(code, message, response.status);
       throw makeError(code, message, response.status);
     }
 
