@@ -2,6 +2,7 @@ import { Client, type IMessage, type StompSubscription } from "@stomp/stompjs";
 import type { ChatMessageResponse } from "./chatApi";
 import { parseMissionFrame } from "@ui/미션/missionSocket";
 import type { MissionProgressResponse } from "@ui/미션/missionModel";
+import { redirectIfServiceEnded } from "@ui/공통/serviceEnd";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "");
 
@@ -90,8 +91,11 @@ export function connectChatSocket({
       onStatusChange("connected");
     },
     onStompError: (frame) => {
+      const error = parseError(frame.body, frame.headers.message);
+      // 서비스 종료 뒤에는 열려 있던 채팅방도 종료 화면으로 옮긴다(#127).
+      if (redirectIfServiceEnded(error.code)) return;
       onStatusChange("error");
-      onError(parseError(frame.body, frame.headers.message));
+      onError(error);
     },
     onWebSocketError: () => {
       if (intentionalDisconnect) return;

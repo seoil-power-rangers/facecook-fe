@@ -1,5 +1,6 @@
 import { track } from "./analytics";
 import { clearSession } from "./session";
+import { redirectIfServiceEnded } from "./serviceEnd";
 
 const NOTICE_KEY = "facecook:authNotice";
 
@@ -15,6 +16,8 @@ const NOTICE_KEY = "facecook:authNotice";
  */
 export function redirectToLoginOnSignOut(message?: string, reason = "UNKNOWN") {
   if (typeof window === "undefined") return;
+  // 서비스 종료(#127)는 로그인이 풀린 게 아니라 서비스가 닫힌 것이다 — 로그인 화면 대신 종료 화면으로 보낸다.
+  if (redirectIfServiceEnded(reason)) return;
   // clearSession()이 곧 식별을 끊으므로 그 전에 남긴다.
   track({ name: "session_expired", props: { reason } });
   try {

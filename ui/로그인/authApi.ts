@@ -1,3 +1,5 @@
+import { redirectIfServiceEnded } from "@ui/공통/serviceEnd";
+
 // 이 값을 모듈 로드 시점에 검사(throw)하면 안 된다 — Next.js가 /login, /mypage를
 // 빌드 시점에 정적 생성(prerender)하면서 이 모듈을 불러오기만 해도 그 검사가
 // 실행되고, 배포 환경에 NEXT_PUBLIC_API_BASE_URL이 아직 없으면 빌드 자체가
@@ -117,6 +119,7 @@ async function post<T>(path: string, body: unknown): Promise<T> {
     ApiErrorResponse;
 
   if (!response.ok) {
+    redirectIfServiceEnded(payload.code);
     throw new AuthApiError(
       payload.code ?? "UNKNOWN",
       payload.message ?? "요청을 처리하지 못했습니다.",
