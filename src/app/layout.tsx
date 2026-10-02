@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { AnalyticsBootstrap } from "@ui/공통/AnalyticsBootstrap";
+import { ServiceEndWatcher } from "@ui/공통/ServiceEndWatcher";
 import { PwaBootstrap } from "@ui/공통/PwaBootstrap";
 import "./globals.css";
 
@@ -61,6 +62,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full antialiased">
         <AnalyticsBootstrap />
         <PwaBootstrap />
+        <ServiceEndWatcher />
         {children}
       </body>
     </html>

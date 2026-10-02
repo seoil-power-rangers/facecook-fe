@@ -10,7 +10,8 @@
  * 새로 받는 것보다 위험하다 — 네트워크가 끊겼을 때 offline.html만 대신 보여준다.
  */
 
-const CACHE_NAME = "facecook-shell-v1";
+// offline.html 문구를 바꾸면 이름을 올린다 — 설치된 앱이 옛 문구를 계속 보여 주지 않게 activate에서 옛 캐시를 지운다.
+const CACHE_NAME = "facecook-shell-v2";
 const OFFLINE_PATH = "/offline.html";
 
 self.addEventListener("install", (event) => {
